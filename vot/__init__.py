@@ -1,0 +1,4 @@
+
+
+class VOTException(Exception):
+    pass
