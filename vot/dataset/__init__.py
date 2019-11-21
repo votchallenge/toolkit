@@ -46,9 +46,11 @@ class Frame(object):
         self._sequence = sequence
         self._index = index
         
+    @property
     def index(self) -> int:
         return self._index
     
+    @property
     def sequence(self) -> 'Sequence':
         return self._sequence
 
@@ -121,6 +123,7 @@ class PatternFileListChannel(Channel):
         self._height = im.shape[0]
         self._depth = im.shape[2]
 
+    @property
     def length(self):
         return len(self._files)
 
@@ -162,9 +165,11 @@ class Sequence(FrameList):
     def __len__(self):
         return self.length()        
 
+    @property
     def name(self):
         return self._name
-    
+
+    @property
     def dataset(self):
         return self._dataset
 
@@ -205,6 +210,7 @@ class Dataset(ABC):
     def __init__(self, path):
         self._path = path
         
+    @property
     def path(self):
         return self._path
     

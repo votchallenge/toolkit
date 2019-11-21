@@ -44,7 +44,19 @@ def do_workspace(config):
     pass
 
 def do_evaluate(config):
-    pass
+    
+    from vot.workspace import Workspace
+
+    registry = load_trackers(config.registry)
+    workspace = Workspace(config.workspace)
+
+    trackers = [registry[t.trim()] for t in config.trackers.split(",")]
+    
+    for tracker in trackers:
+        for experiment in workspace.stack:
+            for sequence in workspace.dataset:
+                experiment.execute(tracker, sequence, experiment.results(tracker, experiment, sequence))
+
 
 def do_analysis(config):
     pass
@@ -53,7 +65,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Utility', prog="vot")
     parser.add_argument("--debug", "-d", action=EnvDefault, envvar='VOT_DEBUG', default=False, help="Backup backend", required=False)
-    parser.add_argument("--registry", default=".", help='Tracker registry path', required=False)
+    parser.add_argument("--registry", default=".", help='Tracker registry path', required=False, action=EnvDefault, envvar='VOT_REGISTRY')
+    #parser.add_argument("--database", default=".", help='Global sequence database', required=False)
 
     subparsers = parser.add_subparsers(help='commands', dest='action', title="Commands")
 
@@ -61,8 +74,9 @@ if __name__ == '__main__':
     test_parser.add_argument("tracker", help='Tracker identifier')
     test_parser.add_argument("--visualize", "-g", default=False, help='Visualize results of the test session')
 
-    workspace_parser = subparsers.add_parser('workspace', help='Create a new workspace and download a dataset')
-    workspace_parser.add_argument("dataset", help='Dataset to download')
+    workspace_parser = subparsers.add_parser('workspace', help='Setup a new workspace and download data')
+    workspace_parser.add_argument("--workspace", default=".", help='Workspace path')
+    workspace_parser.add_argument("stack", help='Experiment stack')
 
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
     evaluate_parser.add_argument("trackers", nargs='?', default=None, help='Tracker identifiers')

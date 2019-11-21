@@ -34,7 +34,7 @@ def load_trackers(directory):
                 for k, v in metadata.items():
                     if not is_valid_identifier(k):
                         raise TrackerException("Invalid identifier: {}".format(k))
-                    trackers[k] = Tracker(**v)
+                    trackers[k] = Tracker(identifier= k, **v)
 
             if name.endswith(".ini"):
                 config = configparser.ConfigParser()
@@ -42,22 +42,30 @@ def load_trackers(directory):
                 for section in config.sections():
                     if not is_valid_identifier(section):
                         raise TrackerException("Invalid identifier: {}".format(section))
-                    trackers[section] = Tracker(**config[section])
+                    trackers[section] = Tracker(identifier = section, **config[section])
     return trackers
 
 class Tracker(object):
 
-    def __init__(self, command, protocol="trax", label=None, **kwargs):
+    def __init__(self, identifier, command, protocol=None, label=None, **kwargs):
+        self._identifier = identifier
         self._command = command
         self._protocol = protocol
         self._label = label
         self._args = kwargs
 
     def runtime(self) -> "TrackerRuntime":
+        if not self._protocol:
+            raise TrackerException("Tracker does not have an attached executable")
+
         if not self._protocol in _runtime_protocols:
             raise TrackerException("Runtime protocol '{}' not available".format(self._protocol))
 
         return _runtime_protocols[self._protocol](self, self._command, **self._args)
+
+    @property
+    def identifier(self):
+        return self._identifier
 
     @property
     def label(self):
@@ -99,4 +107,5 @@ except OSError:
     pass
 
 except ImportError:
+    # TODO: print some kind of error
     pass
