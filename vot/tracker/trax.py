@@ -9,6 +9,7 @@ from trax.client import Client
 from trax.image import FileImage, MemoryImage, BufferImage
 from trax.region import Region as TraxRegion
 from trax.region import Polygon as TraxPolygon
+from trax.region import Mask as TraxMask
 from trax.region import Rectangle as TraxRectangle
 
 from vot.dataset import Frame
@@ -32,6 +33,8 @@ def convert_region(region:Region) -> TraxRegion:
         return TraxRectangle.create(region.x, region.y, region.width, region.height)
     elif isinstance(region, Polygon):
         return TraxPolygon.create(region.points)
+    elif isinstance(region, Mask):
+        return TraxMask.create(region.bitmask, x=region.offset[0], y=region.offset[1])
 
     return None
 
@@ -156,12 +159,18 @@ class TraxTrackerRuntime(TrackerRuntime):
         return self._process.frame(frame)
 
 
-def trax_python_adapter(tracker, command, paths, debug: bool=False):
+def trax_python_adapter(tracker, command, paths, debug: bool=False, linkpaths=[], virtualenv=None):
     pathimport = " ".join(["sys.path.import('{}');".format(x) for x in paths])
 
-    command = '{} -c "import sys; {} import {}"'.format(sys.executable, pathimport, command)
+    virtualenv_launch = ""
+    if virtualenv:
+        activate_function = os.path.join(os.path.join(virtualenv, "bin"), "activate_this.py")
+        if os.path.isfile(activate_function):
+            virtualenv_launch = "execfile('{}', dict(__file__='{}');".format(activate_function, activate_function)
 
-    return TraxTrackerRuntime(command, debug)
+    command = '{} -c "{} import sys; {} import {}"'.format(virtualenv_launch, sys.executable, pathimport, command)
+
+    return TraxTrackerRuntime(command, debug, linkpaths)
 
 def trax_matlab_adapter(tracker, command, paths, debug: bool=False, linkpaths=[]):
     pathimport = " ".join(["sys.path.import('{}');".format(x) for x in paths])

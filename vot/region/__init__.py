@@ -143,7 +143,7 @@ class Rectangle(Region):
             points.append((self.x, self.y + self.height))
             return Polygon(points)
 
-        elif region.type() == RegionType.MASK:
+        elif rtype == RegionType.MASK:
             return Mask(np.ones((self.height, self.width), np.uint8), (self.x, self.y))
         else:
             raise ConversionException("Unable to convert rectangle region to {}".format(rtype))
@@ -236,17 +236,17 @@ class Mask(Region):
 
     """
 
-    def __init__(self, bitmask: np.array, offset: Tuple[int, int] = (0, 0)):
+    def __init__(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
         super().__init__()
-        self._bitmask = bitmask
-        self._bitmask[self._bitmask != 0] = 255
-        self._offset = offset
+        self.mask = mask.astype(np.uint8)
+        self.mask[self.mask != 0] = 255
+        self.offset = offset
         self._optimize()
 
     def _optimize(self):
-        bounds = mask2bbox(self._bitmask)
-        self._bitmask = self._bitmask[bounds[1]:bounds[3], bounds[0]:bounds[2]]
-        self._offset = (bounds[0], bounds[1])
+        bounds = mask2bbox(self.mask)
+        self.mask = self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]]
+        self.offset = (bounds[0], bounds[1])
 
     def type(self):
         return RegionType.MASK
@@ -258,9 +258,9 @@ class Mask(Region):
         if rtype == RegionType.MASK:
             return self.copy()
         elif rtype == RegionType.RECTANGLE:
-            bounds = mask2bbox(self._bitmask)
+            bounds = mask2bbox(self.mask)
 
-            return Rectangle(bounds[0] + self._offset[0], bounds[1] + self._offset[1],
+            return Rectangle(bounds[0] + self.offset[0], bounds[1] + self.offset[1],
                             bounds[2] - bounds[0], bounds[3] - bounds[1])
         else:
             raise ConversionException("Unable to convert mask region to {}".format(rtype))
