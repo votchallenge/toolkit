@@ -1,3 +1,5 @@
+import os
+os.environ['PATH'] = r"C:\Users\ALAN-PC\.conda\envs\pytracking\Library\bin;" + os.environ['PATH']
 import sys
 
 from copy import copy
@@ -10,7 +12,6 @@ import numpy as np
 import cv2
 
 from vot import VOTException
-from vot.region.utils import mask2bbox, mask_to_rle
 
 
 class ConversionException(VOTException):
@@ -51,7 +52,6 @@ class Region(ABC):
         Arguments:
             rtype {RegionType} -- Desired type.
         """
-
 
 class Special(Region):
     """
@@ -200,13 +200,14 @@ class Polygon(Region):
         elif rtype == RegionType.MASK:
             x_ = np.round(np.array([p[0] for p in self.points])).astype(np.int32)
             y_ = np.round(np.array([p[1] for p in self.points])).astype(np.int32)
-            tl_ = (np.min(x_), np.min(y_))
+            tl_ = (max(0, np.min(x_)), max(0, np.min(y_)))  # there is no need to consider negative coordinates since fill poly function can work with negative coordinates
             w_ = np.max(x_) - tl_[0] + 1
             h_ = np.max(y_) - tl_[1] + 1
             # normalize points by x_min and y_min (so that the smallest element is 0)
             points_norm = [(px - tl_[0], py - tl_[1]) for px, py in zip(x_, y_)]
             m = np.zeros((h_, w_), dtype=np.uint8)
             cv2.fillConvexPoly(m, np.round(np.array(points_norm)).astype(np.int32), 1)
+
             return Mask(m, offset=tl_)
         else:
             raise ConversionException("Unable to convert polygon region to {}".format(rtype))
@@ -218,6 +219,8 @@ class Polygon(Region):
     def resize(self, factor=1):
         return Polygon([(p[0] * factor, p[1] * factor) for p in self.points])
 
+from vot.region.utils import mask2bbox, mask_to_rle
+
 class Mask(Region):
     """Mask region
     """
@@ -225,7 +228,7 @@ class Mask(Region):
     def __init__(self, mask: np.array, offset: Tuple[int, int] = (0, 0), optimize=False):
         super().__init__()
         self.mask = mask.astype(np.uint8)
-        self.mask[self.mask != 0] = 255
+        self.mask[self.mask > 0] = 1
         self.offset = offset
         if optimize:  # optimize is used when mask without an offset is given (e.g. full-image mask)
             self._optimize()
@@ -289,18 +292,18 @@ class Mask(Region):
                 dst_y1 = mask_.shape[0]
             mask_[dst_y0:dst_y1, dst_x0:dst_x1] = self.mask[src_y0:src_y1, src_x0:src_x1]
 
-        #mask_[tl_y:tl_y+region_h, tl_x:tl_x+region_w] = self.mask
-
         # pad with zeros right and down if output size is larger than current mask
         if output_sz is not None:
             pad_x = output_sz[0] - mask_.shape[1]
             if pad_x < 0:
-                print('Mask is larger than image (x-axis). This is not implemented yet.')
-                exit(-1)
+                mask_ = mask_[:, :mask_.shape[1] + pad_x]
+                # padding has to be set to zero, otherwise pad function fails
+                pad_x = 0
             pad_y = output_sz[1] - mask_.shape[0]
             if pad_y < 0:
-                print('Mask is larger than image (y-axis). This is not implemented yet.')
-                exit(-1)
+                mask_ = mask_[:mask_.shape[0] + pad_y, :]
+                # padding has to be set to zero, otherwise pad function fails
+                pad_y = 0
             mask_ = np.pad(mask_, ((0,pad_y), (0,pad_x)), 'constant', constant_values=0)
 
         return mask_

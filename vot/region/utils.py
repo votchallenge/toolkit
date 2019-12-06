@@ -1,3 +1,6 @@
+import os
+os.environ['PATH'] = r"C:\Users\ALAN-PC\.conda\envs\pytracking\Library\bin;" + os.environ['PATH']
+
 import numpy as np
 import cv2
 from numba import jit
@@ -94,9 +97,15 @@ def mask2bbox(mask):
     """
     rows = np.any(mask, axis=1)
     cols = np.any(mask, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]]
-    cmin, cmax = np.where(cols)[0][[0, -1]]
-    return (cmin, rmin, cmax, rmax)
+    rows_i = np.where(rows)[0]
+    cols_i = np.where(cols)[0]
+    if len(rows_i) > 0 and len(cols_i) > 0:
+        rmin, rmax = rows_i[[0, -1]]
+        cmin, cmax = cols_i[[0, -1]]
+        return (cmin, rmin, cmax, rmax)
+    else:
+        # mask is empty
+        return (None, None, None, None)
 
 def encode_mask(mask):
     """
@@ -108,17 +117,22 @@ def encode_mask(mask):
     """
     # calculate coordinates of the top-left corner and region width and height (minimal region containing all 1s)
     x_min, y_min, x_max, y_max = mask2bbox(mask)
-    tl_x = x_min
-    tl_y = y_min
-    region_w = x_max - x_min + 1
-    region_h = y_max - y_min + 1
 
-    # extract target region from the full mask and calculate RLE
-    # do not use full mask to optimize speed and space
-    target_mask = mask[tl_y:tl_y+region_h, tl_x:tl_x+region_w]
-    rle = mask_to_rle(np.array(target_mask))
+    # handle the case when the mask empty
+    if x_min is None:
+        return (0, 0, 0, 0), [0]
+    else:
+        tl_x = x_min
+        tl_y = y_min
+        region_w = x_max - x_min + 1
+        region_h = y_max - y_min + 1
 
-    return (tl_x, tl_y, region_w, region_h), rle
+        # extract target region from the full mask and calculate RLE
+        # do not use full mask to optimize speed and space
+        target_mask = mask[tl_y:tl_y+region_h, tl_x:tl_x+region_w]
+        rle = mask_to_rle(np.array(target_mask))
+
+        return (tl_x, tl_y, region_w, region_h), rle
 
 def create_mask_from_string(mask_encoding):
     """
@@ -135,3 +149,71 @@ def create_mask_from_string(mask_encoding):
     mask = rle_to_mask(rle, region_w, region_h)
 
     return mask, (tl_x, tl_y)
+
+@jit(nopython=True)
+def mask_mask_overlap(m1, m2):
+    m_inter_sum = np.sum(m1 * m2)
+    union_sum = np.sum(m1) + np.sum(m2) - m_inter_sum
+    return float(m_inter_sum) / float(union_sum)
+
+def are_overlaping(tl_1, br_1, tl_2, br_2):
+    # one rectangle is on left side of other
+    if tl_1[0] > br_2[0] or tl_2[0] > br_1[0]:
+        return False
+    # one rectangle is above the other
+    if tl_1[1] > br_2[1] or tl_2[1] > br_1[1]:
+        return False
+    # rectangles are intersecting
+    return True
+
+from vot.region.shapes import Region, RegionType
+
+def calculate_overlap(reg1: Region, reg2: Region, image_sz=None):
+    """
+    Inputs: reg1 and reg2 are Region objects (Rectangle, Polygon or Mask)
+    image_sz: size of the image, format: [width, height]
+    function first rasterizes both regions to 2-D binary masks and calculates overlap between them
+    """
+    # if one of the regions is special type - return overlap = 0
+    if reg1.type() == RegionType.SPECIAL or reg2.type() == RegionType.SPECIAL:
+        return 0
+    # convert both regions to mask
+    m1 = reg1.convert(RegionType.MASK)
+    m2 = reg2.convert(RegionType.MASK)
+    # check if the two regions even overlap
+    tl_1 = m1.offset  # top-left corner of the first region [x, y]
+    br_1 = (m1.offset[0] + m1.mask.shape[1] - 1, m1.offset[1] + m1.mask.shape[0] - 1)  # bottom-right corner of the first region [x, y]
+    tl_2 = m2.offset  # top-left corner of the second region [x, y]
+    br_2 = (m2.offset[0] + m2.mask.shape[1] - 1, m2.offset[1] + m2.mask.shape[0] - 1)  # bottom-right corner of the second region [x, y]
+    if are_overlaping(tl_1, br_1, tl_2, br_2):
+        mask_1 = (m1.get_array(output_sz=image_sz) > 0).astype(np.uint8)
+        mask_2 = (m2.get_array(output_sz=image_sz) > 0).astype(np.uint8)
+        if image_sz is None:
+            # since output size is not given both mask arrays are not the same size
+            # zero-padding is needed so that both masks will be the same size
+            if mask_1.shape[1] > mask_2.shape[1]:
+                mask_2 = np.pad(mask_2, ((0,0), (0,mask_1.shape[1] - mask_2.shape[1])), 'constant', constant_values=0)
+            elif mask_2.shape[1] > mask_1.shape[1]:
+                mask_1 = np.pad(mask_1, ((0,0), (0,mask_2.shape[1] - mask_1.shape[1])), 'constant', constant_values=0)
+            if mask_1.shape[0] > mask_2.shape[0]:
+                mask_2 = np.pad(mask_2, ((0,mask_1.shape[0] - mask_2.shape[0]), (0,0)), 'constant', constant_values=0)
+            elif mask_2.shape[0] > mask_1.shape[0]:
+                mask_1 = np.pad(mask_1, ((0,mask_2.shape[0] - mask_1.shape[0]), (0,0)), 'constant', constant_values=0)
+        # calculate overlap between two masks
+        return mask_mask_overlap(mask_1, mask_2)
+    else:
+        return float(0)
+
+def calculate_overlaps(regions_1, regions_2, image_sz=None):
+    """
+    regions_1 and regions_2 are lists containing objects of type Region
+    image_sz is in the format [width, height]
+    output: list of per-frame overlaps (floats)
+    """
+    if len(regions_1) != len(regions_2):
+        print('Error: trajectories must be the same length.')
+        exit(-1)
+    overlaps = [0] * len(regions_1)
+    for i in range(len(regions_1)):
+        overlaps[i] = calculate_overlap(regions_1[i], regions_2[i], image_sz=image_sz)
+    return overlaps
