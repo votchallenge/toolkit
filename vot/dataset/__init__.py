@@ -202,6 +202,7 @@ class Sequence(FrameList):
         pass
     
     @abstractmethod
+    @property
     def length(self):
         pass
 

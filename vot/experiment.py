@@ -7,8 +7,9 @@ import glob
 from abc import abstractmethod, ABC
 
 from vot.dataset import Sequence
-from vot.tracker import Tracker
+from vot.tracker import Tracker, Trajectory
 from vot.workspace import Results
+from vot.region import Special, Region
 
 class Experiment(ABC):
 
@@ -20,7 +21,7 @@ class Experiment(ABC):
         return self._identifier
 
     @abstractmethod
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results):
+    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
         pass
 
     @abstractmethod
@@ -39,17 +40,52 @@ class MultiRunExperiment(Experiment):
         return self._repetitions
 
     def scan(self, tracker: Tracker, sequence: Sequence, results: Results):
-        # TODO
-        pass
+        
+        files = []
+        complete = True
+
+        for i in range(1, self._repetitions+1):
+            name = "%s_%03d.txt" % (sequence.name, i)
+            if results.exists(name):
+                files.append(name)
+            else:
+                complete = False
+
+        name = "%s_time.txt" % (sequence.name)
+        if results.exists(name):
+            files.append(name)
+        else:
+            complete = False
+
+        return complete, files
 
 class UnsupervisedExperiment(MultiRunExperiment):
 
     def __init__(self, identifier, repetitions=1):
         super().__init__(identifier, repetitions)
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results):
-        # TODO
-        pass
+    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
+
+        for i in range(1, self._repetitions+1):
+            name = "%s_%03d" % (sequence.name, i)
+
+            if force or not Trajectory.exists(results, name):
+                continue
+
+            runtime = tracker.runtime()
+
+            trajectory = Trajectory(sequence.length)
+
+            _, properties = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+
+            trajectory.set(0, Special(Special.INITIALIZATION), properties)
+
+            for frame in range(start=1, end=sequence.length):
+                region, properties = runtime.update(sequence.frame(frame))
+
+                trajectory.set(frame, region, properties)
+
+            trajectory.write(results, name)
 
 class SupervisedExperiment(MultiRunExperiment):
 
@@ -71,7 +107,7 @@ class SupervisedExperiment(MultiRunExperiment):
     def failure_overlap(self):
         return self._failure_overlap
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results):
+    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
         # TODO
         pass
 
@@ -80,6 +116,6 @@ class RealtimeExperiment(SupervisedExperiment):
     def __init__(self, identifier, repetitions=1, burnin=0, skip_initialize = 1, failure_overlap = 0):
         super().__init__(identifier, repetitions, burnin, skip_initialize, failure_overlap)
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results):
+    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
         # TODO
         pass

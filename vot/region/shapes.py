@@ -59,6 +59,11 @@ class Special(Region):
 
     :var code: Code value
     """
+
+    UNKNOWN = 0
+    INITIALIZATION = 1
+    FAILURE = 2
+
     def __init__(self, code):
         """ Constructor
 

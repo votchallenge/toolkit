@@ -49,7 +49,7 @@ class VOTSequence(Sequence):
             self._channels["color"] = load_channel(os.path.join(os.path.join(self._base, "color"),
                                                    "%08d.jpg"))
         else:
-            self._metadata["channel.default"] = self._channels.iterkeys().next()
+            self._metadata["channel.default"] = iter(self._channels.keys()).first()
 
         self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(self._channels)).size()
 

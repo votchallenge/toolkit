@@ -1,3 +1,6 @@
+
+from typing import Union, TextIO
+
 from vot.region.shapes import Rectangle, Special, Polygon, Mask, RegionType
 from vot.region.utils import create_mask_from_string
 
@@ -22,19 +25,27 @@ def parse(string):
     print('Unknown region format.')
     return None
 
-def read_file(file_path):
-    with open(file_path) as file:
-        lines = file.readlines()
-        regions = [0] * len(lines)
-        # iterate over all lines in the file
-        for i, line in enumerate(lines):
-            regions[i] = parse(line.strip())
-        return regions
+def read_file(fp: Union[str, TextIO]):
+    if isinstance(fp, str):
+        with open(fp) as file:
+            lines = file.readlines()
+    else:
+        lines = fp.readlines()
 
-def write_file(file_path, data):
+    regions = [0] * len(lines)
+    # iterate over all lines in the file
+    for i, line in enumerate(lines):
+        regions[i] = parse(line.strip())
+    return regions
+
+def write_file(fp: Union[str, TextIO], data):
     """
     data is a list where each element is a region
     """
-    with open(file_path, 'w') as file:
+    if isinstance(fp, str):
+        with open(fp, 'w') as file:
+            for region in data:
+                file.write('%s\n' % str(region))
+    else:
         for region in data:
-            file.write('%s\n' % str(region))
+            fp.write('%s\n' % str(region)) 
