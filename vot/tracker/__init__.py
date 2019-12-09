@@ -22,27 +22,30 @@ def is_valid_identifier(identifier):
 _runtime_protocols = {}
 
 
-def load_trackers(directory):
+def load_trackers(directories, root=os.getcwd()):
 
     trackers = dict()
 
-    for root, _, files in os.walk(directory):
-        for name in files:
-            if name.endswith(".yml") or name.endswith(".yaml"):
-                with open(os.path.join(root, name), 'r') as fp:
-                    metadata = yaml.load(fp)
-                for k, v in metadata.items():
-                    if not is_valid_identifier(k):
-                        raise TrackerException("Invalid identifier: {}".format(k))
-                    trackers[k] = Tracker(identifier= k, **v)
+    for directory in directories:
+        if not os.path.isabs(directory):
+            directory = os.path.normpath(os.path.join(root, directory))
+        for root, _, files in os.walk(directory):
+            for name in files:
+                if name.endswith(".yml") or name.endswith(".yaml"):
+                    with open(os.path.join(root, name), 'r') as fp:
+                        metadata = yaml.load(fp)
+                    for k, v in metadata.items():
+                        if not is_valid_identifier(k):
+                            raise TrackerException("Invalid identifier: {}".format(k))
+                        trackers[k] = Tracker(identifier= k, **v)
 
-            if name.endswith(".ini"):
-                config = configparser.ConfigParser()
-                config.read(os.path.join(root, name))
-                for section in config.sections():
-                    if not is_valid_identifier(section):
-                        raise TrackerException("Invalid identifier: {}".format(section))
-                    trackers[section] = Tracker(identifier = section, **config[section])
+                if name.endswith(".ini"):
+                    config = configparser.ConfigParser()
+                    config.read(os.path.join(root, name))
+                    for section in config.sections():
+                        if not is_valid_identifier(section):
+                            raise TrackerException("Invalid identifier: {}".format(section))
+                        trackers[section] = Tracker(identifier = section, **config[section])
     return trackers
 
 class Tracker(object):
@@ -109,3 +112,5 @@ except OSError:
 except ImportError:
     # TODO: print some kind of error
     pass
+
+from vot.tracker.trajectory import Trajectory
