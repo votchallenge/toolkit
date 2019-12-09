@@ -1,5 +1,5 @@
 
-import sys, os
+import sys, os, time
 import subprocess, shlex
 from typing import Tuple
 from threading import Thread, RLock
@@ -57,17 +57,32 @@ class TrackerProcess(object):
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT, 
                         env=envvars)
+        self._timeout = timeout
 
+        self._watchdog = Thread(self._watchdog_loop)
+        self._watchdog.start()
+
+        self._watchdog_reset(True)
         self._client = Client(
             streams=(self._process.stdin.fileno(), self._process.stdout.fileno())
         )
+        self._watchdog_reset(False)
 
- #       self._watchdog = Thread(self._watchdog_loop)
- #       self._watchdog.start()
-
- #   def _watchdog_loop(self):
- #       while True:
- #           pass
+    def _watchdog_reset(self, enable=True):
+        if enable:
+            self._watchdog_counter = self._timeout * 10
+        else:
+            self._watchdog_counter = -1
+        
+    def _watchdog_loop(self):
+        
+        while self.alive:
+            time.sleep(0.1)
+            if self._watchdog_counter < 0:
+                continue
+            self._watchdog_counter = self._watchdog_counter - 1
+            if not self._watchdog_counter:
+                self.terminate()
 
     @property
     def alive(self):
@@ -84,7 +99,11 @@ class TrackerProcess(object):
         tregion = convert_region(region)
 
         try:
+            self._watchdog_reset(True)
+
             region, properties = self._client.initialize(tlist, tregion, properties)
+
+            self._watchdog_reset(False)
 
             return convert_traxregion(region), properties.dict()
 
@@ -99,7 +118,11 @@ class TrackerProcess(object):
         tlist = convert_frame(frame)
 
         try:
+            self._watchdog_reset(True)
+
             region, properties = self._client.frame(tlist, properties)
+
+            self._watchdog_reset(False)
 
             return convert_traxregion(region), properties.dict()
 
