@@ -1,17 +1,26 @@
 
-import os
+import os, yaml, glob
 
 from vot import VOTException
 
 from vot.dataset import VOTDataset, Sequence, Dataset
 from vot.tracker import Tracker
-from vot.experiments import Experiment
-from vot.stacks import Stack
+from vot.experiment import Experiment
+from vot.stack import Stack, resolve_stack
+
+from vot.utilities import normalize
 
 class WorkspaceException(VOTException):
     pass
 
-def initialize_workspace(directory):
+def initialize_workspace(directory, config=dict()):
+    config_file = os.path.join(directory, "config.yaml")
+    if os.path.isfile(config_file):
+        raise WorkspaceException("Workspace already initialized")
+
+    with open(config_file, 'w') as fp:
+        yaml.dump(config, fp)
+
     os.makedirs(os.path.join(directory, "sequences"), exist_ok=True)
     os.makedirs(os.path.join(directory, "results"), exist_ok=True)
     os.makedirs(os.path.join(directory, "logs"), exist_ok=True)
@@ -24,16 +33,38 @@ class Results(object):
     def exists(self, name):
         return os.path.isfile(os.path.join(self._root, name))
 
-    def open(self, name, mode='r'):
-        return open(os.path.join(self._root, name), mode)
+    def read(self, name):
+        return open(os.path.join(self._root, name), 'r')
+
+    def write(self, name):
+        return open(os.path.join(self._root, name), 'w')
+
+    def find(self, pattern):
+        matches = glob.glob(os.path.join(self._root, pattern))
+
+        return [os.path.basename(match) for match in matches]
 
 class Workspace(object):
 
     def __init__(self, directory):
-        dataset_directory = os.path.join(directory, "sequences")
-        results_directory = os.path.join(directory, "results")
-        if not os.path.isdir(dataset_directory):
+        config_file = os.path.join(directory, "config.yaml")
+        if not os.path.isfile(config_file):
             raise WorkspaceException("Workspace not initialized")
+
+        with open(config_file, 'r') as fp:
+            self._config = yaml.load(fp)
+
+        if not "stack" in self._config:
+            raise WorkspaceException("Experiment stack not found in workspace configuration")
+
+        self._stack = resolve_stack(self._config["stack"])
+
+        if not self._stack:
+            raise WorkspaceException("Experiment stack does not exist")
+
+        dataset_directory = normalize(self._config.get("sequences", "sequences"), directory)
+        results_directory = normalize(self._config.get("results", "results"), directory)
+
         self._dataset = VOTDataset(dataset_directory)
         self._results = results_directory
 
@@ -43,7 +74,7 @@ class Workspace(object):
 
     @property
     def stack(self) -> Stack:
-        return None
+        return self._stack
 
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
         root = os.path.join(self._results, os.path.join(tracker.identifier, os.path.join(experiment.identifier, sequence.name)))
