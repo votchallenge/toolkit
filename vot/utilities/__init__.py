@@ -8,6 +8,12 @@ from typing import Tuple
 
 import six
 
+def import_class(cl):
+    d = cl.rfind(".")
+    classname = cl[d+1:len(cl)]
+    m = __import__(cl[0:d], globals(), locals(), [classname])
+    return getattr(m, classname)()
+
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
     return (size[1], size[0])
 
@@ -127,3 +133,10 @@ def which(program):
                 return exe_file
 
     return None
+
+def normalize(path, root=None):
+    if os.path.isabs(path):
+        return path
+    if not root:
+        root = os.getcwd()
+    return os.path.normpath(os.path.join(root, path))
