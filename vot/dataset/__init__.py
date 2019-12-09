@@ -201,8 +201,8 @@ class Sequence(FrameList):
     def size(self):
         pass
     
-    @abstractmethod
     @property
+    @abstractmethod
     def length(self):
         pass
 
