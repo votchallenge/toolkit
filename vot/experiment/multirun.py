@@ -1,33 +1,13 @@
 
-
 import os
 import json
 import glob
 
-from abc import abstractmethod, ABC
-
 from vot.dataset import Sequence
-from vot.tracker import Tracker, Trajectory
-from vot.workspace import Results
 from vot.region import Special, Region
 
-class Experiment(ABC):
-
-    def __init__(self, identifier:str):
-        self._identifier = identifier
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @abstractmethod
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
-        pass
-
-    @abstractmethod
-    def scan(self, tracker: Tracker, sequence: Sequence, results: Results):
-        pass
-
+from vot.experiment import Experiment
+from vot.tracker import Tracker, Trajectory, Results
 
 class MultiRunExperiment(Experiment):
 
@@ -69,7 +49,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
 
-            if force or not Trajectory.exists(results, name):
+            if Trajectory.exists(results, name) and not force:
                 continue
 
             runtime = tracker.runtime()

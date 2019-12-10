@@ -1,7 +1,7 @@
 
 
 from vot.stack import Stack
-from vot.experiment import SupervisedExperiment
+from vot.experiment import UnsupervisedExperiment, SupervisedExperiment
 
 class VOT2013(Stack):
 
@@ -9,7 +9,7 @@ class VOT2013(Stack):
     dataset = "vot2013"
 
     def __init__(self):
-        super().__init__(SupervisedExperiment("baseline"))
+        super().__init__(UnsupervisedExperiment("baseline"))
 
 class VOT2014(Stack):
 

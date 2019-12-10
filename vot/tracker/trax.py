@@ -16,8 +16,7 @@ from vot.dataset import Frame
 from vot.region import Region, Polygon, Rectangle, Special, Mask
 from vot.tracker import Tracker, TrackerRuntime, TrackerTimeoutException, TrackerException
 
-def convert_frame(frame:Frame) -> dict:
-    channels = ["color", "depth", "ir"]
+def convert_frame(frame:Frame, channels:list) -> dict:
     tlist = dict()
 
     for channel in channels:
@@ -59,7 +58,7 @@ class TrackerProcess(object):
                         env=envvars)
         self._timeout = timeout
 
-        self._watchdog = Thread(self._watchdog_loop)
+        self._watchdog = Thread(target=self._watchdog_loop)
         self._watchdog.start()
 
         self._watchdog_reset(True)
@@ -95,7 +94,7 @@ class TrackerProcess(object):
         if not self.alive:
             return None
 
-        tlist = convert_frame(frame)
+        tlist = convert_frame(frame, self._client.channels)
         tregion = convert_region(region)
 
         try:
@@ -115,7 +114,7 @@ class TrackerProcess(object):
         if not self.alive:
             return None
 
-        tlist = convert_frame(frame)
+        tlist = convert_frame(frame, self._client.channels)
 
         try:
             self._watchdog_reset(True)
@@ -183,21 +182,27 @@ class TraxTrackerRuntime(TrackerRuntime):
 
 
 def trax_python_adapter(tracker, command, paths, debug: bool=False, linkpaths=[], virtualenv=None):
-    pathimport = " ".join(["sys.path.import('{}');".format(x) for x in paths])
+    if not isinstance(paths, list):
+        paths = paths.split(os.pathsep)
+
+    pathimport = " ".join(["sys.path.insert(0, '{}')\n".format(x) for x in paths[::-1]])
 
     virtualenv_launch = ""
     if virtualenv:
         activate_function = os.path.join(os.path.join(virtualenv, "bin"), "activate_this.py")
         if os.path.isfile(activate_function):
-            virtualenv_launch = "execfile('{}', dict(__file__='{}');".format(activate_function, activate_function)
+            virtualenv_launch = "exec(open('{}').read(), dict(__file__='{}')) \n".format(activate_function, activate_function)
 
-    command = '{} -c "{} import sys; {} import {}"'.format(virtualenv_launch, sys.executable, pathimport, command)
+    command = '{} -c "{}import sys\n{}\nimport {}"'.format(sys.executable, virtualenv_launch, pathimport, command)
 
-    return TraxTrackerRuntime(command, debug, linkpaths)
+    return TraxTrackerRuntime(tracker, command, debug, linkpaths)
 
 def trax_matlab_adapter(tracker, command, paths, debug: bool=False, linkpaths=[]):
+    if not isinstance(paths, list):
+        paths = paths.split(os.pathsep)
+
     pathimport = " ".join(["sys.path.import('{}');".format(x) for x in paths])
 
     command = '{} -c "import sys; {} import {}"'.format(sys.executable, pathimport, command)
 
-    return TraxTrackerRuntime(command, debug, linkpaths)
+    return TraxTrackerRuntime(tracker, command, debug, linkpaths)

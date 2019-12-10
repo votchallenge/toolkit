@@ -110,6 +110,7 @@ class VOTSequence(Sequence):
     def size(self):
         return self.channel().size()
     
+    @property
     def length(self):
         return len(self._groundtruth)
 

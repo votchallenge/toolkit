@@ -4,7 +4,7 @@ import os, yaml, glob
 from vot import VOTException
 
 from vot.dataset import VOTDataset, Sequence, Dataset
-from vot.tracker import Tracker
+from vot.tracker import Tracker, Results
 from vot.experiment import Experiment
 from vot.stack import Stack, resolve_stack
 
@@ -25,25 +25,6 @@ def initialize_workspace(directory, config=dict()):
     os.makedirs(os.path.join(directory, "results"), exist_ok=True)
     os.makedirs(os.path.join(directory, "logs"), exist_ok=True)
 
-class Results(object):
-
-    def __init__(self, root):
-        self._root = root
-
-    def exists(self, name):
-        return os.path.isfile(os.path.join(self._root, name))
-
-    def read(self, name):
-        return open(os.path.join(self._root, name), 'r')
-
-    def write(self, name):
-        return open(os.path.join(self._root, name), 'w')
-
-    def find(self, pattern):
-        matches = glob.glob(os.path.join(self._root, pattern))
-
-        return [os.path.basename(match) for match in matches]
-
 class Workspace(object):
 
     def __init__(self, directory):
@@ -52,7 +33,7 @@ class Workspace(object):
             raise WorkspaceException("Workspace not initialized")
 
         with open(config_file, 'r') as fp:
-            self._config = yaml.load(fp)
+            self._config = yaml.load(fp, Loader=yaml.BaseLoader)
 
         if not "stack" in self._config:
             raise WorkspaceException("Experiment stack not found in workspace configuration")
@@ -67,6 +48,10 @@ class Workspace(object):
 
         self._dataset = VOTDataset(dataset_directory)
         self._results = results_directory
+
+    @property
+    def registry(self):
+        return self._config.get("registry", [])
 
     @property
     def dataset(self) -> Dataset:

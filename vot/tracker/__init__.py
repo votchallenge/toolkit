@@ -2,6 +2,7 @@
 import os
 import configparser
 import yaml
+import logging
 from typing import Tuple
 
 from abc import abstractmethod, ABC
@@ -26,14 +27,17 @@ def load_trackers(directories, root=os.getcwd()):
 
     trackers = dict()
 
+    logger = logging.getLogger("vot")
+
     for directory in directories:
+        logger.info("Scanning directory %s", directory)
         if not os.path.isabs(directory):
             directory = os.path.normpath(os.path.join(root, directory))
         for root, _, files in os.walk(directory):
             for name in files:
                 if name.endswith(".yml") or name.endswith(".yaml"):
                     with open(os.path.join(root, name), 'r') as fp:
-                        metadata = yaml.load(fp)
+                        metadata = yaml.load(fp, Loader=yaml.BaseLoader)
                     for k, v in metadata.items():
                         if not is_valid_identifier(k):
                             raise TrackerException("Invalid identifier: {}".format(k))
@@ -113,4 +117,4 @@ except ImportError:
     # TODO: print some kind of error
     pass
 
-from vot.tracker.trajectory import Trajectory
+from vot.tracker.results import Trajectory, Results

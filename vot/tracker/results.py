@@ -1,8 +1,26 @@
 
-import os
+import os, glob
 from copy import copy
 from vot.region import Region, Special, write_file, read_file
-from vot.workspace import Results
+
+class Results(object):
+
+    def __init__(self, root):
+        self._root = root
+
+    def exists(self, name):
+        return os.path.isfile(os.path.join(self._root, name))
+
+    def read(self, name):
+        return open(os.path.join(self._root, name), 'r')
+
+    def write(self, name):
+        return open(os.path.join(self._root, name), 'w')
+
+    def find(self, pattern):
+        matches = glob.glob(os.path.join(self._root, pattern))
+
+        return [os.path.basename(match) for match in matches]
 
 class Trajectory(object):
 

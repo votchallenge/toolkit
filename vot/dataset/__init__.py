@@ -105,7 +105,7 @@ class PatternFileListChannel(Channel):
         i = 1
         self._files = []
 
-        fullpattern = os.path.join(self.base(), self._pattern)
+        fullpattern = os.path.join(self.base, self._pattern)
         
         while True:
             image_file = os.path.join(fullpattern % i)
@@ -128,7 +128,7 @@ class PatternFileListChannel(Channel):
         return len(self._files)
 
     def frame(self, index):
-        if index < 0 or index >= self.length():
+        if index < 0 or index >= self.length:
             return None
 
         bgr = cv2.imread(self._files[index])
@@ -138,7 +138,7 @@ class PatternFileListChannel(Channel):
         return self._width, self._height
 
     def filename(self, index):
-        if index < 0 or index >= self.length():
+        if index < 0 or index >= self.length:
             return None
 
         return self._files[index]
@@ -163,7 +163,7 @@ class Sequence(FrameList):
         self._dataset = dataset
     
     def __len__(self):
-        return self.length()        
+        return self.length     
 
     @property
     def name(self):

@@ -12,6 +12,8 @@ class EnvDefault(argparse.Action):
         if not default and envvar:
             if envvar in os.environ:
                 default = os.environ[envvar]
+        if separator:
+            default = default.split(separator)
         if required and default:
             required = False
         self.separator = separator
@@ -83,19 +85,23 @@ def do_evaluate(config, logger):
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
-    registry = load_trackers(config.registry)
+    registry = load_trackers(workspace.registry + config.registry)
 
     logger.info("Found data for %d trackers", len(registry))
 
-    trackers = [registry[t.trim()] for t in config.trackers.split(",")]
-    
+    try:
+        trackers = [registry[t.strip()] for t in config.trackers.split(",")]
+    except KeyError as ke:
+        logger.error("Tracker not found %s", str(ke))
+        return
+
     for tracker in trackers:
-        logger.info(" = > Evaluating tracker %s", tracker)
+        logger.info(" |= > Evaluating tracker %s", tracker.identifier)
         for experiment in workspace.stack:
-            logger.info(" == > Running experiment %s", experiment.identifier)
+            logger.info(" |== > Running experiment %s", experiment.identifier)
             for sequence in workspace.dataset:
-                logger.info(" === > Sequence %s", sequence)
-                experiment.execute(tracker, sequence, experiment.results(tracker, experiment, sequence))
+                logger.info(" |=== > Sequence %s", sequence.name)
+                experiment.execute(tracker, sequence, workspace.results(tracker, experiment, sequence))
 
     logger.info("Evaluation concluded successfuly")
 
@@ -109,9 +115,10 @@ def do_pack(config, logger):
 if __name__ == '__main__':
 
     logger = logging.getLogger("vot")
+    logger.addHandler(logging.StreamHandler())
 
     parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Utility', prog="vot")
-    parser.add_argument("--debug", "-d", action=EnvDefault, envvar='VOT_DEBUG', default=False, help="Backup backend", required=False)
+    parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')
     parser.add_argument("--registry", default=".", help='Tracker registry paths', required=False, action=EnvDefault, \
         separator=os.path.pathsep, envvar='VOT_REGISTRY')
     #parser.add_argument("--database", default=".", help='Global sequence database', required=False)
