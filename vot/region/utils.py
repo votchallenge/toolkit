@@ -40,7 +40,7 @@ def mask_to_rle(m):
     # Output: list of numbers (1st number = #0s, 2nd number = #1s, 3rd number = #0s, ...)
     """
     # reshape mask to vector
-    v = np.reshape(m, (m.shape[0] * m.shape[1]))
+    v = m.reshape((m.shape[0] * m.shape[1]))
 
     # output is empty at the beginning
     rle = []
@@ -88,7 +88,8 @@ def rle_to_mask(rle, width, height):
         idx_ += rle[i]
 
     # reshape vector into 2-D mask
-    return np.reshape(np.array(v, dtype=np.uint8), (height, width))
+    # return np.reshape(np.array(v, dtype=np.uint8), (height, width)) # numba bug / not supporting np.reshape
+    return np.array(v, dtype=np.uint8).reshape((height, width))
 
 def mask2bbox(mask):
     """
