@@ -131,12 +131,22 @@ class TrackerProcess(object):
     def terminate(self):
         if not self.alive:
             return
+
+        self._client.quit()
+
         self._handle = None
-        self._process.wait(3)
+
+        try:
+            self._process.wait(3)
+        except subprocess.TimeoutExpired:
+            pass
 
         if self._process.returncode == None:
             self._process.terminate()
-            self._process.wait(3)
+            try:
+                self._process.wait(3)
+            except subprocess.TimeoutExpired:
+                pass
 
             if self._process.returncode == None:
                 self._process.kill()
@@ -175,11 +185,15 @@ class TraxTrackerRuntime(TrackerRuntime):
 
     def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict]:
         self._connect()
+
         return self._process.initialize(frame, region)
 
     def update(self, frame: Frame) -> Tuple[Region, dict]:
         return self._process.frame(frame)
 
+    def stop(self):
+        if self._process:
+            self._process.terminate()
 
 def trax_python_adapter(tracker, command, paths, debug: bool=False, linkpaths=[], virtualenv=None):
     if not isinstance(paths, list):

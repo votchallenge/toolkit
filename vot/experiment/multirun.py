@@ -52,18 +52,17 @@ class UnsupervisedExperiment(MultiRunExperiment):
             if Trajectory.exists(results, name) and not force:
                 continue
 
-            runtime = tracker.runtime()
-
             trajectory = Trajectory(sequence.length)
 
-            _, properties = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+            with tracker.runtime() as runtime:
+                _, properties = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
 
-            trajectory.set(0, Special(Special.INITIALIZATION), properties)
+                trajectory.set(0, Special(Special.INITIALIZATION), properties)
 
-            for frame in range(start=1, end=sequence.length):
-                region, properties = runtime.update(sequence.frame(frame))
+                for frame in range(1, sequence.length):
+                    region, properties = runtime.update(sequence.frame(frame))
 
-                trajectory.set(frame, region, properties)
+                    trajectory.set(frame, region, properties)
 
             trajectory.write(results, name)
 

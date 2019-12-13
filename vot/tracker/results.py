@@ -15,6 +15,8 @@ class Results(object):
         return open(os.path.join(self._root, name), 'r')
 
     def write(self, name):
+        if not os.path.isdir(self._root):
+            os.makedirs(self._root, exist_ok=True)
         return open(os.path.join(self._root, name), 'w')
 
     def find(self, pattern):
@@ -27,7 +29,6 @@ class Trajectory(object):
     @classmethod
     def exists(cls, results:Results, name:str) -> bool:
         return results.exists(name + ".txt")
-
 
     @classmethod
     def read(cls, results:Results, name:str) -> 'Trajectory':

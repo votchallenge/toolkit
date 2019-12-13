@@ -90,6 +90,16 @@ class TrackerRuntime(ABC):
     def tracker(self) -> Tracker:
         return self._tracker
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+    @abstractmethod
+    def stop(self):
+        pass
+
     @abstractmethod
     def restart(self):
         pass
