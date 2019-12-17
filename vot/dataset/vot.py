@@ -107,6 +107,7 @@ class VOTSequence(Sequence):
             return self._values.keys()
         return {v: sq[index] for v, sq in self._values.items()}
 
+    @property
     def size(self):
         return self.channel().size()
     
@@ -215,9 +216,19 @@ class VOTDataset(Dataset):
                     
 VOT_DATASETS = {
     "vot2013" : "http://data.votchallenge.net/vot2013/dataset/description.json",
-    "vot2014" : "http://data.votchallenge.net/vot2014/dataset/description.json"
-    
-    
+    "vot2014" : "http://data.votchallenge.net/vot2014/dataset/description.json",
+    "vot2015" : "http://data.votchallenge.net/vot2015/dataset/description.json",
+    "vot2015-tir" : "http://www.cvl.isy.liu.se/research/datasets/ltir/version1.0/ltir_v1_0_8bit.zip",
+    "vot2016" : "http://data.votchallenge.net/vot2016/main/description.json",
+    "vot2016-tir" : "http://data.votchallenge.net/vot2016/vot-tir2016.zip",    
+    "vot2017" : "http://data.votchallenge.net/vot2017/main/description.json",
+    "vot2018-st" : "http://data.votchallenge.net/vot2018/main/description.json",
+    "vot2018-lt" : "http://data.votchallenge.net/vot2018/longterm/description.json",
+    "vot2019-st" : "http://data.votchallenge.net/vot2019/main/description.json",
+    "vot2019-rgbd" : "http://data.votchallenge.net/vot2019/rgbd/description.json",
+    "vot2019-rgbt" : "http://data.votchallenge.net/vot2019/rgbtir/meta/description.json",
+    "test" : "http://data.votchallenge.net/toolkit/test.zip",
+    "segmentation" : "http://box.vicos.si/tracking/vot20_test_dataset.zip"
 }
                              
 def download_dataset(name, path="."):

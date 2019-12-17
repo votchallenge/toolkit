@@ -21,9 +21,11 @@ class Stack(object):
     def __iter__(self):
         return iter(self._experiments)
 
-from vot.stack.challenges import VOT2013, VOT2014
+from vot.stack.challenges import VOT2013, VOT2014, VOT2015, VOT2016, VOT2017, VOT2018, VOT2019
 
-_stacks = dict(vot2013=VOT2013(), vot2014=VOT2014())
+_stacks = dict(vot2013=VOT2013(), \
+    vot2014=VOT2014(), vot2015=VOT2015(), vot2016=VOT2016(), \
+    vot2017=VOT2017(), vot2018=VOT2018(), vot2019=VOT2019())
 
 def resolve_stack(name):
     if name in _stacks:
