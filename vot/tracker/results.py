@@ -55,10 +55,10 @@ class Trajectory(object):
         trajectory = Trajectory(len(regions))
         trajectory._regions = regions
 
-        for propertyfile in results.find(name + "_*.value"):
+        for propertyfile in results.find(name + "*.value"):
             with results.read(propertyfile) as filehandle:
-                propertyname = os.path.splitext(os.path.basename(propertyfile))[0][len(name):-1]
-                trajectory._properties[propertyname] = [float(line.strip()) for line in filehandle.readlines()]
+                propertyname = os.path.splitext(os.path.basename(propertyfile))[0][len(name)+1:]
+                trajectory._properties[propertyname] = [float(line.strip()) if line.strip() != '' else 'none' for line in filehandle.readlines()]
 
         return trajectory
 
