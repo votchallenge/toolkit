@@ -105,11 +105,11 @@ class TrackerRuntime(ABC):
         pass
 
     @abstractmethod
-    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict]:
+    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
         pass
 
     @abstractmethod
-    def update(self, frame: Frame) -> Tuple[Region, dict]: 
+    def update(self, frame: Frame) -> Tuple[Region, dict, float]: 
         pass
 
 try:

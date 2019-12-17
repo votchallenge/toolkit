@@ -89,7 +89,7 @@ class TrackerProcess(object):
             return False
         return self._process.returncode == None
 
-    def initialize(self, frame:Frame, region:Region, properties:dict = dict()) -> Tuple[Region,dict]:
+    def initialize(self, frame:Frame, region:Region, properties:dict = dict()) -> Tuple[Region,dict,float]:
 
         if not self.alive:
             return None
@@ -100,16 +100,16 @@ class TrackerProcess(object):
         try:
             self._watchdog_reset(True)
 
-            region, properties = self._client.initialize(tlist, tregion, properties)
+            region, properties, elapsed = self._client.initialize(tlist, tregion, properties)
 
             self._watchdog_reset(False)
 
-            return convert_traxregion(region), properties.dict()
+            return convert_traxregion(region), properties.dict(), elapsed
 
         except TraxException as te:
             raise TrackerException(te)
 
-    def frame(self, frame:Frame, properties:dict = dict()) -> Region:
+    def frame(self, frame:Frame, properties:dict = dict()) -> Tuple[Region,dict,float]:
 
         if not self.alive:
             return None
@@ -119,11 +119,11 @@ class TrackerProcess(object):
         try:
             self._watchdog_reset(True)
 
-            region, properties = self._client.frame(tlist, properties)
+            region, properties, elapsed = self._client.frame(tlist, properties)
 
             self._watchdog_reset(False)
 
-            return convert_traxregion(region), properties.dict()
+            return convert_traxregion(region), properties.dict(), elapsed
 
         except TraxException as te:
             raise TrackerException(te)
@@ -183,12 +183,12 @@ class TraxTrackerRuntime(TrackerRuntime):
             self._process.terminate()
         self._connect()
 
-    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict]:
+    def initialize(self, frame: Frame, region: Region) -> Tuple[Region,dict,float]:
         self._connect()
 
         return self._process.initialize(frame, region)
 
-    def update(self, frame: Frame) -> Tuple[Region, dict]:
+    def update(self, frame: Frame) -> Tuple[Region,dict,float]:
         return self._process.frame(frame)
 
     def stop(self):

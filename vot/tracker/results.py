@@ -31,6 +31,19 @@ class Trajectory(object):
         return results.exists(name + ".txt")
 
     @classmethod
+    def gather(cls, results:Results, name:str) -> list:
+
+        if not Trajectory.exists(results, name):
+            return []
+
+        files = [name + ".txt"]
+
+        for propertyfile in results.find(name + "_*.value"):
+            files.append(propertyfile)
+
+        return files
+
+    @classmethod
     def read(cls, results:Results, name:str) -> 'Trajectory':
 
         if not results.exists(name + ".txt"):
