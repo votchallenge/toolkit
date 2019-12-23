@@ -48,7 +48,7 @@ def convert_traxregion(region:TraxRegion) -> Region:
 class TrackerProcess(object):
 
     def __init__(self, command: str, envvars = dict(), timeout=30):
-        self._arguments = shlex.split(command)
+        self._arguments = shlex.split(command, posix=0)
         self._process = subprocess.Popen(
                         self._arguments, 
                         shell=False, 
