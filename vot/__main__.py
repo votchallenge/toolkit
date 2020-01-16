@@ -110,10 +110,58 @@ def do_analysis(config, logger):
     pass
 
 def do_pack(config, logger):
-    pass
 
-if __name__ == '__main__':
+    import zipfile
+    from shutil import copyfileobj
+    from datetime import datetime
+    from vot.workspace import Workspace
 
+    workspace = Workspace(config.workspace)
+
+    logger.info("Loaded workspace in '%s'", config.workspace)
+
+    registry = load_trackers(workspace.registry + config.registry)
+
+    logger.info("Found data for %d trackers", len(registry))
+
+    try:
+        tracker = registry[config.tracker]
+    except KeyError as ke:
+        logger.error("Tracker not found %s", str(ke))
+        return
+
+    logger.info("Packaging results for tracker %s", tracker.identifier)
+
+    all_files = []
+    can_finish = True
+
+    for experiment in workspace.stack:
+        logger.info(" |= > Scanning experiment %s", experiment.identifier)
+        for sequence in workspace.dataset:
+            results = workspace.results(tracker, experiment, sequence)
+            complete, files = experiment.scan(tracker, sequence, results)
+            all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
+            if not complete:
+                logger.error(" X= > Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name) 
+                can_finish = False
+
+    if not can_finish:
+        logger.error("Unable to continue, experiments not complete")
+        return
+
+    logger.info("Collected %d files, compressing to archive ...", len(all_files))
+
+    archive_name = "{}_{:%Y-%m-%dT%H:%M:%S.%f%z}".format(tracker.identifier, datetime.now())
+
+    with zipfile.ZipFile(archive_name, 'w') as archive:
+        for f in all_files:
+            with archive.open(os.path.join(f[1], f[2], f)) as fout, f[3].read(f[0]) as fin:
+                copyfileobj(fin, fout)
+
+    logger.info("Result packaging successful, archive available in %s", archive_name)
+
+
+def main():
     logger = logging.getLogger("vot")
     logger.addHandler(logging.StreamHandler())
 
@@ -170,3 +218,6 @@ if __name__ == '__main__':
 
 
     exit(0)
+
+if __name__ == '__main__':
+    main()
