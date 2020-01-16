@@ -157,7 +157,7 @@ class VOTDataset(Dataset):
             os.unlink(tmp_file)
             
         
-        if os.path.splitext(url) == '.zip':
+        if os.path.splitext(url)[1] == '.zip':
             print('Downloading sequence bundle from "{}". This may take a while ...'.format(url))
             
             try:

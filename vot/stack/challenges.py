@@ -57,3 +57,10 @@ class VOT2019(Stack):
     def __init__(self):
         super().__init__(SupervisedExperiment("baseline", repetitions=15, skip_initialize=5), \
              UnsupervisedExperiment("unsupervised", repetitions=1))
+
+class VOTSegmentation(Stack):
+
+    dataset = "segmentation"
+
+    def __init__(self):
+        super().__init__(UnsupervisedExperiment("unsupervised", repetitions=1))
