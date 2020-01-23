@@ -41,15 +41,15 @@ class Channel(ABC):
         pass
 
 class Frame(object):
-    
+
     def __init__(self, sequence, index):
         self._sequence = sequence
         self._index = index
-        
+
     @property
     def index(self) -> int:
         return self._index
-    
+
     @property
     def sequence(self) -> 'Sequence':
         return self._sequence
@@ -90,35 +90,34 @@ class SequenceIterator(object):
 
 class PatternFileListChannel(Channel):
 
-    def __init__(self, path):
+    def __init__(self, path, start=1, step=1):
         base, pattern = os.path.split(path)
         super().__init__(base)
-        self._pattern = pattern
-        self.__scan()
+        self.__scan(pattern, start, step)
 
-    def __scan(self):
-        
-        extension = os.path.splitext(self._pattern)[1]
+    def __scan(self, pattern, start, step):
+
+        extension = os.path.splitext(pattern)[1]
         if not extension in {'.jpg', '.png'}:
-            raise DatasetException("Invalid extension in pattern {}".format(self._pattern))
-        
-        i = 1
+            raise DatasetException("Invalid extension in pattern {}".format(pattern))
+
+        i = start
         self._files = []
 
-        fullpattern = os.path.join(self.base, self._pattern)
-        
+        fullpattern = os.path.join(self.base, pattern)
+
         while True:
             image_file = os.path.join(fullpattern % i)
 
             if not os.path.isfile(image_file):
                 break
-            self._files.append(image_file)
-            i = i + 1
+            self._files.append(os.path.basename(image_file))
+            i = i + step
 
-        if i < 1:
+        if i <= start:
             raise DatasetException("Empty sequence, no frames found.")
-            
-        im = cv2.imread(self._files[0])
+
+        im = cv2.imread(self.filename(0))
         self._width = im.shape[1]
         self._height = im.shape[0]
         self._depth = im.shape[2]
@@ -131,9 +130,10 @@ class PatternFileListChannel(Channel):
         if index < 0 or index >= self.length:
             return None
 
-        bgr = cv2.imread(self._files[index])
+        bgr = cv2.imread(self.filename(index))
         return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
+    @property
     def size(self):
         return self._width, self._height
 
@@ -141,13 +141,13 @@ class PatternFileListChannel(Channel):
         if index < 0 or index >= self.length:
             return None
 
-        return self._files[index]
+        return os.path.join(self.base, self._files[index])
 
 class FrameList(ABC):
-    
+
     def __iter__(self):
         return SequenceIterator(self)
-    
+
     @abstractmethod
     def __len__(self):
         pass
@@ -155,15 +155,15 @@ class FrameList(ABC):
     @abstractmethod
     def frame(self, index):
         pass
-  
+
 class Sequence(FrameList):
 
     def __init__(self, name, dataset = None):
         self._name = name
         self._dataset = dataset
-    
+
     def __len__(self):
-        return self.length     
+        return self.length
 
     @property
     def name(self):
@@ -180,7 +180,7 @@ class Sequence(FrameList):
     @abstractmethod
     def channel(self, channel=None):
         pass
-    
+
     @abstractmethod
     def channels(self):
         pass
@@ -201,39 +201,39 @@ class Sequence(FrameList):
     @abstractmethod
     def size(self):
         pass
-    
+
     @property
     @abstractmethod
     def length(self):
         pass
 
 class Dataset(ABC):
-    
+
     def __init__(self, path):
         self._path = path
-        
+
     @property
     def path(self):
         return self._path
-    
+
     @abstractmethod
     def __getitem__(self, key):
         pass
-    
+
     @abstractmethod
     def __hasitem__(self, key):
         return False
-    
+
     @abstractmethod
     def __iter__(self):
         pass
-    
+
     @abstractmethod
     def list(self):
         return []
-    
-    
-    
+
+
+
 from .vot import VOTDataset, VOTSequence
 
 from .vot import download_dataset as download_vot_dataset

@@ -16,7 +16,7 @@ def load_channel(source):
 
     if extension == '':
         source = os.path.join(source, '%08d.jpg')
-    
+
     return PatternFileListChannel(source)
 
 class VOTSequence(Sequence):
@@ -91,7 +91,7 @@ class VOTSequence(Sequence):
 
     def frame(self, index):
         return Frame(self, index)
-    
+
     def groundtruth(self, index=None):
         if index is None:
             return self._groundtruth
@@ -110,36 +110,36 @@ class VOTSequence(Sequence):
     @property
     def size(self):
         return self.channel().size()
-    
+
     @property
     def length(self):
         return len(self._groundtruth)
 
 
 class VOTDataset(Dataset):
-    
+
     def __init__(self, path):
         super().__init__(path)
-        
+
         if not os.path.isfile(os.path.join(path, "list.txt")):
             raise DatasetException("Dataset not available locally")
- 
+
         with open(os.path.join(path, "list.txt"), 'r') as fd:
             names = fd.readlines()
         self._sequences = { name.strip() : VOTSequence(os.path.join(path, name.strip()), name.strip(), self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
- 
+
     def path(self):
         return self._path
 
     def __getitem__(self, key):
         return self._sequences[key]
-    
+
     def __hasitem__(self, key):
         return key in self._sequences
-    
+
     def __iter__(self):
         return self._sequences.values().__iter__()
-    
+
     def list(self):
         return self._sequences.keys()
 
@@ -147,7 +147,7 @@ class VOTDataset(Dataset):
     def download(self, url, path="."):
         from vot.utilities import write_properties
         from vot.utilities.net import download, download_json, get_base_url, join_url, NetworkException
-        
+
         def download_uncompress(url, path):
             tmp_file = tempfile.mktemp() + ".zip"
             with Progress(unit='B', desc="Downloading", leave=False) as pbar:
@@ -155,11 +155,11 @@ class VOTDataset(Dataset):
             with Progress(unit='files', desc="Extracting", leave=True) as pbar:
                 extract_files(tmp_file, path, pbar.update_relative)
             os.unlink(tmp_file)
-            
-        
+
+
         if os.path.splitext(url)[1] == '.zip':
             print('Downloading sequence bundle from "{}". This may take a while ...'.format(url))
-            
+
             try:
                 download_uncompress(url, path)
             except NetworkException as e:
@@ -168,13 +168,13 @@ class VOTDataset(Dataset):
                 raise DatasetException("Unable to extract dataset bundle, is the target directory writable and do you have enough space?")
 
         else:
-       
+
             meta = download_json(url)
 
             print('Downloading sequence dataset "{}" with {} sequences.'.format(meta["name"], len(meta["sequences"])))
-        
+
             base_url = get_base_url(url) + "/"
-        
+
             for sequence in Progress(meta["sequences"]):
                 sequence_directory = os.path.join(path, sequence["name"])
                 os.makedirs(sequence_directory, exist_ok=True)
@@ -209,18 +209,18 @@ class VOTDataset(Dataset):
                         data["channels." + cname] = cname + os.path.sep
 
                 write_properties(os.path.join(sequence_directory, 'sequence'), data)
-            
+
             with open(os.path.join(path, "list.txt"), "w") as fp:
                 for sequence in meta["sequences"]:
                     fp.write('{}\n'.format(sequence["name"]))
-                    
+
 VOT_DATASETS = {
     "vot2013" : "http://data.votchallenge.net/vot2013/dataset/description.json",
     "vot2014" : "http://data.votchallenge.net/vot2014/dataset/description.json",
     "vot2015" : "http://data.votchallenge.net/vot2015/dataset/description.json",
     "vot2015-tir" : "http://www.cvl.isy.liu.se/research/datasets/ltir/version1.0/ltir_v1_0_8bit.zip",
     "vot2016" : "http://data.votchallenge.net/vot2016/main/description.json",
-    "vot2016-tir" : "http://data.votchallenge.net/vot2016/vot-tir2016.zip",    
+    "vot2016-tir" : "http://data.votchallenge.net/vot2016/vot-tir2016.zip",
     "vot2017" : "http://data.votchallenge.net/vot2017/main/description.json",
     "vot2018-st" : "http://data.votchallenge.net/vot2018/main/description.json",
     "vot2018-lt" : "http://data.votchallenge.net/vot2018/longterm/description.json",
@@ -230,7 +230,7 @@ VOT_DATASETS = {
     "test" : "http://data.votchallenge.net/toolkit/test.zip",
     "segmentation" : "http://box.vicos.si/tracking/vot20_test_dataset.zip"
 }
-                             
+
 def download_dataset(name, path="."):
     if not name in VOT_DATASETS:
         raise ValueError("Unknown dataset")
