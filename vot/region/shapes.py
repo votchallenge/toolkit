@@ -1,6 +1,4 @@
-import os
-os.environ['PATH'] = r"C:\Users\ALAN-PC\.conda\envs\pytracking\Library\bin;" + os.environ['PATH']
-import sys
+import os, sys
 
 from copy import copy
 from functools import reduce
@@ -12,7 +10,7 @@ import numpy as np
 import cv2
 
 from vot import VOTException
-
+from vot.utilities.draw import DrawHandle
 
 class ConversionException(VOTException):
     """Region conversion exception, the conversion cannot be performed
@@ -95,6 +93,9 @@ class Special(Region):
         """
         return self._code
 
+    def draw(self, handle: DrawHandle, color, width):
+        pass
+
 class Rectangle(Region):
     """
     Rectangle region
@@ -140,13 +141,11 @@ class Rectangle(Region):
         else:
             raise ConversionException("Unable to convert rectangle region to {}".format(rtype))
 
-    def draw(self, handle, color, width=1):
-        handle.line([(self.x, self.y), (self.x + self.width, self.y)], color, width)
-        handle.line([(self.x + self.width, self.y), (self.x + self.width, self.y + self.height)],
-                    color, width)
-        handle.line([(self.x + self.width, self.y + self.height), (self.x, self.y + self.height)],
-                    color, width)
-        handle.line([(self.x, self.y + self.height), (self.x, self.y)], color, width)
+    def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7), width=1):
+        polygon = [(self.x, self.y), (self.x + self.width, self.y), \
+            (self.x + self.width, self.y + self.height), \
+            (self.x, self.y + self.height)]
+        handle.polygon(polygon, width, color)
 
     def resize(self, factor=1):
         return Rectangle(self.x * factor, self.y * factor,
@@ -217,9 +216,8 @@ class Polygon(Region):
         else:
             raise ConversionException("Unable to convert polygon region to {}".format(rtype))
 
-    def draw(self, handle, color, width=1):
-        handle.line(self.points, color, width)
-        handle.line([self.points[0], self.points[-1]], color, width)
+    def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7), width=1):
+        handle.polygon(self.points, width, color)
 
     def resize(self, factor=1):
         return Polygon([(p[0] * factor, p[1] * factor) for p in self.points])
@@ -246,7 +244,7 @@ class Mask(Region):
 
     def _optimize(self):
         bounds = mask2bbox(self.mask)
-        self.mask = self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]]
+        self.mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
         self.offset = (bounds[0], bounds[1])
 
     def type(self):
@@ -267,6 +265,9 @@ class Mask(Region):
             return Polygon([(bounds[0], bounds[1]), (bounds[2], bounds[1]), (bounds[2], bounds[3]), (bounds[0], bounds[3])])
         else:
             raise ConversionException("Unable to convert mask region to {}".format(rtype))
+
+    def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7)):
+        handle.mask(self.mask, self.offset, color)
 
     def get_array(self, output_sz=None):
         """
@@ -309,6 +310,6 @@ class Mask(Region):
                 mask_ = mask_[:mask_.shape[0] + pad_y, :]
                 # padding has to be set to zero, otherwise pad function fails
                 pad_y = 0
-            mask_ = np.pad(mask_, ((0,pad_y), (0,pad_x)), 'constant', constant_values=0)
+            mask_ = np.pad(mask_, ((0, pad_y), (0, pad_x)), 'constant', constant_values=0)
 
         return mask_
