@@ -1,10 +1,7 @@
 
-import os
-import json
-import glob
 
 from vot.dataset import Sequence
-from vot.region import Special, Region, calculate_overlap
+from vot.region import Special, calculate_overlap
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory, Results
@@ -35,10 +32,7 @@ class MultiRunExperiment(Experiment):
 
 class UnsupervisedExperiment(MultiRunExperiment):
 
-    def __init__(self, identifier, repetitions=1):
-        super().__init__(identifier, repetitions)
-
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
+    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force: bool = False):
 
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
@@ -66,7 +60,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 class SupervisedExperiment(MultiRunExperiment):
 
-    def __init__(self, identifier, repetitions=1, skip_initialize = 1, skip_tags = (), failure_overlap = 0):
+    def __init__(self, identifier, repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0):
         super().__init__(identifier, repetitions)
         self._skip_initialize = skip_initialize
         self._skip_tags = skip_tags
@@ -84,7 +78,7 @@ class SupervisedExperiment(MultiRunExperiment):
     def failure_overlap(self):
         return self._failure_overlap
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
+    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force: bool = False):
 
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
@@ -126,7 +120,7 @@ class SupervisedExperiment(MultiRunExperiment):
 
 class RealtimeExperiment(SupervisedExperiment):
 
-    def __init__(self, identifier, repetitions=1, burnin=0, skip_initialize = 1, failure_overlap = 0):
+    def __init__(self, identifier, repetitions=1, burnin=0, skip_initialize = 1, failure_overlap = 0, grace=0):
         super().__init__(identifier, repetitions, burnin, skip_initialize, failure_overlap)
 
     def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):

@@ -15,12 +15,8 @@ class DatasetException(VOTException):
 
 class Channel(ABC):
 
-    def __init__(self, base):
-        self._base = base
-
-    @property
-    def base(self):
-        return self._base
+    def __init__(self):
+        pass
 
     @property
     @abstractmethod
@@ -91,9 +87,14 @@ class SequenceIterator(object):
 class PatternFileListChannel(Channel):
 
     def __init__(self, path, start=1, step=1):
+        super().__init__()
         base, pattern = os.path.split(path)
-        super().__init__(base)
+        self._base = base
         self.__scan(pattern, start, step)
+
+    @property
+    def base(self):
+        return self._base
 
     def __scan(self, pattern, start, step):
 
@@ -158,7 +159,7 @@ class FrameList(ABC):
 
 class Sequence(FrameList):
 
-    def __init__(self, name, dataset = None):
+    def __init__(self, name: str, dataset: "Dataset" = None):
         self._name = name
         self._dataset = dataset
 
@@ -186,11 +187,11 @@ class Sequence(FrameList):
         pass
 
     @abstractmethod
-    def groundtruth(self, index):
+    def groundtruth(self, index: int):
         pass
 
     @abstractmethod
-    def tags(self, index = None):
+    def tags(self, index=None):
         pass
 
     @abstractmethod

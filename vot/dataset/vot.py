@@ -51,7 +51,7 @@ class VOTSequence(Sequence):
         else:
             self._metadata["channel.default"] = iter(self._channels.keys()).first()
 
-        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(self._channels)).size()
+        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(self._channels)).size
 
         groundtruth_file = os.path.join(self._base, data.get("groundtruth", "groundtruth.txt"))
 
@@ -128,6 +128,7 @@ class VOTDataset(Dataset):
             names = fd.readlines()
         self._sequences = { name.strip() : VOTSequence(os.path.join(path, name.strip()), name.strip(), self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
 
+    @property
     def path(self):
         return self._path
 
