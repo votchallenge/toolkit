@@ -29,6 +29,6 @@ _stacks = dict(vot2013=VOT2013(), \
 def resolve_stack(name):
     if name in _stacks:
         return _stacks[name]
-    cls = import_class(name)
-    assert issubclass(cls, Stack)  # [AL] Check if this is ok
-    return cls()
+    stack = import_class(name)
+    assert isinstance(stack, Stack)  # [AL] Check if this is ok
+    return stack

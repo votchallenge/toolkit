@@ -6,31 +6,35 @@ from vot.region import Special
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory, Results
 
-def find_tag(sequence: Sequence, tag: str):
-    found = []
+def find_anchors(sequence: Sequence, anchor="anchor"):
+    forward = []
+    backward = []
     for frame in range(sequence.length):
-        if tag in sequence.tags(frame):
-            found.append(tag)
-    return found
-
+        values = sequence.values(frame)
+        if anchor in values:
+            if values[anchor] > 0:
+                forward.append(frame)
+            elif values[anchor] < 0:
+                backward.append(frame)
+    return forward, backward
 
 class MultiStartExperiment(Experiment):
 
-    def __init__(self, identifier: str, anchor_tag: str = "anchor"):
+    def __init__(self, identifier: str, anchor: str = "anchor"):
         super().__init__(identifier)
-        self._anchor_tag = anchor_tag
+        self._anchor = anchor
 
     def scan(self, tracker: Tracker, sequence: Sequence, results: Results):
         
         files = []
         complete = True
 
-        anchors = find_tag(sequence, self._anchor_tag)
+        forward, backward = find_anchors(sequence, self._anchor)
 
-        if len(anchors) == 0:
+        if len(forward) == 0 and len(backward) == 0:
             raise RuntimeError("Sequence does not contain any anchors")
 
-        for i in anchors:
+        for i in forward + backward:
             name = "%s_%08d" % (sequence.name, i)
             if Trajectory.exists(results, name):
                 files.extend(Trajectory.gather(results, name))
@@ -41,18 +45,18 @@ class MultiStartExperiment(Experiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force: bool = False):
 
-        anchors = find_tag(sequence, self._anchor_tag)
+        forward, backward = find_anchors(sequence, self._anchor)
 
-        if len(anchors) == 0:
+        if len(forward) == 0 and len(backward) == 0:
             raise RuntimeError("Sequence does not contain any anchors")
 
-        for i in anchors:
+        for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
             name = "%s_%08d" % (sequence.name, i)
 
             if Trajectory.exists(results, name) and not force:
                 continue
 
-            if i > sequence.length / 2:
+            if reverse:
                 proxy = FrameMapSequence(sequence, list(reversed(range(i, sequence.length))))
             else:
                 proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))

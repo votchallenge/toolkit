@@ -24,3 +24,5 @@ class Experiment(ABC):
         pass
 
 from .multirun import UnsupervisedExperiment, SupervisedExperiment
+
+from .multistart import MultiStartExperiment

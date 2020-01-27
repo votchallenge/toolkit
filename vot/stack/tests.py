@@ -1,6 +1,6 @@
 
 from vot.stack import Stack
-from vot.experiment import UnsupervisedExperiment, SupervisedExperiment
+from vot.experiment import UnsupervisedExperiment, SupervisedExperiment, MultiStartExperiment
 
 class VOTBasicTest(Stack):
 
@@ -14,4 +14,4 @@ class VOTSegmentation(Stack):
     dataset = "segmentation"
 
     def __init__(self):
-        super().__init__(UnsupervisedExperiment("unsupervised", repetitions=1))
+        super().__init__(MultiStartExperiment("default"))

@@ -27,11 +27,11 @@ class Results(object):
 class Trajectory(object):
 
     @classmethod
-    def exists(cls, results:Results, name:str) -> bool:
+    def exists(cls, results: Results, name: str) -> bool:
         return results.exists(name + ".txt")
 
     @classmethod
-    def gather(cls, results:Results, name:str) -> list:
+    def gather(cls, results: Results, name: str) -> list:
 
         if not Trajectory.exists(results, name):
             return []

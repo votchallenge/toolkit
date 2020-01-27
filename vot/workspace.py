@@ -18,6 +18,8 @@ def initialize_workspace(directory, config=dict()):
     if os.path.isfile(config_file):
         raise WorkspaceException("Workspace already initialized")
 
+    os.makedirs(directory, exist_ok=True)
+
     with open(config_file, 'w') as fp:
         yaml.dump(config, fp)
 
