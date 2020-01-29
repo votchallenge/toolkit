@@ -2,9 +2,9 @@
 import sys, os, time
 import subprocess, shlex
 from typing import Tuple
-from threading import Thread, RLock
+from threading import Thread
 
-from trax import TraxException, TraxStatus
+from trax import TraxException
 from trax.client import Client
 from trax.image import FileImage, MemoryImage, BufferImage
 from trax.region import Region as TraxRegion
@@ -13,10 +13,10 @@ from trax.region import Mask as TraxMask
 from trax.region import Rectangle as TraxRectangle
 
 from vot.dataset import Frame
-from vot.region import Region, Polygon, Rectangle, Special, Mask
-from vot.tracker import Tracker, TrackerRuntime, TrackerTimeoutException, TrackerException
+from vot.region import Region, Polygon, Rectangle, Mask
+from vot.tracker import Tracker, TrackerRuntime, TrackerException
 
-def convert_frame(frame:Frame, channels:list) -> dict:
+def convert_frame(frame: Frame, channels: list) -> dict:
     tlist = dict()
 
     for channel in channels:
@@ -27,21 +27,24 @@ def convert_frame(frame:Frame, channels:list) -> dict:
         tlist[channel] = FileImage.create(image)
     return tlist
 
-def convert_region(region:Region) -> TraxRegion:
+def convert_region(region: Region) -> TraxRegion:
     if isinstance(region, Rectangle):
         return TraxRectangle.create(region.x, region.y, region.width, region.height)
     elif isinstance(region, Polygon):
         return TraxPolygon.create(region.points)
     elif isinstance(region, Mask):
-        return TraxMask.create(region.bitmask, x=region.offset[0], y=region.offset[1])
+        return TraxMask.create(region.mask, x=region.offset[0], y=region.offset[1])
 
     return None
 
-def convert_traxregion(region:TraxRegion) -> Region:
+def convert_traxregion(region: TraxRegion) -> Region:
+    print(region.type)
     if region.type == TraxRegion.RECTANGLE:
         return Rectangle(region.x, region.y, region.width, region.height)
-    elif isinstance(region, Polygon):
-        return Polygon(region.points)
+    elif region.type == TraxRegion.POLYGON:
+        return Polygon(list(region))
+    elif region.type == TraxRegion.MASK:
+        return Mask(region.array(), region.offset())
 
     return None
 
@@ -58,6 +61,7 @@ class TrackerProcess(object):
                         env=envvars)
         self._timeout = timeout
 
+        self._watchdog_counter = 0
         self._watchdog = Thread(target=self._watchdog_loop)
         self._watchdog.start()
 
@@ -89,7 +93,7 @@ class TrackerProcess(object):
             return False
         return self._process.returncode == None
 
-    def initialize(self, frame:Frame, region:Region, properties:dict = dict()) -> Tuple[Region,dict,float]:
+    def initialize(self, frame: Frame, region: Region, properties: dict = dict()) -> Tuple[Region, dict, float]:
 
         if not self.alive:
             return None
@@ -109,7 +113,7 @@ class TrackerProcess(object):
         except TraxException as te:
             raise TrackerException(te)
 
-    def frame(self, frame:Frame, properties:dict = dict()) -> Tuple[Region,dict,float]:
+    def frame(self, frame: Frame, properties: dict = dict()) -> Tuple[Region, dict, float]:
 
         if not self.alive:
             return None
@@ -155,7 +159,7 @@ class TrackerProcess(object):
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker:Tracker, command: str, debug: bool=False, linkpaths=[]):
+    def __init__(self, tracker: Tracker, command: str, debug: bool = False, linkpaths=[]):
         self._command = command
         self._debug = debug
         self._process = None
@@ -183,19 +187,19 @@ class TraxTrackerRuntime(TrackerRuntime):
             self._process.terminate()
         self._connect()
 
-    def initialize(self, frame: Frame, region: Region) -> Tuple[Region,dict,float]:
+    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
         self._connect()
 
         return self._process.initialize(frame, region)
 
-    def update(self, frame: Frame) -> Tuple[Region,dict,float]:
+    def update(self, frame: Frame) -> Tuple[Region, dict, float]:
         return self._process.frame(frame)
 
     def stop(self):
         if self._process:
             self._process.terminate()
 
-def trax_python_adapter(tracker, command, paths, debug: bool=False, linkpaths=[], virtualenv=None):
+def trax_python_adapter(tracker, command, paths, debug: bool = False, linkpaths=[], virtualenv=None):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -211,12 +215,73 @@ def trax_python_adapter(tracker, command, paths, debug: bool=False, linkpaths=[]
 
     return TraxTrackerRuntime(tracker, command, debug, linkpaths)
 
-def trax_matlab_adapter(tracker, command, paths, debug: bool=False, linkpaths=[]):
+def trax_matlab_adapter(tracker, command, paths, debug: bool = False, linkpaths=[]):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
-    pathimport = " ".join(["sys.path.import('{}');".format(x) for x in paths])
+    pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
 
-    command = '{} -c "import sys; {} import {}"'.format(sys.executable, pathimport, command)
+    matlabroot = os.getenv("MATLAB_ROOT", None)
+
+    if sys.platform.startswith("win"):
+        matlabname = "matlab.exe"
+    else:
+        matlabname = "matlab"
+
+    if matlabroot is None:
+        testdirs = os.getenv("PATH", "").split(os.pathsep)
+        for testdir in testdirs:
+            if os.path.isfile(os.path.join(testdir, matlabname)):
+                matlabroot = os.path.dirname(testdir)
+                break
+        if matlabroot is None:
+            raise RuntimeError("Matlab executable not found, set MATLAB_ROOT environmental variable manually.")
+
+    if sys.platform.startswith("win"):
+        matlab_executable = '"' + os.path.join(matlabroot, 'bin', matlabname) + '"'
+        matlab_flags = ['-nodesktop', '-nosplash', '-wait', '-minimize']
+    else:
+        matlab_executable = os.path.join(matlabroot, 'bin', matlabname)
+        matlab_flags = ['-nodesktop', '-nosplash']
+
+    matlab_script = 'try; diary ''runtime.log''; {}{}; catch ex; disp(getReport(ex)); end; quit;'.format(pathimport, command)
+
+    command = '{} {} -r "{}"'.format(matlab_executable, " ".join(matlab_flags), matlab_script)
 
     return TraxTrackerRuntime(tracker, command, debug, linkpaths)
+
+def trax_octave_adapter(tracker, command, paths, debug: bool = False, linkpaths=[]):
+    if not isinstance(paths, list):
+        paths = paths.split(os.pathsep)
+
+    pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
+
+    octaveroot = os.getenv("OCTAVE_ROOT", None)
+
+    if sys.platform.startswith("win"):
+        octavename = "octave.exe"
+    else:
+        octavename = "octave"
+
+    if octaveroot is None:
+        testdirs = os.getenv("PATH", "").split(os.pathsep)
+        for testdir in testdirs:
+            if os.path.isfile(os.path.join(testdir, octavename)):
+                octaveroot = os.path.dirname(testdir)
+                break
+        if octaveroot is None:
+            raise RuntimeError("Octave executable not found, set OCTAVE_ROOT environmental variable manually.")
+
+    if sys.platform.startswith("win"):
+        octave_executable = '"' + os.path.join(octaveroot, 'bin', octavename) + '"'
+    else:
+        octave_executable = os.path.join(octaveroot, 'bin', octavename)
+
+    octave_flags = ['--no-gui', '--no-window-system']
+
+    octave_script = 'try; diary ''runtime.log''; {}{}; catch ex; disp(ex.message); for i = 1:size(ex.stack) disp(''filename''); disp(ex.stack(i).file); disp(''line''); disp(ex.stack(i).line); endfor; end; quit;'.format(pathimport, command)
+
+    command = '{} {} --eval "{}"'.format(octave_executable, " ".join(octave_flags), octave_script)
+
+    return TraxTrackerRuntime(tracker, command, debug, linkpaths)
+

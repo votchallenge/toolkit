@@ -142,3 +142,4 @@ def normalize(path, root=None):
     if not root:
         root = os.getcwd()
     return os.path.normpath(os.path.join(root, path))
+

@@ -57,7 +57,7 @@ class MultiStartExperiment(Experiment):
                 continue
 
             if reverse:
-                proxy = FrameMapSequence(sequence, list(reversed(range(i, sequence.length))))
+                proxy = FrameMapSequence(sequence, list(reversed(range(0, i))))
             else:
                 proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
 

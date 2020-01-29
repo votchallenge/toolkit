@@ -75,7 +75,7 @@ class Trajectory(object):
         for k, v in properties.items():
             if not k in self._properties:
                 self._properties[k] = [None] * len(self._regions)
-            self._properties[k][frame] = properties
+            self._properties[k][frame] = v
 
     def region(self, frame:int) -> Region:
         if frame < 0 or frame >= len(self._regions):
@@ -95,5 +95,5 @@ class Trajectory(object):
 
         for k, v in self._properties.items():
             with results.write(name + "_" + k + ".value") as fp:
-                fp.writelines([str(e) for e in v])
+                fp.writelines([str(e) + "\n" for e in v])
 

@@ -144,7 +144,7 @@ def create_mask_from_string(mask_encoding):
     """
     elements = [int(el) for el in mask_encoding]
     tl_x, tl_y, region_w, region_h = elements[:4]
-    rle = [el for el in elements[4:]]
+    rle = np.array([el for el in elements[4:]], dtype=np.int32)
 
     # create mask from RLE within target region
     mask = rle_to_mask(rle, region_w, region_h)

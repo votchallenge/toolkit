@@ -109,16 +109,17 @@ class TrackerRuntime(ABC):
         pass
 
     @abstractmethod
-    def update(self, frame: Frame) -> Tuple[Region, dict, float]: 
+    def update(self, frame: Frame) -> Tuple[Region, dict, float]:
         pass
 
 try:
 
-    from vot.tracker.trax import TraxTrackerRuntime, trax_matlab_adapter, trax_python_adapter
+    from vot.tracker.trax import TraxTrackerRuntime, trax_matlab_adapter, trax_python_adapter, trax_octave_adapter
 
     _runtime_protocols["trax"] = TraxTrackerRuntime
     _runtime_protocols["traxmatlab"] = trax_matlab_adapter
     _runtime_protocols["traxpython"] = trax_python_adapter
+    _runtime_protocols["traxoctave"] = trax_octave_adapter
 
 except OSError:
     pass
