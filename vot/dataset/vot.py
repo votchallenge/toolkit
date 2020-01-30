@@ -132,6 +132,10 @@ class VOTDataset(Dataset):
     def path(self):
         return self._path
 
+    @property
+    def length(self):
+        return len(self._sequences)
+
     def __getitem__(self, key):
         return self._sequences[key]
 

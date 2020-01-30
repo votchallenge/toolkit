@@ -213,9 +213,17 @@ class Dataset(ABC):
     def __init__(self, path):
         self._path = path
 
+    def __len__(self):
+        return self.length
+
     @property
     def path(self):
         return self._path
+
+    @property
+    @abstractmethod
+    def length(self):
+        pass
 
     @abstractmethod
     def __getitem__(self, key):

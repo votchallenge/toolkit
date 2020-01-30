@@ -51,6 +51,12 @@ class Workspace(object):
         self._dataset = VOTDataset(dataset_directory)
         self._results = results_directory
 
+        self._root = directory
+
+    @property
+    def directory(self):
+        return self._root
+
     @property
     def registry(self):
         return self._config.get("registry", [])
@@ -66,3 +72,6 @@ class Workspace(object):
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
         root = os.path.join(self._results, os.path.join(tracker.identifier, os.path.join(experiment.identifier, sequence.name)))
         return Results(root)
+
+    def list_results(self):
+        return [os.path.basename(x) for x in glob.glob(os.path.join(self._results, "*")) if os.path.isdir(x)]

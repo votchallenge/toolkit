@@ -1,9 +1,8 @@
 
 from typing import Union, TextIO
 
-from vot.region.shapes import Rectangle, Special, Polygon, Mask, RegionType
+from vot.region.shapes import Rectangle, Special, Polygon, Mask
 from vot.region.utils import create_mask_from_string
-
 
 def parse(string):
     """

@@ -107,14 +107,36 @@ def do_evaluate(config, logger):
 
 
 def do_analysis(config, logger):
-    pass
+
+    from vot.workspace import Workspace
+
+    workspace = Workspace(config.workspace)
+
+    logger.info("Loaded workspace in '%s'", config.workspace)
+
+    registry = load_trackers(workspace.registry + config.registry)
+
+    logger.info("Found data for %d trackers", len(registry))
+
+    if config.trackers is None:
+        trackers = workspace.list_results()
+    else:
+        trackers = config.trackers
+
+    try:
+        trackers = [registry[tracker] for tracker in trackers]
+    except KeyError as ke:
+        logger.error("Tracker not found %s", str(ke))
+        return
+
 
 def do_pack(config, logger):
 
-    import zipfile
+    import zipfile, io
     from shutil import copyfileobj
     from datetime import datetime
     from vot.workspace import Workspace
+    from vot.utilities import Progress
 
     workspace = Workspace(config.workspace)
 
@@ -135,15 +157,17 @@ def do_pack(config, logger):
     all_files = []
     can_finish = True
 
+    progress = Progress(desc="Scanning", total=len(workspace.dataset) * len(workspace.stack))
+
     for experiment in workspace.stack:
-        logger.info(" |= > Scanning experiment %s", experiment.identifier)
         for sequence in workspace.dataset:
             results = workspace.results(tracker, experiment, sequence)
             complete, files = experiment.scan(tracker, sequence, results)
             all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
             if not complete:
-                logger.error(" X= > Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name) 
+                logger.error("ERROR Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name) 
                 can_finish = False
+            progress.update_relative(1)
 
     if not can_finish:
         logger.error("Unable to continue, experiments not complete")
@@ -151,12 +175,15 @@ def do_pack(config, logger):
 
     logger.info("Collected %d files, compressing to archive ...", len(all_files))
 
-    archive_name = "{}_{:%Y-%m-%dT%H:%M:%S.%f%z}".format(tracker.identifier, datetime.now())
+    archive_name = os.path.join(workspace.directory, "{}_{:%Y-%m-%dT%H:%M:%S.%f%z}.zip".format(tracker.identifier, datetime.now()))
+
+    progress = Progress(desc="Compressing", total=len(all_files))
 
     with zipfile.ZipFile(archive_name, 'w') as archive:
         for f in all_files:
-            with archive.open(os.path.join(f[1], f[2], f)) as fout, f[3].read(f[0]) as fin:
+            with io.TextIOWrapper(archive.open(os.path.join(f[1], f[2], f[0]), mode="w")) as fout, f[3].read(f[0]) as fin:
                 copyfileobj(fin, fout)
+            progress.update_relative(1)
 
     logger.info("Result packaging successful, archive available in %s", archive_name)
 
@@ -169,7 +196,6 @@ def main():
     parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')
     parser.add_argument("--registry", default=".", help='Tracker registry paths', required=False, action=EnvDefault, \
         separator=os.path.pathsep, envvar='VOT_REGISTRY')
-    #parser.add_argument("--database", default=".", help='Global sequence database', required=False)
 
     subparsers = parser.add_subparsers(help='commands', dest='action', title="Commands")
 
@@ -182,11 +208,12 @@ def main():
     workspace_parser.add_argument("stack", help='Experiment stack')
 
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
-    evaluate_parser.add_argument("trackers", nargs='?', default=None, help='Tracker identifiers')
+    evaluate_parser.add_argument("trackers", nargs='+', default=None, help='Tracker identifiers')
     evaluate_parser.add_argument("--force", "-f", default=False, help="Force rerun of the entire evaluation", required=False)
     evaluate_parser.add_argument("--workspace", default=".", help='Workspace path')
 
     analysis_parser = subparsers.add_parser('analysis', help='Run interactive analysis')
+    evaluate_parser.add_argument("trackers", nargs='*', default=None, help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=".", help='Workspace path')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
