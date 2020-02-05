@@ -4,7 +4,7 @@ from vot.dataset.proxy import FrameMapSequence
 from vot.region import Special
 
 from vot.experiment import Experiment
-from vot.tracker import Tracker, Trajectory, Results
+from vot.tracker import Tracker, Trajectory
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
     forward = []
@@ -20,14 +20,20 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
 
 class MultiStartExperiment(Experiment):
 
-    def __init__(self, identifier: str, anchor: str = "anchor"):
-        super().__init__(identifier)
+    def __init__(self, identifier: str, workspace: "Workspace", anchor: str = "anchor"):
+        super().__init__(identifier, workspace)
         self._anchor = anchor
 
-    def scan(self, tracker: Tracker, sequence: Sequence, results: Results):
-        
+    @property
+    def anchor(self):
+        return self._anchor
+
+    def scan(self, tracker: Tracker, sequence: Sequence):
+    
         files = []
         complete = True
+
+        results = self.workspace.results(tracker, self, sequence)
 
         forward, backward = find_anchors(sequence, self._anchor)
 
@@ -43,7 +49,9 @@ class MultiStartExperiment(Experiment):
 
         return complete, files
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force: bool = False):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
+
+        results = self.workspace.results(tracker, self, sequence)
 
         forward, backward = find_anchors(sequence, self._anchor)
 

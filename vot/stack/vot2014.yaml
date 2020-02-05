@@ -1,0 +1,13 @@
+title: VOT2014 challenge
+dataset: vot2014
+deprecated: True
+experiments:
+  baseline:
+    type: vot.experiment.multirun.SupervisedExperiment
+    repetitions: 15
+    skip_initialize: 5
+    measures:
+      - type: vot.analysis.measures.AccuracyRobustness
+        sensitivity: 30
+      - type: vot.analysis.measures.FailureCount
+

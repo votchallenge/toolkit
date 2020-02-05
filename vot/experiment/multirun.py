@@ -1,23 +1,27 @@
+#pylint: disable=W0223
 
+from abc import ABC
 
 from vot.dataset import Sequence
 from vot.region import Special, calculate_overlap
 
 from vot.experiment import Experiment
-from vot.tracker import Tracker, Trajectory, Results
+from vot.tracker import Tracker, Trajectory
 
-class MultiRunExperiment(Experiment):
+class MultiRunExperiment(Experiment, ABC):
 
-    def __init__(self, identifier:str, repetitions=1):
-        super().__init__(identifier)
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1):
+        super().__init__(identifier, workspace)
         self._repetitions = repetitions
 
     @property
     def repetitions(self):
         return self._repetitions
 
-    def scan(self, tracker: Tracker, sequence: Sequence, results: Results):
+    def scan(self, tracker: Tracker, sequence: Sequence):
         
+        results = self.workspace.results(tracker, self, sequence)
+
         files = []
         complete = True
 
@@ -28,11 +32,22 @@ class MultiRunExperiment(Experiment):
             else:
                 complete = False
 
-        return complete, files
+        return complete, files, results
 
+    def gather(self, tracker: Tracker, sequence: Sequence):
+        trajectories = list()
+        results = self.workspace.results(tracker, self, sequence)
+        for i in range(1, self._repetitions+1):
+            name = "%s_%03d" % (sequence.name, i)
+            if Trajectory.exists(results, name):
+                trajectories.append(Trajectory.read(results, name))
+        return trajectories
+        
 class UnsupervisedExperiment(MultiRunExperiment):
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force: bool = False):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
+
+        results = self.workspace.results(tracker, self, sequence)
 
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
@@ -60,8 +75,8 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 class SupervisedExperiment(MultiRunExperiment):
 
-    def __init__(self, identifier, repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0):
-        super().__init__(identifier, repetitions)
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0):
+        super().__init__(identifier, workspace, repetitions)
         self._skip_initialize = skip_initialize
         self._skip_tags = skip_tags
         self._failure_overlap = failure_overlap
@@ -78,7 +93,9 @@ class SupervisedExperiment(MultiRunExperiment):
     def failure_overlap(self):
         return self._failure_overlap
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force: bool = False):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
+
+        results = self.workspace.results(tracker, self, sequence)
 
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
@@ -120,9 +137,9 @@ class SupervisedExperiment(MultiRunExperiment):
 
 class RealtimeExperiment(SupervisedExperiment):
 
-    def __init__(self, identifier, repetitions=1, burnin=0, skip_initialize = 1, failure_overlap = 0, grace=0):
-        super().__init__(identifier, repetitions, burnin, skip_initialize, failure_overlap)
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, burnin=0, skip_initialize = 1, failure_overlap = 0, grace=0):
+        super().__init__(identifier, workspace, repetitions, burnin, skip_initialize, failure_overlap)
 
-    def execute(self, tracker: Tracker, sequence: Sequence, results: Results, force:bool=False):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
         # TODO
         pass

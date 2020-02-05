@@ -48,8 +48,14 @@ class FrameMapSequence(Sequence):
     def channels(self):
         return self._source.channels()
 
-    def groundtruth(self, index: int):
-        return self._source.groundtruth(self._map[index])
+    def groundtruth(self, index=None):
+        if index is None:
+            groundtruth = [None] * len(self)
+            for i, m in enumerate(self._map):
+                groundtruth[i] = self._source.groundtruth(m)
+            return groundtruth
+        else:
+            return self._source.groundtruth(self._map[index])
 
     def tags(self, index=None):
         if index is None:

@@ -1,100 +1,187 @@
-import os
-import vot
-from vot.tracker import Results, Trajectory, Tracker
-from vot.dataset import Sequence, VOTDataset, VOTSequence
-from vot.region.utils import calculate_overlap, calculate_overlaps
-from vot.region import Region, RegionType, Special
-from vot.dataset import VOTDataset, VOTSequence, download_vot_dataset
-from vot.experiment import SupervisedExperiment
 from typing import List
-import numpy as np
 
-def is_region_special_code(r: Region, code: int):
-    return r.type() == RegionType.SPECIAL and r.code() == code
+from vot.tracker import Tracker, Trajectory
+from vot.dataset import Sequence
+from vot.dataset.proxy import FrameMapSequence
+from vot.experiment import Experiment
+from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment
+from vot.experiment.multistart import MultiStartExperiment, find_anchors
+from vot.analysis import SeparatablePerformanceMeasure, MissingResultsException, MeasureDescription
+from vot.analysis.routines import count_failures, compute_accuracy
 
-# Re: Accuracy measure. Compute average overlap but ignore 10 frames after re-init.
-# TODO: check what it means 10 frames after init (incl/excl init)
-def compute_accuracy(regions_of_trajectory: List[Region], regions_gt: List[Region], frames_ignore_after_init=10) -> float:
-    '''
-    average overlap over usable frames (= those which are more than 10 frames from (re-)init)
-    if there are no usable frames, returns -1.0
-    '''
-    # 1. compute overlaps:
-    overlaps = calculate_overlaps(regions_of_trajectory, regions_gt)
-    N = len(regions_of_trajectory)
-    overlaps_for_average = [-1] * N
-    idx_last_init = 0
-    debug_test_ignored_frames = [0] * N
-    for i, o, is_FAIL, is_INIT, is_UNKNOWN in zip(range(N),
-                      overlaps,
-                      [is_region_special_code(r, Special.FAILURE) for r in regions_of_trajectory],
-                      [is_region_special_code(r, Special.INITIALIZATION) for r in regions_of_trajectory],
-                      [is_region_special_code(r, Special.UNKNOWN) for r in regions_of_trajectory]):
-        if is_INIT:
-            idx_last_init = i
-        if i <= idx_last_init + frames_ignore_after_init:
-            debug_test_ignored_frames[i] = 1
-        elif is_FAIL or is_UNKNOWN:
-            pass
-        else:
-            overlaps_for_average[i] = o
+class AverageAccuracy(SeparatablePerformanceMeasure):
 
-    used_overlaps = [x for x in overlaps_for_average if x >= 0]
-    average_overlap = np.array(used_overlaps).mean() if len(used_overlaps)>0 else -1.0
+    def __init__(self, burnin: int = 10, ignore_unknown: bool = True, bounded: bool = True):
+        self._burnin = burnin
+        self._ignore_unknown = ignore_unknown
+        self._bounded = bounded
 
-    return average_overlap, overlaps_for_average, debug_test_ignored_frames
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
 
-# Re: Robustness measure. Count number of failures.
-def count_failures(regions_of_trajectory: List[Region]) -> int:
-        N = 0
-        for r in regions_of_trajectory:
-            if is_region_special_code(r, Special.FAILURE):
-                N += 1
-        return N
+    # TODO: turn off weighted average
+    def join(self, results: List[tuple]):
+        accuracy = 0
+        frames = 0
+
+        for a, n in results:
+            accuracy = accuracy + a
+            frames = frames + n
+
+        return accuracy / frames, frames
+
+    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+
+        if isinstance(experiment, MultiRunExperiment):
+            trajectories = experiment.gather(tracker, sequence)
+
+            if len(trajectories) == 0:
+                raise MissingResultsException()
+
+            cummulative = 0
+            for trajectory in trajectories:
+                accuracy, _ = compute_accuracy(trajectory.regions(), sequence, self._burnin, self._ignore_unknown, self._bounded)
+                cummulative = cummulative + accuracy
+
+            return cummulative / len(trajectories), len(sequence)
+
+class FailureCount(SeparatablePerformanceMeasure):
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, SupervisedExperiment)
+
+    def join(self, results: List[tuple]):
+        failures = 0
+        frames = 0
+
+        for a, n in results:
+            failures = failures + a
+            frames = frames + n
+
+        return failures, frames
+
+    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+        trajectories = experiment.gather(tracker, sequence)
+
+        if len(trajectories) == 0:
+            raise MissingResultsException()
+
+        failures = 0
+        for trajectory in trajectories:
+            failures = failures + count_failures(trajectory.regions())
+
+        return failures / len(trajectories), len(trajectories[0])
+
+class AccuracyRobustness(SeparatablePerformanceMeasure):
+
+    def __init__(self, sensitivity: int = 30, burnin: int = 10, ignore_unknown: bool = True, bounded: bool = True):
+        self._sensitivity = sensitivity
+        self._burnin = burnin
+        self._ignore_unknown = ignore_unknown
+        self._bounded = bounded
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, SupervisedExperiment)
+
+    def join(self, results: List[tuple]):
+        failures = 0
+        frames = 0
+
+        for a, n in results:
+            failures = failures + a
+            frames = frames + n
+
+        return failures, frames
+
+    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+        trajectories = experiment.gather(tracker, sequence)
+
+        if len(trajectories) == 0:
+            raise MissingResultsException()
+
+        cummulative = 0
+        failures = 0
+        for trajectory in trajectories:
+            failures = failures + count_failures(trajectory.regions())
+            accuracy, _ = compute_accuracy(trajectory.regions(), sequence, self._burnin, self._ignore_unknown, self._bounded)
+            cummulative = cummulative + accuracy
 
 
-if __name__ == '__main__':
-    #download_vot_dataset('vot2013') # this did not work for me but download was done using matlab implementation
+        return failures / len(trajectories), len(trajectories[0])
 
-    vot_dataset_directory = '/home/ondrej/Work/tracking/vot-w/sequences' #VOT2013
-    results_directory = '/home/ondrej/Work/tracking/vot-w/results'
-    experiment_type = 'baseline'
-    tracker = Tracker('myNCC', 'dummy_command')
-    experiment=SupervisedExperiment('SupExper_test')
+class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
 
-    dataset = VOTDataset(vot_dataset_directory)
-    sequence_names = dataset.list()
+    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True):
+        self._burnin = burnin
+        self._grace = grace
+        self._bounded = bounded
+        self._threshold = 0.1
 
+    @classmethod
+    def describe(cls):
+        return MeasureDescription("Accuracy", 0, 1, MeasureDescription.DESCENDING), \
+            MeasureDescription("Robustness", 0, 1, MeasureDescription.DESCENDING), \
+            None
 
-    for sequence_name in sequence_names:
-        base = os.path.join(vot_dataset_directory, sequence_name)
-        s = VOTSequence(base, name = sequence_name, dataset = dataset)
-        results = Results(os.path.join(results_directory, tracker.identifier, experiment_type, s.name))
-        complete, files = experiment.scan(tracker, s, results) # this is just my exercise, not further used
-        # for now, take just 1st repetition:
-        trajectory_file = s.name + '_001'
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiStartExperiment)
 
-        trajectory = Trajectory.read(results, trajectory_file)
-        # trajectory_length = # do we want to add this attribute to the Trajectory class?
+    def join(self, results: List[tuple]):
+        total_accuracy = 0
+        total_robustness = 0
+        total = 0
 
-        regions_gt = [s.groundtruth(i) for i in range(s.length)]
-        regions_tr = [trajectory.region(i) for i in range(s.length)]
-        print(count_failures(regions_tr))
-        average_overlap, overlaps_for_average, debug_test_ignored_frames = compute_accuracy(regions_tr, regions_gt)
-        print(average_overlap)
+        for accuracy, robustness, weight in results:
+            total_accuracy = total_accuracy + accuracy * weight
+            total_robustness = total_robustness + robustness * weight
+            total = total + weight
 
-# read ground truth:
-#gt_result = Results('/home/ondrej/Work/tracking/VOT/gt/bag')
-#gt_trajectory = Trajectory.read(gt_result, 'groundtruth')
+        return total_accuracy / total, total_robustness / total, total
 
-# read result of tracker: 
-#result = Results('/home/ondrej/Work/tracking/VOT/dummy_results/KCF/baseline/bag')
-#trajectory = Trajectory.read(result, 'bag_001')
+    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
 
-# compute overlap: 
+        from vot.region.utils import calculate_overlaps
 
-    
+        results = experiment.results(tracker, sequence)
 
+        forward, backward = find_anchors(sequence, experiment.anchor)
 
+        if len(forward) == 0 and len(backward) == 0:
+            raise RuntimeError("Sequence does not contain any anchors")
 
+        for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
+            name = "%s_%08d" % (sequence.name, i)
 
+            if not Trajectory.exists(results, name):
+                raise MissingResultsException()
+
+            if reverse:
+                proxy = FrameMapSequence(sequence, list(reversed(range(0, i))))
+            else:
+                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+
+            trajectory = Trajectory.read(results, name)
+
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self._burnin else None)
+
+            grace = self._grace
+            progress = len(proxy)
+
+            robustness = 0
+            accuracy = 0
+
+            for j, overlap in enumerate(overlaps):
+                if overlap < self._threshold:
+                    grace = grace - 1
+                    if grace == 0:
+                        progress = j
+                        break
+                else:
+                    grace = self._grace
+
+            robustness = robustness + progress / len(proxy)
+            accuracy = accuracy + sum(overlaps[0:progress]) / progress
+
+        N = len(forward) + len(backward)
+
+        return accuracy / N, robustness / N, len(sequence)

@@ -97,7 +97,7 @@ class VOTSequence(Sequence):
             return self._groundtruth
         return self._groundtruth[index]
 
-    def tags(self, index = None):
+    def tags(self, index=None):
         if index is None:
             return self._tags.keys()
         return [t for t in self._tags if t[index]]
@@ -109,7 +109,7 @@ class VOTSequence(Sequence):
 
     @property
     def size(self):
-        return self.channel().size()
+        return self.channel().size
 
     @property
     def length(self):

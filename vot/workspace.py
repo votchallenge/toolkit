@@ -1,5 +1,6 @@
 
 import os, yaml, glob
+import logging
 
 from vot import VOTException
 
@@ -9,6 +10,8 @@ from vot.experiment import Experiment
 from vot.stack import Stack, resolve_stack
 
 from vot.utilities import normalize
+
+logger = logging.getLogger("vot")
 
 class WorkspaceException(VOTException):
     pass
@@ -27,6 +30,54 @@ def initialize_workspace(directory, config=dict()):
     os.makedirs(os.path.join(directory, "results"), exist_ok=True)
     os.makedirs(os.path.join(directory, "logs"), exist_ok=True)
 
+def migrate_workspace(directory):
+    import re
+    from numpy import genfromtxt, reshape, savetxt, all
+
+    config_file = os.path.join(directory, "config.yaml")
+    if os.path.isfile(config_file):
+        raise WorkspaceException("Workspace already initialized")
+
+    old_config_file = os.path.join(directory, "configuration.m")
+    if not os.path.isfile(old_config_file):
+        raise WorkspaceException("Old workspace config not detected")
+
+    with open(old_config_file, "r") as fp:
+        content = fp.read()
+        matches = re.findall("set\\_global\\_variable\\('stack', '([A-Za-z0-9]+)'\\)", content)
+        if not len(matches) == 1:
+            raise WorkspaceException("Experiment stack could not be retrieved")
+        stack = matches[0]
+
+    for tracker_dir in [x for x in os.scandir(os.path.join(directory, "results")) if x.is_dir()]:
+        for experiment_dir in [x for x in os.scandir(tracker_dir.path) if x.is_dir()]:
+            for sequence_dir in [x for x in os.scandir(experiment_dir.path) if x.is_dir()]:
+                timing_file = os.path.join(sequence_dir.path, "{}_time.txt".format(sequence_dir.name))
+                if os.path.isfile(timing_file):
+                    logger.info("Migrating %s", timing_file)
+                    times = genfromtxt(timing_file, delimiter=",")
+                    if len(times.shape) == 1:
+                        times = reshape(times, (times.shape[0], 1))
+                    for k in range(times.shape[1]):
+                        if all(times[:, k] == 0):
+                            break
+                        savetxt(os.path.join(sequence_dir.path, \
+                             "%s_%03d_time.value" % (sequence_dir.name, k+1)), \
+                             times[:, k] / 1000, fmt='%.6e')
+                    os.unlink(timing_file)
+
+    try:
+        resolve_stack(stack)
+    except Exception:
+        logging.warning("Stack %s not found, you will have to manually edit and correct config file.", stack)
+
+    with open(config_file, 'w') as fp:
+        yaml.dump(dict(stack=stack, registry=["."]), fp)
+
+    os.unlink(old_config_file)
+
+    logging.info("Workspace %s migrated", directory)
+
 class Workspace(object):
 
     def __init__(self, directory):
@@ -40,13 +91,25 @@ class Workspace(object):
         if not "stack" in self._config:
             raise WorkspaceException("Experiment stack not found in workspace configuration")
 
-        self._stack = resolve_stack(self._config["stack"])
+        stack_file = resolve_stack(self._config["stack"], directory)
 
-        if not self._stack:
+        if stack_file is None:
             raise WorkspaceException("Experiment stack does not exist")
+
+        with open(stack_file, 'r') as fp:
+            stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+            self._stack = Stack(self, stack_metadata)
 
         dataset_directory = normalize(self._config.get("sequences", "sequences"), directory)
         results_directory = normalize(self._config.get("results", "results"), directory)
+
+        if not os.path.exists(dataset_directory) and not self._stack.dataset is None:
+            logger.info("Stack has a dataset attached, downloading bundle '%s'", self._stack.dataset)
+
+            from vot.dataset import download_vot_dataset
+            download_vot_dataset(self._stack.dataset, dataset_directory)
+
+            logger.info("Download completed")
 
         self._dataset = VOTDataset(dataset_directory)
         self._results = results_directory

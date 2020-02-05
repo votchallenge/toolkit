@@ -3,16 +3,22 @@
 from distutils.core import setup
 
 setup(name='Visual Object Tracking toolkit',
-      version='1.0',
+      version='8.0',
       description='Perform visual tracking experiments and analyze results',
       author='Luka Cehovin Zajc',
       author_email='luka.cehovin@gmail.com',
       url='https://github.com/votchallenge/toolkit',
-      packages=['vot', 'vot.training'],
+      packages=['vot'],
       install_requires=[
-        "tqdm==4.32.2",
+        "tqdm==4.32",
         "numpy>=1.16",
-        "opencv-python>=4.0"],
+        "opencv-python>=4.0",
+        "trax>=3.0",
+        "six",
+        "plotly>=4.5",
+        "dash>=1.8",
+        "pylatex>=1.3",
+        "jsonschema>=3.2"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

@@ -1,5 +1,6 @@
 
 import os, glob
+from typing import List
 from copy import copy
 from vot.region import Region, Special, write_file, read_file
 
@@ -44,7 +45,7 @@ class Trajectory(object):
         return files
 
     @classmethod
-    def read(cls, results:Results, name:str) -> 'Trajectory':
+    def read(cls, results: Results, name: str) -> 'Trajectory':
 
         if not results.exists(name + ".txt"):
             raise FileNotFoundError("Trajectory data not found")
@@ -77,18 +78,24 @@ class Trajectory(object):
                 self._properties[k] = [None] * len(self._regions)
             self._properties[k][frame] = v
 
-    def region(self, frame:int) -> Region:
+    def region(self, frame: int) -> Region:
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
-        return copy(self._regions[frame])
+        return self._regions[frame]
         
-    def properties(self, frame:int) -> dict:
+    def regions(self) -> List[Region]:
+        return copy(self._regions)
+
+    def properties(self, frame: int) -> dict:
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
 
         return {k : v[frame] for k, v in self._properties.items() }
 
-    def write(self, results:Results, name:str):
+    def __len__(self):
+        return len(self._regions)
+
+    def write(self, results: Results, name: str):
 
         with results.write(name + ".txt") as fp:
             write_file(fp, self._regions)

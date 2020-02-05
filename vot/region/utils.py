@@ -1,10 +1,10 @@
 import os
-os.environ['PATH'] = r"C:\Users\ALAN-PC\.conda\envs\pytracking\Library\bin;" + os.environ['PATH']
+
+from typing import List, Tuple, Optional
 
 import numpy as np
 import cv2
 from numba import jit
-
 
 def overlay_image(img_in, mask, mask_color=(255, 0, 0), contour_width=1, alpha=0.5):
     """
@@ -169,7 +169,7 @@ def are_overlaping(tl_1, br_1, tl_2, br_2):
 
 from vot.region.shapes import Region, RegionType
 
-def calculate_overlap(reg1: Region, reg2: Region, image_sz=None):
+def calculate_overlap(reg1: Region, reg2: Region, bounds=None):
     """
     Inputs: reg1 and reg2 are Region objects (Rectangle, Polygon or Mask)
     image_sz: size of the image, format: [width, height]
@@ -187,9 +187,9 @@ def calculate_overlap(reg1: Region, reg2: Region, image_sz=None):
     tl_2 = m2.offset  # top-left corner of the second region [x, y]
     br_2 = (m2.offset[0] + m2.mask.shape[1] - 1, m2.offset[1] + m2.mask.shape[0] - 1)  # bottom-right corner of the second region [x, y]
     if are_overlaping(tl_1, br_1, tl_2, br_2):
-        mask_1 = (m1.get_array(output_sz=image_sz) > 0).astype(np.uint8)
-        mask_2 = (m2.get_array(output_sz=image_sz) > 0).astype(np.uint8)
-        if image_sz is None:
+        mask_1 = (m1.get_array(output_sz=bounds) > 0).astype(np.uint8)
+        mask_2 = (m2.get_array(output_sz=bounds) > 0).astype(np.uint8)
+        if bounds is None:
             # since output size is not given both mask arrays are not the same size
             # zero-padding is needed so that both masks will be the same size
             if mask_1.shape[1] > mask_2.shape[1]:
@@ -205,16 +205,11 @@ def calculate_overlap(reg1: Region, reg2: Region, image_sz=None):
     else:
         return float(0)
 
-def calculate_overlaps(regions_1, regions_2, image_sz=None):
+def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Tuple[int, int]]):
     """
-    regions_1 and regions_2 are lists containing objects of type Region
-    image_sz is in the format [width, height]
+    first and second are lists containing objects of type Region
+    bounds is in the format [width, height]
     output: list of per-frame overlaps (floats)
     """
-    if len(regions_1) != len(regions_2):
-        print('Error: trajectories must be the same length.')
-        exit(-1)
-    overlaps = [0] * len(regions_1)
-    for i in range(len(regions_1)):
-        overlaps[i] = calculate_overlap(regions_1[i], regions_2[i], image_sz=image_sz)
-    return overlaps
+    assert(len(first) == len(second))
+    return [calculate_overlap(pairs[0], pairs[1], bounds=bounds) for i, pairs in enumerate(zip(first, second))]

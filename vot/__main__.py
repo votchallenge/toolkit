@@ -1,8 +1,9 @@
-
 import os
 import argparse
 import traceback
 import logging
+import json
+from datetime import datetime
 
 from vot.tracker import load_trackers
 from vot.stack import resolve_stack
@@ -55,12 +56,19 @@ def do_test(config, logger):
 
 def do_workspace(config, logger):
     
-    from vot.workspace import initialize_workspace
+    from vot.workspace import initialize_workspace, migrate_workspace
 
-    stack = resolve_stack(config.stack)
+    if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
+        migrate_workspace(config.workspace)
+        return
+    else:
+        logger.error("Unable to continue without a stack")
+        return
 
-    if not stack:
-        logger.error("Stack not found")
+    stack_file = resolve_stack(config.stack)
+
+    if stack_file is None:
+        logger.error("Experiment stack not found")
         return
 
     default_config = dict(stack=config.stack, registry=["."])
@@ -69,16 +77,7 @@ def do_workspace(config, logger):
 
     logger.info("Initialized workspace in '%s'", config.workspace)
 
-    if hasattr(stack, "dataset"):
-        logger.info("Stack has a dataset attached, downloading bundle '%s'", stack.dataset)
-
-        from vot.dataset import download_vot_dataset
-        download_vot_dataset(stack.dataset, os.path.join(config.workspace, "sequences"))
-
-        logger.info("Download completed")
-
 def do_evaluate(config, logger):
-    
     from vot.workspace import Workspace
 
     workspace = Workspace(config.workspace)
@@ -101,7 +100,7 @@ def do_evaluate(config, logger):
             logger.info(" |== > Running experiment %s", experiment.identifier)
             for sequence in workspace.dataset:
                 logger.info(" |=== > Sequence %s", sequence.name)
-                experiment.execute(tracker, sequence, workspace.results(tracker, experiment, sequence))
+                experiment.execute(tracker, sequence)
 
     logger.info("Evaluation concluded successfuly")
 
@@ -109,6 +108,7 @@ def do_evaluate(config, logger):
 def do_analysis(config, logger):
 
     from vot.workspace import Workspace
+    from vot.analysis import process_measures
 
     workspace = Workspace(config.workspace)
 
@@ -118,7 +118,7 @@ def do_analysis(config, logger):
 
     logger.info("Found data for %d trackers", len(registry))
 
-    if config.trackers is None:
+    if not hasattr(config, 'trackers'):
         trackers = workspace.list_results()
     else:
         trackers = config.trackers
@@ -129,12 +129,27 @@ def do_analysis(config, logger):
         logger.error("Tracker not found %s", str(ke))
         return
 
+    if config.output == "dash":
+        from vot.analysis.dashboard import run_dashboard
+        run_dashboard(workspace, trackers)
+        return
+    elif config.output == "latex":
+        pass
+    elif config.output == "html":
+        pass
+    elif config.output == "json":
+        results = process_measures(workspace, trackers)
+        file_name = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H:%M:%S.%f%z}.json".format(datetime.now()))
+        with open(file_name, "w") as fp:
+            json.dump(results, fp)
+
+    logger.info("Analysis successful, results available in %s", file_name)
+
 
 def do_pack(config, logger):
 
     import zipfile, io
     from shutil import copyfileobj
-    from datetime import datetime
     from vot.workspace import Workspace
     from vot.utilities import Progress
 
@@ -161,11 +176,10 @@ def do_pack(config, logger):
 
     for experiment in workspace.stack:
         for sequence in workspace.dataset:
-            results = workspace.results(tracker, experiment, sequence)
-            complete, files = experiment.scan(tracker, sequence, results)
+            complete, files, results = experiment.scan(tracker, sequence)
             all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
             if not complete:
-                logger.error("ERROR Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name) 
+                logger.error("Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name) 
                 can_finish = False
             progress.update_relative(1)
 
@@ -205,7 +219,7 @@ def main():
 
     workspace_parser = subparsers.add_parser('workspace', help='Setup a new workspace and download data')
     workspace_parser.add_argument("--workspace", default=".", help='Workspace path')
-    workspace_parser.add_argument("stack", help='Experiment stack')
+    workspace_parser.add_argument("stack", nargs="?", help='Experiment stack')
 
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
     evaluate_parser.add_argument("trackers", nargs='+', default=None, help='Tracker identifiers')
@@ -213,8 +227,9 @@ def main():
     evaluate_parser.add_argument("--workspace", default=".", help='Workspace path')
 
     analysis_parser = subparsers.add_parser('analysis', help='Run interactive analysis')
-    evaluate_parser.add_argument("trackers", nargs='*', default=None, help='Tracker identifiers')
+    analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=".", help='Workspace path')
+    analysis_parser.add_argument("--output", choices=("dash", "latex", "html", "json"), default="dash", help='Analysis output format')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=".", help='Workspace path')
@@ -233,7 +248,7 @@ def main():
             do_workspace(args, logger)
         elif args.action == "evaluate":
             do_evaluate(args, logger)
-        elif args.action == "analyze":
+        elif args.action == "analysis":
             do_analysis(args, logger)
         elif args.action == "pack":
             do_pack(args, logger)
