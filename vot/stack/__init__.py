@@ -11,6 +11,8 @@ from vot.utilities import import_class
 class Stack(object):
 
     def __init__(self, workspace: "Workspace", metadata: dict):
+        from vot.analysis import PerformanceMeasure
+        
         self._workspace = workspace
 
         self._title = metadata["title"]
@@ -55,7 +57,7 @@ class Stack(object):
     def experiments(self) -> List[Experiment]:
         return self._experiments
         
-    def measures(self, experiment: Experiment) -> List[PerformanceMeasure]:
+    def measures(self, experiment: Experiment) -> List["PerformanceMeasure"]:
         return self._measures[experiment]
 
     def __iter__(self):

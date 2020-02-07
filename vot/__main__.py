@@ -61,7 +61,7 @@ def do_workspace(config, logger):
     if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
         migrate_workspace(config.workspace)
         return
-    else:
+    elif config.stack is None:
         logger.error("Unable to continue without a stack")
         return
 
@@ -71,7 +71,7 @@ def do_workspace(config, logger):
         logger.error("Experiment stack not found")
         return
 
-    default_config = dict(stack=config.stack, registry=["."])
+    default_config = dict(stack=config.stack, registry=["trackers"])
 
     initialize_workspace(config.workspace, default_config)
 
@@ -84,12 +84,14 @@ def do_evaluate(config, logger):
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
-    registry = load_trackers(workspace.registry + config.registry)
+    global_registry = [os.path.abspath(x) for x in config.registry]
+
+    registry = load_trackers(workspace.registry + global_registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
     try:
-        trackers = [registry[t.strip()] for t in config.trackers.split(",")]
+        trackers = [registry[t.strip()] for t in config.trackers]
     except KeyError as ke:
         logger.error("Tracker not found %s", str(ke))
         return

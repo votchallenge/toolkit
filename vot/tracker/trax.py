@@ -51,24 +51,39 @@ def convert_traxregion(region: TraxRegion) -> Region:
 class TrackerProcess(object):
 
     def __init__(self, command: str, envvars = dict(), timeout=30):
-        self._arguments = shlex.split(command, posix=0)
-        self._process = subprocess.Popen(
-                        self._arguments, 
-                        shell=False, 
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT, 
-                        env=envvars)
+        if sys.platform.startswith("win"):
+            print(command)
+            self._process = subprocess.Popen(
+                    command, 
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, 
+                    env=envvars, bufsize=0)
+        else:
+            self._process = subprocess.Popen(
+                    shlex.split(command, posix=0), 
+                    shell=False, 
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, 
+                    env=envvars)
+
         self._timeout = timeout
+        self._client = None
 
         self._watchdog_counter = 0
         self._watchdog = Thread(target=self._watchdog_loop)
         self._watchdog.start()
 
         self._watchdog_reset(True)
-        self._client = Client(
-            streams=(self._process.stdin.fileno(), self._process.stdout.fileno())
-        )
+        try:
+            self._client = Client(
+                streams=(self._process.stdin.fileno(), self._process.stdout.fileno())
+            )
+        except TraxException as e:
+            self.terminate()
+            self._watchdog_reset(False)
+            raise TrackerException(e)
         self._watchdog_reset(False)
 
     def _watchdog_reset(self, enable=True):
@@ -86,6 +101,7 @@ class TrackerProcess(object):
             self._watchdog_counter = self._watchdog_counter - 1
             if not self._watchdog_counter:
                 self.terminate()
+                break
 
     @property
     def alive(self):
@@ -136,9 +152,9 @@ class TrackerProcess(object):
         if not self.alive:
             return
 
-        self._client.quit()
-
-        self._handle = None
+        if not self._client is None:
+            self._client.quit()
+            self._client = None
 
         try:
             self._process.wait(3)
@@ -199,19 +215,28 @@ class TraxTrackerRuntime(TrackerRuntime):
         if self._process:
             self._process.terminate()
 
+def escape_path(path):
+    if sys.platform.startswith("win"):
+        return path #path.replace("\\\\", "\\").replace("\\", "\\\\")
+    else:
+        return path
+
 def trax_python_adapter(tracker, command, paths, debug: bool = False, linkpaths=[], virtualenv=None):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
-    pathimport = " ".join(["sys.path.insert(0, '{}')\n".format(x) for x in paths[::-1]])
+    pathimport = " ".join(["sys.path.insert(0, '{}');".format(escape_path(x)) for x in paths[::-1]])
 
     virtualenv_launch = ""
     if virtualenv:
-        activate_function = os.path.join(os.path.join(virtualenv, "bin"), "activate_this.py")
+        if sys.platform.startswith("win"):
+            activate_function = os.path.join(os.path.join(virtualenv, "Scripts"), "activate_this.py")
+        else:
+            activate_function = os.path.join(os.path.join(virtualenv, "bin"), "activate_this.py")
         if os.path.isfile(activate_function):
-            virtualenv_launch = "exec(open('{}').read(), dict(__file__='{}')) \n".format(activate_function, activate_function)
+            virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))
 
-    command = '{} -c "{}import sys\n{}\nimport {}"'.format(sys.executable, virtualenv_launch, pathimport, command)
+    command = '{} -c "{}import sys;{} import {}"'.format(sys.executable, virtualenv_launch, pathimport, command)
 
     return TraxTrackerRuntime(tracker, command, debug, linkpaths)
 

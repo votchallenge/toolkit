@@ -32,24 +32,29 @@ def load_trackers(directories, root=os.getcwd()):
     for directory in directories:
         logger.info("Scanning directory %s", directory)
         if not os.path.isabs(directory):
-            directory = os.path.normpath(os.path.join(root, directory))
-        for root, _, files in os.walk(directory):
-            for name in files:
-                if name.endswith(".yml") or name.endswith(".yaml"):
-                    with open(os.path.join(root, name), 'r') as fp:
-                        metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-                    for k, v in metadata.items():
-                        if not is_valid_identifier(k):
-                            raise TrackerException("Invalid identifier: {}".format(k))
-                        trackers[k] = Tracker(identifier= k, **v)
+            directory = os.path.normpath(os.path.abspath(os.path.join(root, directory)))
+        if not os.path.isdir(directory):
+            continue
+        
+        for name in [os.path.join(directory, x) for x in os.listdir(directory)]:
+            if not os.path.isfile(name):
+                continue
+            if name.endswith(".yml") or name.endswith(".yaml"):
+                with open(name, 'r') as fp:
+                    metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+                for k, v in metadata.items():
+                    if not is_valid_identifier(k):
+                        raise TrackerException("Invalid identifier: {}".format(k))
+                    print(k, v)
+                    trackers[k] = Tracker(identifier= k, **v)
 
-                if name.endswith(".ini"):
-                    config = configparser.ConfigParser()
-                    config.read(os.path.join(root, name))
-                    for section in config.sections():
-                        if not is_valid_identifier(section):
-                            raise TrackerException("Invalid identifier: {}".format(section))
-                        trackers[section] = Tracker(identifier = section, **config[section])
+            if name.endswith(".ini"):
+                config = configparser.ConfigParser()
+                config.read(name)
+                for section in config.sections():
+                    if not is_valid_identifier(section):
+                        raise TrackerException("Invalid identifier: {}".format(section))
+                    trackers[section] = Tracker(identifier = section, **config[section])
     return trackers
 
 class Tracker(object):

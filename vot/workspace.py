@@ -103,7 +103,7 @@ class Workspace(object):
         dataset_directory = normalize(self._config.get("sequences", "sequences"), directory)
         results_directory = normalize(self._config.get("results", "results"), directory)
 
-        if not os.path.exists(dataset_directory) and not self._stack.dataset is None:
+        if not os.path.exists(os.path.join(dataset_directory, "list.txt")) and not self._stack.dataset is None:
             logger.info("Stack has a dataset attached, downloading bundle '%s'", self._stack.dataset)
 
             from vot.dataset import download_vot_dataset
