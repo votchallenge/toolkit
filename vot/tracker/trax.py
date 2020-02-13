@@ -38,9 +38,9 @@ def convert_region(region: Region) -> TraxRegion:
     return None
 
 def convert_traxregion(region: TraxRegion) -> Region:
-    print(region.type)
     if region.type == TraxRegion.RECTANGLE:
-        return Rectangle(region.x, region.y, region.width, region.height)
+        x, y, width, height = region.bounds()
+        return Rectangle(x, y, width, height)
     elif region.type == TraxRegion.POLYGON:
         return Polygon(list(region))
     elif region.type == TraxRegion.MASK:
@@ -78,7 +78,7 @@ class TrackerProcess(object):
         self._watchdog_reset(True)
         try:
             self._client = Client(
-                streams=(self._process.stdin.fileno(), self._process.stdout.fileno())
+                streams=(self._process.stdin.fileno(), self._process.stdout.fileno()), logger=True
             )
         except TraxException as e:
             self.terminate()
@@ -212,6 +212,10 @@ class TraxTrackerRuntime(TrackerRuntime):
         return self._process.frame(frame)
 
     def stop(self):
+        if self._process:
+            self._process.terminate()
+
+    def __del__(self):
         if self._process:
             self._process.terminate()
 

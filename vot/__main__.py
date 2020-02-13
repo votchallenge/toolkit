@@ -52,6 +52,10 @@ def do_test(config, logger):
         logger.info("Updating on frame %d/%d", i, sequence.length-1)
         runtime.update(sequence.frame(i))
 
+    logger.info("Stopping tracker")
+
+    runtime.stop()
+
     logger.info("Test concluded successfuly")
 
 def do_workspace(config, logger):

@@ -13,7 +13,7 @@ import numpy as np
 class SingleFileChannel(Channel):
 
     def __init__(self, filename, length):
-        super().__init__(os.path.dirname(filename))
+        super().__init__()
         self._length = length
         self._filename = filename
 
