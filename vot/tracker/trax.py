@@ -78,7 +78,7 @@ class TrackerProcess(object):
         self._watchdog_reset(True)
         try:
             self._client = Client(
-                streams=(self._process.stdin.fileno(), self._process.stdout.fileno()), logger=True
+                streams=(self._process.stdin.fileno(), self._process.stdout.fileno()), log=True
             )
         except TraxException as e:
             self.terminate()
