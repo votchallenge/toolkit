@@ -66,14 +66,14 @@ class Tracker(object):
         self._label = label
         self._args = kwargs
 
-    def runtime(self) -> "TrackerRuntime":
+    def runtime(self, log=False) -> "TrackerRuntime":
         if not self._protocol:
             raise TrackerException("Tracker does not have an attached executable")
 
         if not self._protocol in _runtime_protocols:
             raise TrackerException("Runtime protocol '{}' not available".format(self._protocol))
 
-        return _runtime_protocols[self._protocol](self, self._command, **self._args)
+        return _runtime_protocols[self._protocol](self, self._command, log=log, **self._args)
 
     @property
     def identifier(self):

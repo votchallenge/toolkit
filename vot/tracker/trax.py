@@ -50,22 +50,21 @@ def convert_traxregion(region: TraxRegion) -> Region:
 
 class TrackerProcess(object):
 
-    def __init__(self, command: str, envvars = dict(), timeout=30):
+    def __init__(self, command: str, envvars=dict(), timeout=30, log=False):
         if sys.platform.startswith("win"):
-            print(command)
             self._process = subprocess.Popen(
-                    command, 
+                    command,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT, 
+                    stderr=subprocess.STDOUT,
                     env=envvars, bufsize=0)
         else:
             self._process = subprocess.Popen(
-                    shlex.split(command, posix=0), 
-                    shell=False, 
+                    shlex.split(command),
+                    shell=False,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT, 
+                    stderr=subprocess.STDOUT,
                     env=envvars)
 
         self._timeout = timeout
@@ -76,9 +75,10 @@ class TrackerProcess(object):
         self._watchdog.start()
 
         self._watchdog_reset(True)
+
         try:
             self._client = Client(
-                streams=(self._process.stdin.fileno(), self._process.stdout.fileno()), log=True
+                streams=(self._process.stdin.fileno(), self._process.stdout.fileno()), log=log
             )
         except TraxException as e:
             self.terminate()
@@ -91,9 +91,9 @@ class TrackerProcess(object):
             self._watchdog_counter = self._timeout * 10
         else:
             self._watchdog_counter = -1
-        
+
     def _watchdog_loop(self):
-        
+
         while self.alive:
             time.sleep(0.1)
             if self._watchdog_counter < 0:
@@ -175,9 +175,9 @@ class TrackerProcess(object):
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker: Tracker, command: str, debug: bool = False, linkpaths=[]):
+    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[]):
         self._command = command
-        self._debug = debug
+        self._log = log
         self._process = None
         self._tracker = tracker
         if isinstance(linkpaths, str):
@@ -196,7 +196,7 @@ class TraxTrackerRuntime(TrackerRuntime):
             else:
                 envvars["LD_LIBRARY_PATH"] = os.pathsep.join(self._linkpaths)
             envvars["TRAX"] = "1"
-            self._process = TrackerProcess(self._command, envvars)
+            self._process = TrackerProcess(self._command, envvars, log=self._log)
 
     def restart(self):
         if self._process:
@@ -225,7 +225,7 @@ def escape_path(path):
     else:
         return path
 
-def trax_python_adapter(tracker, command, paths, debug: bool = False, linkpaths=[], virtualenv=None):
+def trax_python_adapter(tracker, command, paths, log: bool = False, linkpaths=[], virtualenv=None):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -242,9 +242,9 @@ def trax_python_adapter(tracker, command, paths, debug: bool = False, linkpaths=
 
     command = '{} -c "{}import sys;{} import {}"'.format(sys.executable, virtualenv_launch, pathimport, command)
 
-    return TraxTrackerRuntime(tracker, command, debug, linkpaths)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths)
 
-def trax_matlab_adapter(tracker, command, paths, debug: bool = False, linkpaths=[]):
+def trax_matlab_adapter(tracker, command, paths, log: bool = False, linkpaths=[]):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -277,9 +277,9 @@ def trax_matlab_adapter(tracker, command, paths, debug: bool = False, linkpaths=
 
     command = '{} {} -r "{}"'.format(matlab_executable, " ".join(matlab_flags), matlab_script)
 
-    return TraxTrackerRuntime(tracker, command, debug, linkpaths)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths)
 
-def trax_octave_adapter(tracker, command, paths, debug: bool = False, linkpaths=[]):
+def trax_octave_adapter(tracker, command, paths, log: bool = False, linkpaths=[]):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -312,5 +312,5 @@ def trax_octave_adapter(tracker, command, paths, debug: bool = False, linkpaths=
 
     command = '{} {} --eval "{}"'.format(octave_executable, " ".join(octave_flags), octave_script)
 
-    return TraxTrackerRuntime(tracker, command, debug, linkpaths)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths)
 

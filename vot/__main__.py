@@ -42,7 +42,7 @@ def do_test(config, logger):
 
     logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
-    runtime = tracker.runtime()
+    runtime = tracker.runtime(log=True)
 
     logger.info("Initializing tracker")
 
