@@ -83,6 +83,7 @@ def do_workspace(config, logger):
 
 def do_evaluate(config, logger):
     from vot.workspace import Workspace
+    from vot.utilities import Progress
 
     workspace = Workspace(config.workspace)
 
@@ -101,12 +102,13 @@ def do_evaluate(config, logger):
         return
 
     for tracker in trackers:
-        logger.info(" |= > Evaluating tracker %s", tracker.identifier)
+        logger.info("Evaluating tracker %s", tracker.identifier)
         for experiment in workspace.stack:
-            logger.info(" |== > Running experiment %s", experiment.identifier)
+            logger.info("Running experiment %s", experiment.identifier)
+            progress = Progress(desc="%s/%s" % (tracker.identifier, experiment.identifier), total=len(workspace.dataset))
             for sequence in workspace.dataset:
-                logger.info(" |=== > Sequence %s", sequence.name)
                 experiment.execute(tracker, sequence)
+                progress.update_relative(1)
 
     logger.info("Evaluation concluded successfuly")
 
