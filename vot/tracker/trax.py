@@ -175,28 +175,30 @@ class TrackerProcess(object):
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[]):
+    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[], envvars=None):
         self._command = command
         self._log = log
         self._process = None
         self._tracker = tracker
         if isinstance(linkpaths, str):
-            self._linkpaths = linkpaths.split(os.pathsep)
+            linkpaths = linkpaths.split(os.pathsep)
+
+        if sys.platform.startswith("win"):
+            pathvar = "PATH"
         else:
-            self._linkpaths = linkpaths
+            pathvar = "LD_LIBRARY_PATH"
+
+        envvars[pathvar] = envvars[pathvar] + os.pathsep + os.pathsep.join(linkpaths) if pathvar in envvars else os.pathsep.join(linkpaths)
+        envvars["TRAX"] = "1"
+
+        self._envvars = envvars
 
     def tracker(self) -> Tracker:
         return self._tracker
 
     def _connect(self):
         if not self._process:
-            envvars = dict()
-            if sys.platform == "win32":
-                envvars["PATH"] = os.pathsep.join(self._linkpaths)
-            else:
-                envvars["LD_LIBRARY_PATH"] = os.pathsep.join(self._linkpaths)
-            envvars["TRAX"] = "1"
-            self._process = TrackerProcess(self._command, envvars, log=self._log)
+            self._process = TrackerProcess(self._command, self._envvars, log=self._log)
 
     def restart(self):
         if self._process:
@@ -225,28 +227,67 @@ def escape_path(path):
     else:
         return path
 
-def trax_python_adapter(tracker, command, paths, log: bool = False, linkpaths=[], virtualenv=None):
+def collect_envvars(**kwargs):
+    envvars = dict()
+
+    if "env" in kwargs and isinstance(kwargs["env"], dict):
+        envvars.update({k: os.path.expandvars(v) for k, v in kwargs["env"].items()})
+
+    for name, value in kwargs.items():
+        if name.startswith("env_") and len(name) > 4:
+            envvars[name[4:]] = os.path.expandvars(value)
+
+    return envvars
+
+def trax_python_adapter(tracker, command, paths, log: bool = False, linkpaths=[], virtualenv=None, condaenv=None, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
     pathimport = " ".join(["sys.path.insert(0, '{}');".format(escape_path(x)) for x in paths[::-1]])
 
+    interpreter = sys.executable
+
+    if not virtualenv is None and not condaenv is None:
+        raise TrackerException("Cannot use both vitrtualenv and Conda")
+
+    envvars = collect_envvars(**kwargs)
+
     virtualenv_launch = ""
-    if virtualenv:
+    if not virtualenv is None:
         if sys.platform.startswith("win"):
             activate_function = os.path.join(os.path.join(virtualenv, "Scripts"), "activate_this.py")
+            interpreter = os.path.join(os.path.join(virtualenv, "Scripts", "python.exe"))
         else:
             activate_function = os.path.join(os.path.join(virtualenv, "bin"), "activate_this.py")
+            interpreter = os.path.join(os.path.join(virtualenv, "bin", "python"))
+        if not os.path.isfile(interpreter):
+            raise TrackerException("Executable {} not found".format(interpreter))
+
         if os.path.isfile(activate_function):
             virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))
 
-    command = '{} -c "{}import sys;{} import {}"'.format(sys.executable, virtualenv_launch, pathimport, command)
+    if not condaenv is None:
+        if sys.platform.startswith("win"):
+            paths = ["Library\\mingw-w64\\bin", "Library\\usr\\bin", "Library\\bin", "Scripts", "bin"]
+            interpreter = os.path.join(os.path.join(virtualenv, "python.exe"))
+        else:
+            paths = [] #TODO
+            interpreter = os.path.join(os.path.join(virtualenv, "python"))
+        paths = [os.path.join(condaenv, x) for x in paths]
+        envvars["PATH"] = os.pathsep.join(paths) + os.pathsep + envvars.get("PATH", "")
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths)
+        if os.path.isfile(activate_function):
+            virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))
 
-def trax_matlab_adapter(tracker, command, paths, log: bool = False, linkpaths=[]):
+    command = '{} -c "{}import sys;{} import {}"'.format(interpreter, virtualenv_launch, pathimport, command)
+
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars)
+
+def trax_matlab_adapter(tracker, command, paths, log: bool = False, linkpaths=[], **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
+
+    envvars = collect_envvars(**kwargs)
 
     pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
 
@@ -277,11 +318,13 @@ def trax_matlab_adapter(tracker, command, paths, log: bool = False, linkpaths=[]
 
     command = '{} {} -r "{}"'.format(matlab_executable, " ".join(matlab_flags), matlab_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars)
 
-def trax_octave_adapter(tracker, command, paths, log: bool = False, linkpaths=[]):
+def trax_octave_adapter(tracker, command, paths, log: bool = False, linkpaths=[], **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
+
+    envvars = collect_envvars(**kwargs)
 
     pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
 
@@ -312,5 +355,5 @@ def trax_octave_adapter(tracker, command, paths, log: bool = False, linkpaths=[]
 
     command = '{} {} --eval "{}"'.format(octave_executable, " ".join(octave_flags), octave_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars)
 
