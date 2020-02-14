@@ -51,13 +51,15 @@ def convert_traxregion(region: TraxRegion) -> Region:
 class TrackerProcess(object):
 
     def __init__(self, command: str, envvars=dict(), timeout=30, log=False):
+        environment = dict(os.environ)
+        environment.update(envvars)
         if sys.platform.startswith("win"):
             self._process = subprocess.Popen(
                     command,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    env=envvars, bufsize=0)
+                    env=environment, bufsize=0)
         else:
             self._process = subprocess.Popen(
                     shlex.split(command),
@@ -65,7 +67,7 @@ class TrackerProcess(object):
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    env=envvars)
+                    env=environment)
 
         self._timeout = timeout
         self._client = None
@@ -223,7 +225,7 @@ class TraxTrackerRuntime(TrackerRuntime):
 
 def escape_path(path):
     if sys.platform.startswith("win"):
-        return path #path.replace("\\\\", "\\").replace("\\", "\\\\")
+        return path.replace("\\\\", "\\").replace("\\", "\\\\")
     else:
         return path
 
