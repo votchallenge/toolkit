@@ -4,7 +4,7 @@ from distutils.core import setup
 
 setup(name='Visual Object Tracking toolkit',
       version='8.0',
-      description='Perform visual tracking experiments and analyze results',
+      description='Perform visual object tracking experiments and analyze results',
       author='Luka Cehovin Zajc',
       author_email='luka.cehovin@gmail.com',
       url='https://github.com/votchallenge/toolkit',
@@ -25,5 +25,8 @@ setup(name='Visual Object Tracking toolkit',
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.4',
+    entry_points={
+        'console_scripts': ['vot=vot.cli:main'],
+    },
 )
 
