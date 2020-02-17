@@ -7,6 +7,21 @@ from datetime import datetime
 
 from vot.tracker import load_trackers
 from vot.stack import resolve_stack
+from vot.workspace import Workspace
+from vot.utilities import Progress
+
+class EvaluationProgress(object):
+
+    def __init__(self, description, total):
+        self.bar = Progress(desc=description, total=total, unit="sequence")
+        self._finished = 0
+
+    def __call__(self, progress):
+        self.bar.update_absolute(self._finished + min(1, max(0, progress)))
+
+    def push(self):
+        self._finished = self._finished + 1
+        self.bar.update_absolute(self._finished)
 
 class EnvDefault(argparse.Action):
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
@@ -82,7 +97,6 @@ def do_workspace(config, logger):
     logger.info("Initialized workspace in '%s'", config.workspace)
 
 def do_evaluate(config, logger):
-    from vot.workspace import Workspace
 
     workspace = Workspace(config.workspace)
 
@@ -100,20 +114,23 @@ def do_evaluate(config, logger):
         logger.error("Tracker not found %s", str(ke))
         return
 
-    for tracker in trackers:
-        logger.info(" |= > Evaluating tracker %s", tracker.identifier)
-        for experiment in workspace.stack:
-            logger.info(" |== > Running experiment %s", experiment.identifier)
-            for sequence in workspace.dataset:
-                logger.info(" |=== > Sequence %s", sequence.name)
-                experiment.execute(tracker, sequence)
+    try:
 
-    logger.info("Evaluation concluded successfuly")
+        for tracker in trackers:
+            logger.info("Evaluating tracker %s", tracker.identifier)
+            for experiment in workspace.stack:
+                progress = EvaluationProgress("{}/{}".format(tracker.identifier, experiment.identifier), len(workspace.dataset))
+                for sequence in workspace.dataset:
+                    experiment.execute(tracker, sequence, force=config.force, callback=progress)
+                    progress.push()
 
+        logger.info("Evaluation concluded successfuly")
+
+    except KeyboardInterrupt:
+        logger.info("Evaluation interrupted by the user")
 
 def do_analysis(config, logger):
 
-    from vot.workspace import Workspace
     from vot.analysis import process_measures
 
     workspace = Workspace(config.workspace)
@@ -156,8 +173,6 @@ def do_pack(config, logger):
 
     import zipfile, io
     from shutil import copyfileobj
-    from vot.workspace import Workspace
-    from vot.utilities import Progress
 
     workspace = Workspace(config.workspace)
 
@@ -263,6 +278,5 @@ def main():
 
     except argparse.ArgumentError:
         traceback.print_exc()
-
 
     exit(0)

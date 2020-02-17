@@ -17,7 +17,7 @@ class TrackerException(VOTException):
 class TrackerTimeoutException(VOTException):
     pass
 
-VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9_]+$")
+VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9-_]+$")
 
 def is_valid_identifier(identifier):
     return not VALID_IDENTIFIER.match(identifier) is None
