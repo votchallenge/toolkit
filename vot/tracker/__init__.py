@@ -1,5 +1,5 @@
 
-import os
+import os, re
 import configparser
 import yaml
 import logging
@@ -17,11 +17,12 @@ class TrackerException(VOTException):
 class TrackerTimeoutException(VOTException):
     pass
 
+VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9_]+$")
+
 def is_valid_identifier(identifier):
-    return True
+    return not VALID_IDENTIFIER.match(identifier) is None
 
 _runtime_protocols = {}
-
 
 def load_trackers(directories, root=os.getcwd()):
 

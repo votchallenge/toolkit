@@ -3,8 +3,6 @@ import json
 import glob
 from typing import List
 
-from abc import abstractmethod, ABC
-
 from vot.experiment import Experiment
 from vot.utilities import import_class
 

@@ -1,7 +1,7 @@
 
 from typing import List
 
-from vot.dataset import Channel, Sequence, Dataset, Frame
+from vot.dataset import Channel, Sequence, Frame
 
 class FrameMapChannel(Channel):
 

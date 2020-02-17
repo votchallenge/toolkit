@@ -1,6 +1,7 @@
 #pylint: disable=W0223
 
 from abc import ABC
+from typing import Callable
 
 from vot.dataset import Sequence
 from vot.region import Special, calculate_overlap
@@ -45,7 +46,7 @@ class MultiRunExperiment(Experiment, ABC):
         
 class UnsupervisedExperiment(MultiRunExperiment):
 
-    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
         results = self.workspace.results(tracker, self, sequence)
 
@@ -73,6 +74,9 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
             trajectory.write(results, name)
 
+            if  callback:
+                callback(i / self._repetitions)
+
 class SupervisedExperiment(MultiRunExperiment):
 
     def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0):
@@ -93,7 +97,7 @@ class SupervisedExperiment(MultiRunExperiment):
     def failure_overlap(self):
         return self._failure_overlap
 
-    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
         results = self.workspace.results(tracker, self, sequence)
 
@@ -132,6 +136,9 @@ class SupervisedExperiment(MultiRunExperiment):
                             break
                         else:
                             trajectory.set(frame, region, properties)
+
+            if  callback:
+                callback(i / self._repetitions)
 
             trajectory.write(results, name)
 

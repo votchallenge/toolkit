@@ -1,4 +1,6 @@
 
+from typing import Callable
+
 from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.region import Special
@@ -49,7 +51,7 @@ class MultiStartExperiment(Experiment):
 
         return complete, files
 
-    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
         results = self.workspace.results(tracker, self, sequence)
 
@@ -57,6 +59,9 @@ class MultiStartExperiment(Experiment):
 
         if len(forward) == 0 and len(backward) == 0:
             raise RuntimeError("Sequence does not contain any anchors")
+
+        total = len(forward) + len(backward)
+        current = 0
 
         for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
             name = "%s_%08d" % (sequence.name, i)
@@ -86,3 +91,7 @@ class MultiStartExperiment(Experiment):
                     trajectory.set(frame, region, properties)
 
             trajectory.write(results, name)
+
+            current = current + 1
+            if  callback:
+                callback(current / total)

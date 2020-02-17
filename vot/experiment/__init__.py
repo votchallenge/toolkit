@@ -4,6 +4,8 @@ import os
 import json
 import glob
 
+from typing import Callable
+
 from abc import abstractmethod, ABC
 
 class Experiment(ABC):
@@ -21,7 +23,7 @@ class Experiment(ABC):
         return self._identifier
 
     @abstractmethod
-    def execute(self, tracker: "Tracker", sequence: "Sequence", force: bool = False):
+    def execute(self, tracker: "Tracker", sequence: "Sequence", force: bool = False, callback: Callable = None):
         pass
 
     @abstractmethod
