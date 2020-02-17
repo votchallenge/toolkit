@@ -1,7 +1,7 @@
+vot-trax>=3.0
 tqdm==4.32
 numpy>=1.16
 opencv-python>=4.0
-trax>=3.0
 six
 plotly>=4.5
 dash>=1.8

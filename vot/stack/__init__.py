@@ -7,8 +7,6 @@ from vot.experiment import Experiment
 from vot.utilities import import_class
 from vot.analysis import PerformanceMeasure
 
-
-
 class Stack(object):
 
     def __init__(self, workspace: "Workspace", metadata: dict):
