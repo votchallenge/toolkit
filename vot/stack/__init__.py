@@ -5,6 +5,9 @@ from typing import List
 
 from vot.experiment import Experiment
 from vot.utilities import import_class
+from vot.analysis import PerformanceMeasure
+
+
 
 class Stack(object):
 
