@@ -229,19 +229,7 @@ def escape_path(path):
     else:
         return path
 
-def collect_envvars(**kwargs):
-    envvars = dict()
-
-    if "env" in kwargs and isinstance(kwargs["env"], dict):
-        envvars.update({k: os.path.expandvars(v) for k, v in kwargs["env"].items()})
-
-    for name, value in kwargs.items():
-        if name.startswith("env_") and len(name) > 4:
-            envvars[name[4:]] = os.path.expandvars(value)
-
-    return envvars
-
-def trax_python_adapter(tracker, command, paths, log: bool = False, linkpaths=[], virtualenv=None, condaenv=None, **kwargs):
+def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], virtualenv=None, condaenv=None, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -251,8 +239,6 @@ def trax_python_adapter(tracker, command, paths, log: bool = False, linkpaths=[]
 
     if not virtualenv is None and not condaenv is None:
         raise TrackerException("Cannot use both vitrtualenv and Conda")
-
-    envvars = collect_envvars(**kwargs)
 
     virtualenv_launch = ""
     if not virtualenv is None:
@@ -285,11 +271,9 @@ def trax_python_adapter(tracker, command, paths, log: bool = False, linkpaths=[]
 
     return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars)
 
-def trax_matlab_adapter(tracker, command, paths, log: bool = False, linkpaths=[], **kwargs):
+def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
-
-    envvars = collect_envvars(**kwargs)
 
     pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
 
@@ -322,11 +306,9 @@ def trax_matlab_adapter(tracker, command, paths, log: bool = False, linkpaths=[]
 
     return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars)
 
-def trax_octave_adapter(tracker, command, paths, log: bool = False, linkpaths=[], **kwargs):
+def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
-
-    envvars = collect_envvars(**kwargs)
 
     pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
 

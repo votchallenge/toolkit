@@ -47,7 +47,7 @@ def load_trackers(directories, root=os.getcwd()):
                     if not is_valid_identifier(k):
                         raise TrackerException("Invalid identifier: {}".format(k))
                     print(k, v)
-                    trackers[k] = Tracker(identifier= k, **v)
+                    trackers[k] = Tracker(identifier=k, **v)
 
             if name.endswith(".ini"):
                 config = configparser.ConfigParser()
@@ -58,6 +58,23 @@ def load_trackers(directories, root=os.getcwd()):
                     trackers[section] = Tracker(identifier = section, **config[section])
     return trackers
 
+def collect_envvars(**kwargs):
+    envvars = dict()
+    other = dict()
+
+    if "env" in kwargs:
+        if isinstance(kwargs["env"], dict):
+            envvars.update({k: os.path.expandvars(v) for k, v in kwargs["env"].items()})
+        del kwargs["env"]
+
+    for name, value in kwargs.items():
+        if name.startswith("env_") and len(name) > 4:
+            envvars[name[4:]] = os.path.expandvars(value)
+        else:
+            other[name] = value
+
+    return envvars, other
+
 class Tracker(object):
 
     def __init__(self, identifier, command, protocol=None, label=None, **kwargs):
@@ -65,7 +82,7 @@ class Tracker(object):
         self._command = command
         self._protocol = protocol
         self._label = label
-        self._args = kwargs
+        self._envvars, self._args = collect_envvars(**kwargs)
 
     def runtime(self, log=False) -> "TrackerRuntime":
         if not self._protocol:
@@ -74,7 +91,7 @@ class Tracker(object):
         if not self._protocol in _runtime_protocols:
             raise TrackerException("Runtime protocol '{}' not available".format(self._protocol))
 
-        return _runtime_protocols[self._protocol](self, self._command, log=log, **self._args)
+        return _runtime_protocols[self._protocol](self, self._command, log=log, envvars=self._envvars, **self._args)
 
     @property
     def identifier(self):
