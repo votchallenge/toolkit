@@ -112,16 +112,18 @@ class SupervisedExperiment(MultiRunExperiment):
 
             with tracker.runtime() as runtime:
 
-                start = 0
-                while start < sequence.length:
+                frame = 0
+                while frame < sequence.length:
 
-                    _, properties, elapsed = runtime.initialize(sequence.frame(start), sequence.groundtruth(start))
+                    _, properties, elapsed = runtime.initialize(sequence.frame(frame), sequence.groundtruth(frame))
 
                     properties["time"] = elapsed
 
-                    trajectory.set(start, Special(Special.INITIALIZATION), properties)
+                    trajectory.set(frame, Special(Special.INITIALIZATION), properties)
 
-                    for frame in range(start+1, sequence.length):
+                    frame = frame + 1
+
+                    while frame < sequence.length:
 
                         region, properties, elapsed = runtime.update(sequence.frame(frame))
 
@@ -129,17 +131,18 @@ class SupervisedExperiment(MultiRunExperiment):
 
                         if calculate_overlap(region, sequence.groundtruth(frame), sequence.size) <= self.failure_overlap:
                             trajectory.set(frame, Special(Special.FAILURE), properties)
-                            start = frame + self.skip_initialize
+                            frame = frame + self.skip_initialize
  
                             if self.skip_tags:
-                                while start < sequence.length:
-                                    if not [t for t in sequence.tags(start) if t in self.skip_tags]:
+                                while frame < sequence.length:
+                                    if not [t for t in sequence.tags(frame) if t in self.skip_tags]:
                                         break
-                                    start = start + 1
+                                    frame = frame + 1
                             break
                         else:
                             trajectory.set(frame, region, properties)
-                            start = frame + 1
+                        frame = frame + 1
+
             if  callback:
                 callback(i / self._repetitions)
 

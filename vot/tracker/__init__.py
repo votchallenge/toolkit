@@ -69,10 +69,10 @@ def collect_envvars(**kwargs):
 
     for name, value in kwargs.items():
         if name.startswith("env_") and len(name) > 4:
-            envvars[name[4:]] = os.path.expandvars(value)
+            envvars[name[4:].upper()] = os.path.expandvars(value)
         else:
             other[name] = value
-
+    
     return envvars, other
 
 class Tracker(object):
