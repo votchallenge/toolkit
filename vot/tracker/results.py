@@ -3,6 +3,7 @@ import os, glob
 from typing import List
 from copy import copy
 from vot.region import Region, Special, write_file, read_file
+from vot.utilities import to_string
 
 class Results(object):
 
@@ -102,5 +103,5 @@ class Trajectory(object):
 
         for k, v in self._properties.items():
             with results.write(name + "_" + k + ".value") as fp:
-                fp.writelines([str(e) + "\n" for e in v])
+                fp.writelines([to_string(e) + "\n" for e in v])
 

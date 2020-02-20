@@ -143,3 +143,9 @@ def normalize(path, root=None):
         root = os.getcwd()
     return os.path.normpath(os.path.join(root, path))
 
+
+def to_string(n):
+    if n is None:
+        return ""
+    else:
+        return str(n)
