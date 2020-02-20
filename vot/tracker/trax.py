@@ -16,7 +16,7 @@ from trax.region import Rectangle as TraxRectangle
 from vot.dataset import Frame
 from vot.region import Region, Polygon, Rectangle, Mask
 from vot.tracker import Tracker, TrackerRuntime, TrackerException
-
+from vot.utilities import to_logical
 
 PORT_POOL_MIN = 9090
 PORT_POOL_MAX = 65535
@@ -220,8 +220,8 @@ class TraxTrackerRuntime(TrackerRuntime):
         self._tracker = tracker
         if isinstance(linkpaths, str):
             linkpaths = linkpaths.split(os.pathsep)
-        self._socket = socket
-        self._restart = restart
+        self._socket = to_logical(socket)
+        self._restart = to_logical(restart)
 
         if sys.platform.startswith("win"):
             pathvar = "PATH"

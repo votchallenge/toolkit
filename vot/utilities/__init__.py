@@ -149,3 +149,26 @@ def to_string(n):
         return ""
     else:
         return str(n)
+
+def to_number(val, max_n = None, min_n = None, conversion=int):
+    try:
+        n = conversion(val)
+
+        if not max_n is None:
+            if n > max_n:
+                raise RuntimeError("Parameter higher than maximum allowed value")
+        if not min_n is None:
+            if n < min_n:
+                raise RuntimeError("Parameter lower than minimum allowed value")
+
+        return n
+    except ValueError:
+        raise RuntimeError("Number conversion error")
+
+def to_logical(val):
+    try:
+        n = bool(val)
+
+        return n
+    except ValueError:
+        raise RuntimeError("Logical value conversion error")

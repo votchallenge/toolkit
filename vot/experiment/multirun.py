@@ -8,12 +8,13 @@ from vot.region import Special, calculate_overlap
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
+from vot.utilities import to_number
 
 class MultiRunExperiment(Experiment, ABC):
 
     def __init__(self, identifier: str, workspace: "Workspace", repetitions=1):
         super().__init__(identifier, workspace)
-        self._repetitions = repetitions
+        self._repetitions = to_number(repetitions, min_n=1)
 
     @property
     def repetitions(self):
@@ -81,9 +82,9 @@ class SupervisedExperiment(MultiRunExperiment):
 
     def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0):
         super().__init__(identifier, workspace, repetitions)
-        self._skip_initialize = skip_initialize
-        self._skip_tags = skip_tags
-        self._failure_overlap = failure_overlap
+        self._skip_initialize = to_number(skip_initialize, min_n=1)
+        self._skip_tags = tuple(skip_tags)
+        self._failure_overlap = to_number(failure_overlap, min_n=0, max_n=1, conversion=float)
 
     @property
     def skip_initialize(self):

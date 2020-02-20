@@ -24,7 +24,7 @@ class MultiStartExperiment(Experiment):
 
     def __init__(self, identifier: str, workspace: "Workspace", anchor: str = "anchor"):
         super().__init__(identifier, workspace)
-        self._anchor = anchor
+        self._anchor = str(anchor)
 
     @property
     def anchor(self):
