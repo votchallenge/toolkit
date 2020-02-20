@@ -23,15 +23,17 @@ class Stack(object):
         for identifier, experiment_metadata in metadata["experiments"].items():
             experiment_class = import_class(experiment_metadata["type"])
             assert issubclass(experiment_class, Experiment)
-            measures_metadata = experiment_metadata["measures"]
             del experiment_metadata["type"]
-            del experiment_metadata["measures"]
             measures = []
-            for measure_metadata in measures_metadata:
-                measure_class = import_class(measure_metadata["type"])
-                assert issubclass(measure_class, PerformanceMeasure)
-                del measure_metadata["type"]
-                measures.append(measure_class(**measure_metadata))
+            if "measures" in experiment_metadata:
+                measures_metadata = experiment_metadata["measures"]
+                del experiment_metadata["measures"]
+
+                for measure_metadata in measures_metadata:
+                    measure_class = import_class(measure_metadata["type"])
+                    assert issubclass(measure_class, PerformanceMeasure)
+                    del measure_metadata["type"]
+                    measures.append(measure_class(**measure_metadata))
             experiment = experiment_class(identifier, workspace, **experiment_metadata)
             self._experiments.append(experiment)
             self._measures[experiment] = measures

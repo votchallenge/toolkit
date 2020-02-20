@@ -121,22 +121,24 @@ class SupervisedExperiment(MultiRunExperiment):
                     trajectory.set(start, Special(Special.INITIALIZATION), properties)
 
                     for frame in range(start+1, sequence.length):
+
                         region, properties, elapsed = runtime.update(sequence.frame(frame))
 
                         properties["time"] = elapsed
 
                         if calculate_overlap(region, sequence.groundtruth(frame), sequence.size) <= self.failure_overlap:
                             trajectory.set(frame, Special(Special.FAILURE), properties)
-                            runtime.restart()
                             start = frame + self.skip_initialize
+ 
                             if self.skip_tags:
                                 while start < sequence.length:
                                     if not [t for t in sequence.tags(start) if t in self.skip_tags]:
                                         break
+                                    start = start + 1
                             break
                         else:
                             trajectory.set(frame, region, properties)
-
+                            start = frame + 1
             if  callback:
                 callback(i / self._repetitions)
 
