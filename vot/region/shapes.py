@@ -136,9 +136,9 @@ class Rectangle(Region):
         elif rtype == RegionType.POLYGON:
             points = []
             points.append((self.x, self.y))
-            points.append((self.x + self.width, self.y))
-            points.append((self.x + self.width, self.y + self.height))
-            points.append((self.x, self.y + self.height))
+            points.append((self.x + self.width - 1, self.y))
+            points.append((self.x + self.width - 1, self.y + self.height - 1))
+            points.append((self.x, self.y + self.height - 1))
             return Polygon(points)
         elif rtype == RegionType.MASK:
             return Mask(np.ones((int(round(self.height)), int(round(self.width))), np.uint8), (int(round(self.x)), int(round(self.y))))
