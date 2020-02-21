@@ -249,6 +249,8 @@ class Mask(Region):
 
     def _optimize(self):
         bounds = mask2bbox(self.mask)
+        if bounds[0] is None:
+            raise VOTException("Mask is empty")
         self.mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
         self.offset = (bounds[0], bounds[1])
 
