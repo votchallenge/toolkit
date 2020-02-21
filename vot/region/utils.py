@@ -176,7 +176,7 @@ def calculate_overlap(reg1: Region, reg2: Region, bounds=None):
     function first rasterizes both regions to 2-D binary masks and calculates overlap between them
     """
     # if one of the regions is special type - return overlap = 0
-    if reg1.type() == RegionType.SPECIAL or reg2.type() == RegionType.SPECIAL:
+    if reg1.type == RegionType.SPECIAL or reg2.type == RegionType.SPECIAL:
         return 0
     # convert both regions to mask
     m1 = reg1.convert(RegionType.MASK)

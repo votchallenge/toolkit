@@ -11,8 +11,8 @@ class MissingResultsException(Exception):
 
 def is_special(region: Region, code = None) -> bool:
     if code is None:
-        return region.type() == RegionType.SPECIAL
-    return region.type() == RegionType.SPECIAL and region.code() == code
+        return region.type == RegionType.SPECIAL
+    return region.type == RegionType.SPECIAL and region.code == code
 
 class PerformanceMeasure(ABC):
 

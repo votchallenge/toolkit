@@ -34,6 +34,7 @@ class Region(ABC):
     def __init__(self):
         pass
 
+    @property
     @abstractmethod
     def type(self):
         pass
@@ -74,6 +75,7 @@ class Special(Region):
         """ Create string from class """
         return '{}'.format(self._code)
 
+    @property
     def type(self):
         return RegionType.SPECIAL
 
@@ -86,6 +88,7 @@ class Special(Region):
         else:
             raise ConversionException("Unable to convert special region to {}".format(rtype))
 
+    @property
     def code(self):
         """Retiurns special code for this region
         Returns:
@@ -120,6 +123,7 @@ class Rectangle(Region):
         """ Create string from class """
         return '{},{},{},{}'.format(self.x, self.y, self.width, self.height)
 
+    @property
     def type(self):
         return RegionType.RECTANGLE
 
@@ -179,6 +183,7 @@ class Polygon(Region):
         """ Create string from class """
         return ','.join(['{},{}'.format(p[0], p[1]) for p in self.points])
 
+    @property
     def type(self):
         return RegionType.POLYGON
 
@@ -247,6 +252,7 @@ class Mask(Region):
         self.mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
         self.offset = (bounds[0], bounds[1])
 
+    @property
     def type(self):
         return RegionType.MASK
 
