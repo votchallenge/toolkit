@@ -149,6 +149,8 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
         if len(forward) == 0 and len(backward) == 0:
             raise RuntimeError("Sequence does not contain any anchors")
 
+        robustness = 0
+        accuracy = 0
         for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
             name = "%s_%08d" % (sequence.name, i)
 
@@ -167,11 +169,8 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
             grace = self._grace
             progress = len(proxy)
 
-            robustness = 0
-            accuracy = 0
-
             for j, overlap in enumerate(overlaps):
-                if overlap < self._threshold:
+                if overlap <= self._threshold:
                     grace = grace - 1
                     if grace == 0:
                         progress = j

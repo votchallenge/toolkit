@@ -132,13 +132,15 @@ def do_evaluate(config, logger):
 def do_analysis(config, logger):
 
     from vot.analysis import process_measures
-
+  
     workspace = Workspace(config.workspace)
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
-    registry = load_trackers(workspace.registry + config.registry)
+    global_registry = [os.path.abspath(x) for x in config.registry]
 
+    registry = load_trackers(workspace.registry + global_registry, root=config.workspace)
+    
     logger.info("Found data for %d trackers", len(registry))
 
     if not hasattr(config, 'trackers'):
@@ -162,7 +164,7 @@ def do_analysis(config, logger):
         pass
     elif config.output == "json":
         results = process_measures(workspace, trackers)
-        file_name = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H:%M:%S.%f%z}.json".format(datetime.now()))
+        file_name = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H-%M-%S.%f%z}.json".format(datetime.now()))
         with open(file_name, "w") as fp:
             json.dump(results, fp)
 
@@ -210,7 +212,7 @@ def do_pack(config, logger):
 
     logger.info("Collected %d files, compressing to archive ...", len(all_files))
 
-    archive_name = os.path.join(workspace.directory, "{}_{:%Y-%m-%dT%H:%M:%S.%f%z}.zip".format(tracker.identifier, datetime.now()))
+    archive_name = os.path.join(workspace.directory, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.zip".format(tracker.identifier, datetime.now()))
 
     progress = Progress(desc="Compressing", total=len(all_files))
 
