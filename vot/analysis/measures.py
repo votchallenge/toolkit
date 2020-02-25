@@ -85,13 +85,15 @@ class AccuracyRobustness(SeparatablePerformanceMeasure):
 
     def join(self, results: List[tuple]):
         failures = 0
-        frames = 0
+        accuracy = 0
+        weight_total = 0
 
-        for a, n in results:
-            failures = failures + a
-            frames = frames + n
+        for a, f, w in results:
+            failures += f * w
+            accuracy += a * w
+            weight_total += w
 
-        return failures, frames
+        return accuracy / weight_total, failures / weight_total, weight_total
 
     def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
         trajectories = experiment.gather(tracker, sequence)
@@ -99,15 +101,13 @@ class AccuracyRobustness(SeparatablePerformanceMeasure):
         if len(trajectories) == 0:
             raise MissingResultsException()
 
-        cummulative = 0
+        accuracy = 0
         failures = 0
         for trajectory in trajectories:
-            failures = failures + count_failures(trajectory.regions())
-            accuracy, _ = compute_accuracy(trajectory.regions(), sequence, self._burnin, self._ignore_unknown, self._bounded)
-            cummulative = cummulative + accuracy
+            failures += count_failures(trajectory.regions())[0]
+            accuracy += compute_accuracy(trajectory.regions(), sequence, self._burnin, self._ignore_unknown, self._bounded)[0]
 
-
-        return failures / len(trajectories), len(trajectories[0])
+        return accuracy / len(trajectories), failures / len(trajectories), len(trajectories[0])
 
 class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
 
@@ -132,9 +132,9 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
         total = 0
 
         for accuracy, robustness, weight in results:
-            total_accuracy = total_accuracy + accuracy * weight
-            total_robustness = total_robustness + robustness * weight
-            total = total + weight
+            total_accuracy += accuracy * weight
+            total_robustness += robustness * weight
+            total += weight
 
         return total_accuracy / total, total_robustness / total, total
 
@@ -150,7 +150,8 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
             raise RuntimeError("Sequence does not contain any anchors")
 
         robustness = 0
-        accuracy = 0
+        accuracy = 0        
+        total = 0
         for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
             name = "%s_%08d" % (sequence.name, i)
 
@@ -173,14 +174,13 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
                 if overlap <= self._threshold:
                     grace = grace - 1
                     if grace == 0:
-                        progress = j
+                        progress = j - self._grace  # subtract since we need actual point of the failure
                         break
                 else:
                     grace = self._grace
 
-            robustness = robustness + progress / len(proxy)
-            accuracy = accuracy + sum(overlaps[0:progress]) / progress
-
-        N = len(forward) + len(backward)
-
-        return accuracy / N, robustness / N, len(sequence)
+            robustness += progress  # simplified original equation: len(proxy) * (progress / len(proxy))
+            accuracy += len(proxy) * (sum(overlaps[0:progress]) / progress)
+            total += len(proxy)
+            
+        return accuracy / total, robustness / total, len(sequence)

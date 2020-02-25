@@ -11,17 +11,17 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
     ignore_unknown: bool = True, bounded: bool = True) -> float:
 
     overlaps = np.array(calculate_overlaps(trajectory, sequence.groundtruth(), (sequence.size) if bounded else None))
-    mask = np.ones(len(overlaps))
+    mask = np.ones(len(overlaps), dtype=bool)
 
     for i, region in enumerate(trajectory):
         if is_special(region, Special.UNKNOWN) and ignore_unknown:
             mask[i] = False
         elif is_special(region, Special.INITIALIZATION):
-            for j in range(i, i + burnin):
+            for j in range(i, min(len(trajectory), i + burnin)):
                 mask[j] = False
         elif is_special(region, Special.FAILURE):
             mask[i] = False
-
+    
     return np.mean(overlaps[mask]), np.sum(mask)
 
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
