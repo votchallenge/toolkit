@@ -1,6 +1,7 @@
 
 import os, yaml, glob
 import logging
+from datetime import datetime
 
 from vot import VOTException
 
@@ -139,3 +140,11 @@ class Workspace(object):
 
     def list_results(self):
         return [os.path.basename(x) for x in glob.glob(os.path.join(self._results, "*")) if os.path.isdir(x)]
+
+    def open_log(self, identifier):
+
+        logdir = os.path.join(self.directory, "logs")
+        os.makedirs(logdir, exist_ok=True)
+
+        return open(os.path.join(logdir, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now())))
+

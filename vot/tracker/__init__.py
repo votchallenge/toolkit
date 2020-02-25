@@ -12,9 +12,20 @@ from vot.dataset import Frame
 from vot.region import Region
 
 class TrackerException(VOTException):
-    pass
+    def __init__(self, *args, tracker, tracker_log=None):
+        super().__init__(*args)
+        self._tracker_log = tracker_log
+        self._tracker = tracker
 
-class TrackerTimeoutException(VOTException):
+    @property
+    def log(self):
+        return self._tracker_log
+
+    @property
+    def tracker(self):
+        return self._tracker
+
+class TrackerTimeoutException(TrackerException):
     pass
 
 VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9-_]+$")
@@ -45,7 +56,7 @@ def load_trackers(directories, root=os.getcwd()):
                     metadata = yaml.load(fp, Loader=yaml.BaseLoader)
                 for k, v in metadata.items():
                     if not is_valid_identifier(k):
-                        raise TrackerException("Invalid identifier: {}".format(k))
+                        raise VOTException("Invalid identifier: {}".format(k))
                     print(k, v)
                     trackers[k] = Tracker(identifier=k, **v)
 
@@ -54,7 +65,7 @@ def load_trackers(directories, root=os.getcwd()):
                 config.read(name)
                 for section in config.sections():
                     if not is_valid_identifier(section):
-                        raise TrackerException("Invalid identifier: {}".format(section))
+                        raise VOTException("Invalid identifier: {}".format(section))
                     trackers[section] = Tracker(identifier = section, **config[section])
     return trackers
 
@@ -86,10 +97,10 @@ class Tracker(object):
 
     def runtime(self, log=False) -> "TrackerRuntime":
         if not self._protocol:
-            raise TrackerException("Tracker does not have an attached executable")
+            raise TrackerException("Tracker does not have an attached executable", tracker=self)
 
         if not self._protocol in _runtime_protocols:
-            raise TrackerException("Runtime protocol '{}' not available".format(self._protocol))
+            raise TrackerException("Runtime protocol '{}' not available".format(self._protocol), tracker=self)
 
         return _runtime_protocols[self._protocol](self, self._command, log=log, envvars=self._envvars, **self._args)
 

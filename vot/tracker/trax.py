@@ -1,13 +1,19 @@
 
-import sys, os, time
-import subprocess, shlex
+import sys
+import os
+import time
+import re
+import subprocess
+import shlex
 import socket as socketio
 from typing import Tuple
 from threading import Thread
 
+import colorama
+
 from trax import TraxException
 from trax.client import Client
-from trax.image import FileImage, MemoryImage, BufferImage
+from trax.image import FileImage
 from trax.region import Region as TraxRegion
 from trax.region import Polygon as TraxPolygon
 from trax.region import Mask as TraxMask
@@ -20,6 +26,40 @@ from vot.utilities import to_logical
 
 PORT_POOL_MIN = 9090
 PORT_POOL_MAX = 65535
+
+class LogAggregator(object):
+
+    def __init__(self):
+        self._fragments = []
+
+    def __call__(self, fragment):
+        self._fragments.append(fragment)
+
+    def __str__(self):
+        return "".join(self._fragments)
+
+class ColorizedOutput(object):
+
+    def __init__(self):
+        colorama.init()
+
+    def __call__(self, fragment):
+        print(colorama.Fore.CYAN + fragment + colorama.Fore.RESET, end="")
+
+class PythonDebugHelper(object):
+
+    def __init__(self):
+        self._matcher = re.compile(r'''
+            ^Traceback
+            [\s\S]+?
+            (?=^\[|\Z)
+            ''', re.M | re.X)
+
+    def __call__(self, output):
+        matches = self._matcher.findall(output)
+        if len(matches) > 0:
+            return matches[-1].group(0)
+        return None
 
 def convert_frame(frame: Frame, channels: list) -> dict:
     tlist = dict()
@@ -118,8 +158,10 @@ class TrackerProcess(object):
         except TraxException as e:
             self.terminate()
             self._watchdog_reset(False)
-            raise TrackerException(e)
+            raise e
         self._watchdog_reset(False)
+
+        self._has_vot_wrapper = not self._client.get("vot") is None
 
     def _watchdog_reset(self, enable=True):
         if enable:
@@ -139,6 +181,10 @@ class TrackerProcess(object):
                 break
 
     @property
+    def has_vot_wrapper(self):
+        return self._has_vot_wrapper
+
+    @property
     def alive(self):
         if not self._process:
             return False
@@ -147,41 +193,34 @@ class TrackerProcess(object):
     def initialize(self, frame: Frame, region: Region, properties: dict = dict()) -> Tuple[Region, dict, float]:
 
         if not self.alive:
-            raise TrackerException("Tracker not alive")
+            raise TraxException("Tracker not alive")
 
         tlist = convert_frame(frame, self._client.channels)
         tregion = convert_region(region)
 
-        try:
-            self._watchdog_reset(True)
+        self._watchdog_reset(True)
 
-            region, properties, elapsed = self._client.initialize(tlist, tregion, properties)
+        region, properties, elapsed = self._client.initialize(tlist, tregion, properties)
 
-            self._watchdog_reset(False)
+        self._watchdog_reset(False)
 
-            return convert_traxregion(region), properties.dict(), elapsed
+        return convert_traxregion(region), properties.dict(), elapsed
 
-        except TraxException as te:
-            raise TrackerException(te)
 
     def frame(self, frame: Frame, properties: dict = dict()) -> Tuple[Region, dict, float]:
 
         if not self.alive:
-            raise TrackerException("Tracker not alive")
+            raise TraxException("Tracker not alive")
 
         tlist = convert_frame(frame, self._client.channels)
 
-        try:
-            self._watchdog_reset(True)
+        self._watchdog_reset(True)
 
-            region, properties, elapsed = self._client.frame(tlist, properties)
+        region, properties, elapsed = self._client.frame(tlist, properties)
 
-            self._watchdog_reset(False)
+        self._watchdog_reset(False)
 
-            return convert_traxregion(region), properties.dict(), elapsed
-
-        except TraxException as te:
-            raise TrackerException(te)
+        return convert_traxregion(region), properties.dict(), elapsed
 
     def terminate(self):
         if not self.alive:
@@ -213,15 +252,19 @@ class TrackerProcess(object):
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[], envvars=None, socket=False, restart=True):
+    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[], envvars=None, socket=False, restart=False):
+        super().__init__(tracker)
         self._command = command
-        self._log = log
         self._process = None
         self._tracker = tracker
         if isinstance(linkpaths, str):
             linkpaths = linkpaths.split(os.pathsep)
         self._socket = to_logical(socket)
         self._restart = to_logical(restart)
+        if not log:
+            self._output = LogAggregator()
+        else:
+            self._output = None
 
         if sys.platform.startswith("win"):
             pathvar = "PATH"
@@ -238,21 +281,39 @@ class TraxTrackerRuntime(TrackerRuntime):
 
     def _connect(self):
         if not self._process:
-            self._process = TrackerProcess(self._command, self._envvars, log=self._log, socket=self._socket)
+            if not self._output is None:
+                log = self._output
+            else:
+                log = ColorizedOutput()
+            self._process = TrackerProcess(self._command, self._envvars, log=log, socket=self._socket)
+            if self._process.has_vot_wrapper:
+                self._restart = True
 
     def restart(self):
-        self.stop()
-        self._connect()
+        try:
+            self.stop()
+            self._connect()
+        except TraxException as e:
+            raise TrackerException(e, tracker=self._tracker, \
+                tracker_log=str(self._output) if not self._output is None else None)
+
 
     def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
-        if self._restart:
-            self.restart()
-        else:
+        try:
+            if self._restart:
+                self.stop()
             self._connect()
-        return self._process.initialize(frame, region)
+            return self._process.initialize(frame, region)
+        except TraxException as e:
+            raise TrackerException(e, tracker=self._tracker, \
+                tracker_log=str(self._output) if not self._output is None else None)
 
     def update(self, frame: Frame) -> Tuple[Region, dict, float]:
-        return self._process.frame(frame)
+        try:
+            return self._process.frame(frame)
+        except TraxException as e:
+             raise TrackerException(e, tracker=self._tracker, \
+                tracker_log=str(self._output) if not self._output is None else None)
 
     def stop(self):
         if not self._process is None:
@@ -279,7 +340,7 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
     interpreter = sys.executable
 
     if not virtualenv is None and not condaenv is None:
-        raise TrackerException("Cannot use both vitrtualenv and Conda")
+        raise TrackerException("Cannot use both vitrtualenv and Conda", tracker=tracker)
 
     virtualenv_launch = ""
     if not virtualenv is None:
@@ -290,7 +351,7 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
             activate_function = os.path.join(os.path.join(virtualenv, "bin"), "activate_this.py")
             interpreter = os.path.join(os.path.join(virtualenv, "bin", "python"))
         if not os.path.isfile(interpreter):
-            raise TrackerException("Executable {} not found".format(interpreter))
+            raise TrackerException("Executable {} not found".format(interpreter), tracker=tracker)
 
         if os.path.isfile(activate_function):
             virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))

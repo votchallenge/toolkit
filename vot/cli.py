@@ -5,7 +5,7 @@ import logging
 import json
 from datetime import datetime
 
-from vot.tracker import load_trackers
+from vot.tracker import load_trackers, TrackerException
 from vot.stack import resolve_stack
 from vot.workspace import Workspace
 from vot.utilities import Progress
@@ -57,21 +57,26 @@ def do_test(config, logger):
 
     logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
-    runtime = tracker.runtime(log=True)
+    try:
 
-    logger.info("Initializing tracker")
+        runtime = tracker.runtime(log=True)
 
-    runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+        logger.info("Initializing tracker")
 
-    for i in range(1, sequence.length-1):
-        logger.info("Updating on frame %d/%d", i, sequence.length-1)
-        runtime.update(sequence.frame(i))
+        runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
 
-    logger.info("Stopping tracker")
+        for i in range(1, sequence.length-1):
+            logger.info("Updating on frame %d/%d", i, sequence.length-1)
+            runtime.update(sequence.frame(i))
 
-    runtime.stop()
+        logger.info("Stopping tracker")
 
-    logger.info("Test concluded successfuly")
+        runtime.stop()
+
+        logger.info("Test concluded successfuly")
+
+    except TrackerException as te:
+        logger.error("Error during tracker execution: {}".format(te))
 
 def do_workspace(config, logger):
     
@@ -111,7 +116,7 @@ def do_evaluate(config, logger):
     try:
         trackers = [registry[t.strip()] for t in config.trackers]
     except KeyError as ke:
-        logger.error("Tracker not found %s", str(ke))
+        logger.error("Tracker not found: %s", str(ke))
         return
 
     try:
@@ -121,13 +126,24 @@ def do_evaluate(config, logger):
             for experiment in workspace.stack:
                 progress = EvaluationProgress("{}/{}".format(tracker.identifier, experiment.identifier), len(workspace.dataset))
                 for sequence in workspace.dataset:
-                    experiment.execute(tracker, sequence, force=config.force, callback=progress)
+                    try:
+                        experiment.execute(tracker, sequence, force=config.force, callback=progress)
+                    except TrackerException as te:
+                        logger.error("Tracker {} encountered an error: {}".format(te.tracker.identifier, te))
+                        if not te.log is None:
+                            with workspace.open_log(te.tracker.identifier) as flog:
+                                flog.write(te.log)
+                                logger.error("Tracker output writtent to file: {}".format(flog.name))
+                        if not config.persist:
+                            raise te
                     progress.push()
 
         logger.info("Evaluation concluded successfuly")
 
     except KeyboardInterrupt:
         logger.info("Evaluation interrupted by the user")
+    except TrackerException as te:
+        logger.error("Evaluation interrupted by tracker error: {}".format(te))
 
 def do_analysis(config, logger):
 
@@ -247,6 +263,7 @@ def main():
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
     evaluate_parser.add_argument("trackers", nargs='+', default=None, help='Tracker identifiers')
     evaluate_parser.add_argument("--force", "-f", default=False, help="Force rerun of the entire evaluation", required=False)
+    evaluate_parser.add_argument("--persist", "-p", default=False, help="Persist execution even in case of an error", required=False)
     evaluate_parser.add_argument("--workspace", default=".", help='Workspace path')
 
     analysis_parser = subparsers.add_parser('analysis', help='Run interactive analysis')
