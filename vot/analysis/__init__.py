@@ -68,6 +68,15 @@ class SeparatablePerformanceMeasure(PerformanceMeasure):
 
         return self.join(partial)
 
+class NonSeparatablePerformanceMeasure(PerformanceMeasure):
+
+    @abstractmethod
+    def compute_measure(self, tracker: Tracker, experiment: Experiment):
+        raise NotImplementedError
+
+    def compute(self, tracker: Tracker, experiment: Experiment):
+        return self.compute_measure(tracker, experiment)
+
 _MEASURES = list()
 
 def register_measure(measure: PerformanceMeasure):

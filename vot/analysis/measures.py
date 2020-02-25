@@ -6,8 +6,8 @@ from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
-from vot.analysis import SeparatablePerformanceMeasure, MissingResultsException, MeasureDescription
-from vot.analysis.routines import count_failures, compute_accuracy
+from vot.analysis import SeparatablePerformanceMeasure, NonSeparatablePerformanceMeasure, MissingResultsException, MeasureDescription
+from vot.analysis.routines import count_failures, compute_accuracy, compute_eao
 
 class AverageAccuracy(SeparatablePerformanceMeasure):
 
@@ -184,3 +184,85 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
             total += len(proxy)
             
         return accuracy / total, robustness / total, len(sequence)
+
+class EAOMultiStart(NonSeparatablePerformanceMeasure):
+
+    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, interval_low: int = 115, interval_high: int = 755):
+        self._burnin = burnin
+        self._grace = grace
+        self._bounded = bounded
+        self._threshold = 0.1
+        self._interval_low = interval_low
+        self._interval_high = interval_high
+
+    @classmethod
+    def describe(cls):
+        return MeasureDescription("EAO", 0, 1, MeasureDescription.DESCENDING), None
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiStartExperiment)
+
+    def compute_measure(self, tracker: Tracker, experiment: Experiment):
+
+        from vot.region.utils import calculate_overlaps
+
+        overlaps_all = []
+        weights_all = []
+        success_all = []
+        frames_total = 0
+
+        for sequence in experiment.workspace.dataset:
+
+            results = experiment.results(tracker, sequence)
+
+            forward, backward = find_anchors(sequence, experiment.anchor)
+
+            if len(forward) == 0 and len(backward) == 0:
+                raise RuntimeError("Sequence does not contain any anchors")
+
+            weights_per_run = []
+            for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
+                name = "%s_%08d" % (sequence.name, i)
+
+                if not Trajectory.exists(results, name):
+                    raise MissingResultsException()
+
+                if reverse:
+                    proxy = FrameMapSequence(sequence, list(reversed(range(0, i))))
+                else:
+                    proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+
+                trajectory = Trajectory.read(results, name)
+
+                overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self._burnin else None)
+
+                grace = self._grace
+                progress = len(proxy)
+
+                for j, overlap in enumerate(overlaps):
+                    if overlap <= self._threshold:
+                        grace = grace - 1
+                        if grace == 0:
+                            progress = j - self._grace  # subtract since we need actual point of the failure
+                            break
+                    else:
+                        grace = self._grace
+
+                success = True
+                if progress < len(overlaps):
+                    # tracker has failed during this run
+                    overlaps[progress:] = (len(overlaps) - progress) * [float(0)]
+                    success = False
+
+                overlaps_all.append(overlaps)
+                success_all.append(success)
+                weights_per_run.append(len(proxy))
+
+            for w in weights_per_run:
+                weights_all.append((w / sum(weights_per_run)) * len(sequence))
+
+            frames_total += len(sequence)
+
+        weights_all = [w / frames_total for w in weights_all]
+        
+        return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0]
