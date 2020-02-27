@@ -190,10 +190,13 @@ class TrackerProcess(object):
             return False
         return self._process.returncode == None
 
-    def initialize(self, frame: Frame, region: Region, properties: dict = dict()) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
 
         if not self.alive:
             raise TraxException("Tracker not alive")
+
+        if properties is None:
+            properties = dict()
 
         tlist = convert_frame(frame, self._client.channels)
         tregion = convert_region(region)
@@ -252,7 +255,7 @@ class TrackerProcess(object):
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[], envvars=None, socket=False, restart=False):
+    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[], envvars=None, arguments=None, socket=False, restart=False):
         super().__init__(tracker)
         self._command = command
         self._process = None
@@ -265,6 +268,7 @@ class TraxTrackerRuntime(TrackerRuntime):
             self._output = LogAggregator()
         else:
             self._output = None
+        self._arguments = arguments
 
         if sys.platform.startswith("win"):
             pathvar = "PATH"
@@ -303,7 +307,7 @@ class TraxTrackerRuntime(TrackerRuntime):
             if self._restart:
                 self.stop()
             self._connect()
-            return self._process.initialize(frame, region)
+            return self._process.initialize(frame, region, self._arguments)
         except TraxException as e:
             raise TrackerException(e, tracker=self._tracker, \
                 tracker_log=str(self._output) if not self._output is None else None)
@@ -331,7 +335,7 @@ def escape_path(path):
     else:
         return path
 
-def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], virtualenv=None, condaenv=None, socket=False, **kwargs):
+def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], arguments=None, virtualenv=None, condaenv=None, socket=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -371,9 +375,9 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} -c "{}import sys;{} import {}"'.format(interpreter, virtualenv_launch, pathimport, command)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, socket)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
 
-def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], socket=False, **kwargs):
+def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], arguments=None, socket=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -407,9 +411,9 @@ def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} {} -r "{}"'.format(matlab_executable, " ".join(matlab_flags), matlab_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, socket)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
 
-def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], socket=False, **kwargs):
+def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], arguments=None, socket=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -442,5 +446,5 @@ def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} {} --eval "{}"'.format(octave_executable, " ".join(octave_flags), octave_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, socket)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
 

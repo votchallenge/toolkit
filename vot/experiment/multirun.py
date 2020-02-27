@@ -6,8 +6,8 @@ from typing import Callable
 from vot.dataset import Sequence
 from vot.region import Special, calculate_overlap
 
-from vot.experiment import Experiment
-from vot.tracker import Tracker, Trajectory
+from vot.experiment import Experiment, RealtimeMixin
+from vot.tracker import Tracker, Trajectory, RealtimeTrackerRuntime
 from vot.utilities import to_number
 
 class MultiRunExperiment(Experiment, ABC):
@@ -59,7 +59,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
             trajectory = Trajectory(sequence.length)
 
-            with tracker.runtime() as runtime:
+            with self._get_runtime(tracker, sequence) as runtime:
                 _, properties, elapsed = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
 
                 properties["time"] = elapsed
@@ -110,7 +110,7 @@ class SupervisedExperiment(MultiRunExperiment):
 
             trajectory = Trajectory(sequence.length)
 
-            with tracker.runtime() as runtime:
+            with self._get_runtime(tracker, sequence) as runtime:
 
                 frame = 0
                 while frame < sequence.length:
@@ -148,11 +148,14 @@ class SupervisedExperiment(MultiRunExperiment):
 
             trajectory.write(results, name)
 
-class RealtimeExperiment(SupervisedExperiment):
+class RealtimeUnsupervisedExperiment(UnsupervisedExperiment, RealtimeMixin):
 
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, burnin=0, skip_initialize = 1, failure_overlap = 0, grace=0):
-        super().__init__(identifier, workspace, repetitions, burnin, skip_initialize, failure_overlap)
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, grace=0):
+        super().__init__(identifier, workspace, repetitions)
+        RealtimeMixin.__init__(self, identifier, workspace, grace)
 
-    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False):
-        # TODO
-        pass
+class RealtimeSupervisedExperiment(SupervisedExperiment, RealtimeMixin):
+
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0, grace=0):
+        super().__init__(identifier, workspace, repetitions, skip_initialize, skip_tags, failure_overlap)
+        RealtimeMixin.__init__(self, identifier, workspace, grace)

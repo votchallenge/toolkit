@@ -156,10 +156,10 @@ def to_number(val, max_n = None, min_n = None, conversion=int):
 
         if not max_n is None:
             if n > max_n:
-                raise RuntimeError("Parameter higher than maximum allowed value")
+                raise RuntimeError("Parameter higher than maximum allowed value ({}>{})".format(n, max_n))
         if not min_n is None:
             if n < min_n:
-                raise RuntimeError("Parameter lower than minimum allowed value")
+                raise RuntimeError("Parameter lower than minimum allowed value ({}<{})".format(n, min_n))
 
         return n
     except ValueError:

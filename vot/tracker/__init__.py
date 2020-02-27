@@ -86,6 +86,23 @@ def collect_envvars(**kwargs):
     
     return envvars, other
 
+def collect_arguments(**kwargs):
+    arguments = dict()
+    other = dict()
+
+    if "env" in kwargs:
+        if isinstance(kwargs["arguments"], dict):
+            arguments.update(kwargs["arguments"])
+        del kwargs["arguments"]
+
+    for name, value in kwargs.items():
+        if name.startswith("arg_") and len(name) > 4:
+            arguments[name[4:].lower()] = value
+        else:
+            other[name] = value
+    
+    return arguments, other
+
 class Tracker(object):
 
     def __init__(self, identifier, command, protocol=None, label=None, **kwargs):
@@ -93,7 +110,8 @@ class Tracker(object):
         self._command = command
         self._protocol = protocol
         self._label = label
-        self._envvars, self._args = collect_envvars(**kwargs)
+        self._envvars, args = collect_envvars(**kwargs)
+        self._arguments, self._args = collect_arguments(**args)
 
     def runtime(self, log=False) -> "TrackerRuntime":
         if not self._protocol:
@@ -102,7 +120,7 @@ class Tracker(object):
         if not self._protocol in _runtime_protocols:
             raise TrackerException("Runtime protocol '{}' not available".format(self._protocol), tracker=self)
 
-        return _runtime_protocols[self._protocol](self, self._command, log=log, envvars=self._envvars, **self._args)
+        return _runtime_protocols[self._protocol](self, self._command, log=log, envvars=self._envvars, arguments=self._arguments, **self._args)
 
     @property
     def identifier(self):
@@ -118,7 +136,7 @@ class Tracker(object):
 
 class TrackerRuntime(ABC):
 
-    def __init__(self, tracker : Tracker):
+    def __init__(self, tracker: Tracker):
         self._tracker = tracker
 
     def tracker(self) -> Tracker:
@@ -145,6 +163,72 @@ class TrackerRuntime(ABC):
     @abstractmethod
     def update(self, frame: Frame) -> Tuple[Region, dict, float]:
         pass
+
+class RealtimeTrackerRuntime(TrackerRuntime):
+
+    def __init__(self, runtime: TrackerRuntime, grace:int = 1, interval:float = 0.1):
+        self._runtime = runtime
+        self._grace = grace
+        self._interval = interval
+        self._countdown = 0
+        self._time = 0
+        self._out = None
+
+    def tracker(self) -> Tracker:
+        return self._runtime.tracker
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+    def stop(self):
+        self._runtime.stop()
+        self._time = 0
+        self._out = None
+
+    def restart(self):
+        self._runtime.restart()
+        self._time = 0
+        self._out = None
+
+    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
+        self._countdown = self._grace
+        self._out = None
+
+        out, prop, time = self._runtime.initialize(frame, region)
+
+        if time > self._interval:
+            if self._countdown > 0:
+                self._countdown = self._countdown - 1
+                self._time = 0
+            else:
+                self._time = time - self._interval
+                self._out = out
+
+        return out, prop, time
+
+
+    def update(self, frame: Frame) -> Tuple[Region, dict, float]:
+        if self._time > self._interval:
+            self._time = self._time - self._interval
+            return self._out, dict(), 0
+        else:
+            self._out = None
+            self._time = 0
+
+        out, prop, time = self._runtime.update(frame)
+
+        if time > self._interval:
+            if self._countdown > 0:
+                self._countdown = self._countdown - 1
+                self._time = 0
+            else:
+                self._time = time - self._interval
+                self._out = out
+
+        return out, prop, time
 
 try:
 

@@ -10,19 +10,6 @@ from vot.stack import resolve_stack
 from vot.workspace import Workspace
 from vot.utilities import Progress
 
-class EvaluationProgress(object):
-
-    def __init__(self, description, total):
-        self.bar = Progress(desc=description, total=total, unit="sequence")
-        self._finished = 0
-
-    def __call__(self, progress):
-        self.bar.update_absolute(self._finished + min(1, max(0, progress)))
-
-    def push(self):
-        self._finished = self._finished + 1
-        self.bar.update_absolute(self._finished)
-
 class EnvDefault(argparse.Action):
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
         if not default and envvar:
@@ -103,6 +90,8 @@ def do_workspace(config, logger):
 
 def do_evaluate(config, logger):
 
+    from vot.experiment import run_experiment
+
     workspace = Workspace(config.workspace)
 
     logger.info("Loaded workspace in '%s'", config.workspace)
@@ -120,23 +109,10 @@ def do_evaluate(config, logger):
         return
 
     try:
-
         for tracker in trackers:
             logger.info("Evaluating tracker %s", tracker.identifier)
             for experiment in workspace.stack:
-                progress = EvaluationProgress("{}/{}".format(tracker.identifier, experiment.identifier), len(workspace.dataset))
-                for sequence in workspace.dataset:
-                    try:
-                        experiment.execute(tracker, sequence, force=config.force, callback=progress)
-                    except TrackerException as te:
-                        logger.error("Tracker {} encountered an error: {}".format(te.tracker.identifier, te))
-                        if not te.log is None:
-                            with workspace.open_log(te.tracker.identifier) as flog:
-                                flog.write(te.log)
-                                logger.error("Tracker output writtent to file: {}".format(flog.name))
-                        if not config.persist:
-                            raise te
-                    progress.push()
+                run_experiment(experiment, tracker, config.force, config.persist)
 
         logger.info("Evaluation concluded successfuly")
 

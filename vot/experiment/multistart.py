@@ -5,8 +5,9 @@ from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.region import Special
 
-from vot.experiment import Experiment
+from vot.experiment import Experiment, RealtimeMixin
 from vot.tracker import Tracker, Trajectory
+from vot.utilities import to_number
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
     forward = []
@@ -95,3 +96,11 @@ class MultiStartExperiment(Experiment):
             current = current + 1
             if  callback:
                 callback(current / total)
+
+
+class RealtimeMultiStartExperiment(MultiStartExperiment, RealtimeMixin):
+
+    def __init__(self, identifier: str, workspace: "Workspace", anchor: str = "anchor", grace: int = 1):
+        super().__init__(identifier, workspace)
+        self._anchor = str(anchor)
+        RealtimeMixin.__init__(self, identifier, workspace, grace)
