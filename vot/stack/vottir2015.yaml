@@ -1,7 +1,6 @@
-title: VOT2013 challenge
-url: http://www.votchallenge.net/vot2013/
-dataset: vot:vot2013
-deprecated: True
+title: VOT-TIR2015 challenge
+dataset: vot:vot-tir2015
+url: http://www.votchallenge.net/vot2015/
 experiments:
   baseline:
     type: vot.experiment.multirun.SupervisedExperiment
@@ -10,6 +9,3 @@ experiments:
     measures:
       - type: vot.analysis.measures.AccuracyRobustness
         sensitivity: 30
-
-    # TODO: missing experiments
-

@@ -1,5 +1,6 @@
 title: VOT2014 challenge
-dataset: vot2014
+dataset: vot:vot2014
+url: http://www.votchallenge.net/vot2014/
 deprecated: True
 experiments:
   baseline:
@@ -10,4 +11,4 @@ experiments:
       - type: vot.analysis.measures.AccuracyRobustness
         sensitivity: 30
       - type: vot.analysis.measures.FailureCount
-
+  # TODO: region noise

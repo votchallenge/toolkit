@@ -1,0 +1,21 @@
+title: VOT-ST2019 challenge
+dataset: vot:vot-st2019
+url: http://www.votchallenge.net/vot2019/
+experiments:
+  baseline:
+    type: vot.experiment.SupervisedExperiment
+    repetitions: 15
+    skip_initialize: 5
+    measures:
+      - type: vot.analysis.measures.AccuracyRobustness
+        sensitivity: 30
+  unsupervised:
+    type: vot.experiment.UnsupervisedExperiment
+    repetitions: 1
+    measures:
+      - type: vot.analysis.measures.AverageAccuracy
+  realtime:
+    type: vot.experiment.RealtimeSupervisedExperiment
+    grace: 3
+    repetitions: 1
+    skip_initialize: 5
