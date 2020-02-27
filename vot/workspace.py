@@ -108,8 +108,8 @@ class Workspace(object):
         if not os.path.exists(os.path.join(dataset_directory, "list.txt")) and not self._stack.dataset is None:
             logger.info("Stack has a dataset attached, downloading bundle '%s'", self._stack.dataset)
 
-            from vot.dataset import download_vot_dataset
-            download_vot_dataset(self._stack.dataset, dataset_directory)
+            from vot.dataset import download_dataset
+            download_dataset(self._stack.dataset, dataset_directory)
 
             logger.info("Download completed")
 
@@ -146,5 +146,5 @@ class Workspace(object):
         logdir = os.path.join(self.directory, "logs")
         os.makedirs(logdir, exist_ok=True)
 
-        return open(os.path.join(logdir, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now())))
+        return open(os.path.join(logdir, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now())), "w")
 

@@ -241,8 +241,20 @@ class Dataset(ABC):
     def list(self):
         return []
 
-
-
 from .vot import VOTDataset, VOTSequence
 
 from .vot import download_dataset as download_vot_dataset
+
+def download_dataset(identifier:str, path:str):
+
+    split = identifier.find(":")
+    domain = "vot"
+
+    if split > 0:
+        domain = identifier[0:split-1].lower()
+        identifier = identifier[split+1:]
+
+    if domain == "vot":
+        download_vot_dataset(identifier, path)
+    else:
+        raise DatasetException("Unknown dataset domain: {}".format(domain))
