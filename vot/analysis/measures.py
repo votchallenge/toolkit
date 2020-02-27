@@ -8,13 +8,14 @@ from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.analysis import SeparatablePerformanceMeasure, NonSeparatablePerformanceMeasure, MissingResultsException, MeasureDescription
 from vot.analysis.routines import count_failures, compute_accuracy, compute_eao
+from vot.utilities import to_number, to_logical
 
 class AverageAccuracy(SeparatablePerformanceMeasure):
 
     def __init__(self, burnin: int = 10, ignore_unknown: bool = True, bounded: bool = True):
-        self._burnin = burnin
-        self._ignore_unknown = ignore_unknown
-        self._bounded = bounded
+        self._burnin = to_number(burnin, 0)
+        self._ignore_unknown = to_logical(ignore_unknown)
+        self._bounded = to_logical(bounded)
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiRunExperiment)
