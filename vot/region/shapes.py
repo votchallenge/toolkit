@@ -1,103 +1,14 @@
-import os, sys
+import sys
 
 from copy import copy
 from functools import reduce
-from abc import abstractmethod, ABC
 from typing import Tuple
-from enum import Enum
 
 import numpy as np
 import cv2
 
-from vot import VOTException
+from vot.region import Region, ConversionException, RegionType, RegionException
 from vot.utilities.draw import DrawHandle
-
-class ConversionException(VOTException):
-    """Region conversion exception, the conversion cannot be performed
-    """
-    pass
-
-class RegionType(Enum):
-    """Enumeration of region types
-    """
-    SPECIAL = 0
-    RECTANGLE = 1
-    POLYGON = 2
-    MASK = 3
-
-class Region(ABC):
-    """
-    Base class for all region containers
-
-    :var type: type of the region
-    """
-    def __init__(self):
-        pass
-
-    @property
-    @abstractmethod
-    def type(self):
-        pass
-
-    @abstractmethod
-    def copy(self):
-        """Copy region to another object
-        """
-
-    @abstractmethod
-    def convert(self, rtype: RegionType):
-        """Convert region to another type. Note that some conversions
-        degrade information.
-        Arguments:
-            rtype {RegionType} -- Desired type.
-        """
-
-class Special(Region):
-    """
-    Special region
-
-    :var code: Code value
-    """
-
-    UNKNOWN = 0
-    INITIALIZATION = 1
-    FAILURE = 2
-
-    def __init__(self, code):
-        """ Constructor
-
-        :param code: Special code
-        """
-        super().__init__()
-        self._code = int(code)
-
-    def __str__(self):
-        """ Create string from class """
-        return '{}'.format(self._code)
-
-    @property
-    def type(self):
-        return RegionType.SPECIAL
-
-    def copy(self):
-        return Special(self._code)
-
-    def convert(self, rtype: RegionType):
-        if rtype == RegionType.SPECIAL:
-            return self.copy()
-        else:
-            raise ConversionException("Unable to convert special region to {}".format(rtype))
-
-    @property
-    def code(self):
-        """Retiurns special code for this region
-        Returns:
-            int -- Type code
-        """
-        return self._code
-
-    def draw(self, handle: DrawHandle, color, width):
-        pass
 
 class Rectangle(Region):
     """
@@ -143,7 +54,7 @@ class Rectangle(Region):
         elif rtype == RegionType.MASK:
             return Mask(np.ones((int(round(self.height)), int(round(self.width))), np.uint8), (int(round(self.x)), int(round(self.y))))
         else:
-            raise ConversionException("Unable to convert rectangle region to {}".format(rtype))
+            raise ConversionException("Unable to convert rectangle region to {}".format(rtype), source=self)
 
     def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7), width=1):
         polygon = [(self.x, self.y), (self.x + self.width, self.y), \
@@ -219,7 +130,7 @@ class Polygon(Region):
 
             return Mask(m, offset=tl_)
         else:
-            raise ConversionException("Unable to convert polygon region to {}".format(rtype))
+            raise ConversionException("Unable to convert polygon region to {}".format(rtype), source=self)
 
     def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7), width=1):
         handle.polygon(self.points, width, color)
@@ -250,7 +161,7 @@ class Mask(Region):
     def _optimize(self):
         bounds = mask2bbox(self.mask)
         if bounds[0] is None:
-            raise VOTException("Mask is empty")
+            raise RegionException("Mask is empty")
         self.mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
         self.offset = (bounds[0], bounds[1])
 
@@ -272,7 +183,7 @@ class Mask(Region):
             bounds = mask2bbox(self.mask)
             return Polygon([(bounds[0], bounds[1]), (bounds[2], bounds[1]), (bounds[2], bounds[3]), (bounds[0], bounds[3])])
         else:
-            raise ConversionException("Unable to convert mask region to {}".format(rtype))
+            raise ConversionException("Unable to convert mask region to {}".format(rtype), source=self)
 
     def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7)):
         handle.mask(self.mask, self.offset, color)
