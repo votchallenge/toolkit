@@ -206,6 +206,8 @@ class RealtimeTrackerRuntime(TrackerRuntime):
             else:
                 self._time = time - self._interval
                 self._out = out
+        else:
+            self._time = 0
 
         return out, prop, time
 

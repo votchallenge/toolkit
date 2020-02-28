@@ -316,7 +316,7 @@ class TraxTrackerRuntime(TrackerRuntime):
         try:
             return self._process.frame(frame)
         except TraxException as e:
-             raise TrackerException(e, tracker=self._tracker, \
+            raise TrackerException(e, tracker=self._tracker, \
                 tracker_log=str(self._output) if not self._output is None else None)
 
     def stop(self):
