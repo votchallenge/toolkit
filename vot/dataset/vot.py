@@ -87,7 +87,7 @@ class VOTSequence(Sequence):
     def channel(self, channel=None):
         if channel is None:
             channel = self.metadata("channel.default")
-        return self._channels[channel]
+        return self._channels.get(channel, None)
 
     def frame(self, index):
         return Frame(self, index)

@@ -213,6 +213,7 @@ class RealtimeTrackerRuntime(TrackerRuntime):
 
 
     def update(self, frame: Frame) -> Tuple[Region, dict, float]:
+
         if self._time > self._interval:
             self._time = self._time - self._interval
             return self._out, dict(), 0

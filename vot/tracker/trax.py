@@ -19,7 +19,7 @@ from trax.region import Polygon as TraxPolygon
 from trax.region import Mask as TraxMask
 from trax.region import Rectangle as TraxRectangle
 
-from vot.dataset import Frame
+from vot.dataset import Frame, DatasetException
 from vot.region import Region, Polygon, Rectangle, Mask
 from vot.tracker import Tracker, TrackerRuntime, TrackerException
 from vot.utilities import to_logical
@@ -67,9 +67,10 @@ def convert_frame(frame: Frame, channels: list) -> dict:
     for channel in channels:
         image = frame.filename(channel)
         if image is None:
-            continue
+            raise DatasetException("Frame does not have information for channel: {}".format(channel))
 
         tlist[channel] = FileImage.create(image)
+
     return tlist
 
 def convert_region(region: Region) -> TraxRegion:
@@ -306,7 +307,7 @@ class TraxTrackerRuntime(TrackerRuntime):
     def _error(self, exception):
         if not self._output is None:
             if not self._process is None:
-                if not self._process.alive():
+                if not self._process.alive:
                     self._output("Process exited with code ({})".format(self._process.returncode))
                 else:
                     self._output("Process did not finish yet")

@@ -54,10 +54,16 @@ class Frame(object):
         return self._sequence.channels()
 
     def channel(self, channel=None):
-        return self._sequence.channel(channel).frame(self._index)
+        channelobj = self._sequence.channel(channel)
+        if channelobj is None:
+            return None
+        return channelobj.frame(self._index)
 
     def filename(self, channel=None):
-        return self._sequence.channel(channel).filename(self._index)
+        channelobj = self._sequence.channel(channel)
+        if channelobj is None:
+            return None
+        return channelobj.filename(self._index)
 
     def groundtruth(self):
         return self._sequence.groundtruth(self._index)

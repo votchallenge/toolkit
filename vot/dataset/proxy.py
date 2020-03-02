@@ -43,6 +43,9 @@ class FrameMapSequence(Sequence):
     def channel(self, channel=None):
         sourcechannel = self._source.channel(channel)
 
+        if sourcechannel is None:
+            return None
+
         return FrameMapChannel(sourcechannel, self._map)
 
     def channels(self):

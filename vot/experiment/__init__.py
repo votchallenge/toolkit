@@ -78,11 +78,12 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", force: bool = Fal
         try:
             experiment.execute(tracker, sequence, force=force, callback=progress)
         except TrackerException as te:
-            logger.error("Tracker {} encountered an error: {}".format(te.tracker.identifier, te))
+            logger.error("Tracker %s encountered an error: %s", te.tracker.identifier, te)
+            logger.debug(te, exc_info=True)
             if not te.log is None:
                 with experiment.workspace.open_log(te.tracker.identifier) as flog:
                     flog.write(te.log)
-                    logger.error("Tracker output writtent to file: {}".format(flog.name))
+                    logger.error("Tracker output writtent to file: %s", flog.name)
             if not persist:
                 raise te
         progress.push()
