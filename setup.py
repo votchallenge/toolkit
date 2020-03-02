@@ -13,14 +13,14 @@ if path.isfile(path.join(this_directory, "requirements.txt")):
         install_requires = f.readlines()
 
 setup(name='vot-toolkit',
-    version='8.0',
+    version='0.1.0',
     description='Perform visual object tracking experiments and analyze results',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Luka Cehovin Zajc',
     author_email='luka.cehovin@gmail.com',
     url='https://github.com/votchallenge/toolkit',
-    packages=['vot'],
+    packages=['vot', 'vot.analysis', 'vot.dataset', 'vot.experiment', 'vot.region', 'vot.stack', 'vot.tracker', 'vot.utilities'],
     install_requires=install_requires,
     classifiers=[
         "Programming Language :: Python :: 3",
