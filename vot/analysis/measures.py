@@ -13,7 +13,7 @@ from vot.utilities import to_number, to_logical
 class AverageAccuracy(SeparatablePerformanceMeasure):
 
     def __init__(self, burnin: int = 10, ignore_unknown: bool = True, bounded: bool = True):
-        self._burnin = to_number(burnin, 0)
+        self._burnin = to_number(burnin, min_n=0)
         self._ignore_unknown = to_logical(ignore_unknown)
         self._bounded = to_logical(bounded)
 
