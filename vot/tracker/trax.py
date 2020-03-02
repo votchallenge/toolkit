@@ -113,6 +113,7 @@ class TrackerProcess(object):
         environment = dict(os.environ)
         environment.update(envvars)
 
+        self._returncode = None
         self._socket = None
 
         if socket:
@@ -185,10 +186,15 @@ class TrackerProcess(object):
         return self._has_vot_wrapper
 
     @property
+    def returncode(self):
+        return self._returncode
+
+    @property
     def alive(self):
         if not self._process:
             return False
-        return self._process.returncode == None
+        self._returncode = self._process.returncode
+        return self._returncode is None
 
     def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
 
@@ -238,28 +244,32 @@ class TrackerProcess(object):
         except subprocess.TimeoutExpired:
             pass
 
-        if self._process.returncode == None:
+        if self._process.returncode is None:
             self._process.terminate()
             try:
                 self._process.wait(3)
             except subprocess.TimeoutExpired:
                 pass
 
-            if self._process.returncode == None:
+            if self._process.returncode is None:
                 self._process.kill()
 
         if not self._socket is None:
             self._socket.close()
 
+        self._returncode = self._process.returncode
+
         self._process = None
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=[], envvars=None, arguments=None, socket=False, restart=False):
+    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=None, envvars=None, arguments=None, socket=False, restart=False):
         super().__init__(tracker)
         self._command = command
         self._process = None
         self._tracker = tracker
+        if linkpaths is None:
+            linkpaths = []
         if isinstance(linkpaths, str):
             linkpaths = linkpaths.split(os.pathsep)
         self._socket = to_logical(socket)
@@ -293,14 +303,25 @@ class TraxTrackerRuntime(TrackerRuntime):
             if self._process.has_vot_wrapper:
                 self._restart = True
 
+    def _error(self, exception):
+        if not self._output is None:
+            if not self._process is None:
+                if not self._process.alive():
+                    self._output("Process exited with code ({})".format(self._process.returncode))
+                else:
+                    self._output("Process did not finish yet")
+            else:
+                self._output("Process not alive anymore, unable to retrieve return code")
+
+        raise TrackerException(exception, tracker=self._tracker, \
+            tracker_log=str(self._output) if not self._output is None else None)
+
     def restart(self):
         try:
             self.stop()
             self._connect()
         except TraxException as e:
-            raise TrackerException(e, tracker=self._tracker, \
-                tracker_log=str(self._output) if not self._output is None else None)
-
+            self._error(e)
 
     def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
         try:
@@ -309,15 +330,13 @@ class TraxTrackerRuntime(TrackerRuntime):
             self._connect()
             return self._process.initialize(frame, region, self._arguments)
         except TraxException as e:
-            raise TrackerException(e, tracker=self._tracker, \
-                tracker_log=str(self._output) if not self._output is None else None)
+            self._error(e)
 
     def update(self, frame: Frame) -> Tuple[Region, dict, float]:
         try:
             return self._process.frame(frame)
         except TraxException as e:
-            raise TrackerException(e, tracker=self._tracker, \
-                tracker_log=str(self._output) if not self._output is None else None)
+            self._error(e)
 
     def stop(self):
         if not self._process is None:
@@ -335,7 +354,7 @@ def escape_path(path):
     else:
         return path
 
-def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], arguments=None, virtualenv=None, condaenv=None, socket=False, **kwargs):
+def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, virtualenv=None, condaenv=None, socket=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -344,7 +363,7 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
     interpreter = sys.executable
 
     if not virtualenv is None and not condaenv is None:
-        raise TrackerException("Cannot use both vitrtualenv and Conda", tracker=tracker)
+        raise TrackerException("Cannot use both vitrtualenv and conda", tracker=tracker)
 
     virtualenv_launch = ""
     if not virtualenv is None:
@@ -377,7 +396,7 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
 
-def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], arguments=None, socket=False, **kwargs):
+def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -413,7 +432,7 @@ def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
 
-def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=[], arguments=None, socket=False, **kwargs):
+def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
