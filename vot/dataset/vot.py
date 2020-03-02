@@ -40,16 +40,16 @@ class VOTSequence(Sequence):
         metadata_file = os.path.join(base, 'sequence')
         data = read_properties(metadata_file)
         for c in ["color", "depth", "ir"]:
-            if "channel.%s" % c in data:
-                self._channels[c] = load_channel(os.path.join(os.path.join(self._base, c),
-                                                 data["channel.%s" % c]))
+            if "channels.%s" % c in data:
+                self._channels[c] = load_channel(os.path.join(self._base,
+                                                 data["channels.%s" % c]))
 
         # Load default channel if no explicit channel data available
         if len(self._channels) == 0:
             self._channels["color"] = load_channel(os.path.join(os.path.join(self._base, "color"),
                                                    "%08d.jpg"))
         else:
-            self._metadata["channel.default"] = iter(self._channels.keys()).first()
+            self._metadata["channel.default"] = next(iter(self._channels.keys()))
 
         self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(self._channels)).size
 
