@@ -9,7 +9,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 install_requires = []
 if path.isfile(path.join(this_directory, "requirements.txt")):
-    with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    with open(path.join(this_directory, "requirements.txt"), encoding='utf-8') as f:
         install_requires = f.readlines()
 
 setup(name='vot-toolkit',
