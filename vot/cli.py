@@ -40,7 +40,7 @@ def do_test(config, logger):
 
     logger.info("Generating dummy sequence")
 
-    sequence = DummySequence()
+    sequence = DummySequence(50)
 
     logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
@@ -48,15 +48,17 @@ def do_test(config, logger):
 
         runtime = tracker.runtime(log=True)
 
-        logger.info("Initializing tracker")
+        for repeat in range(1, 4):
 
-        runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+            logger.info("Initializing tracker ({}/{})".format(repeat, 3))
 
-        for i in range(1, sequence.length-1):
-            logger.info("Updating on frame %d/%d", i, sequence.length-1)
-            runtime.update(sequence.frame(i))
+            runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
 
-        logger.info("Stopping tracker")
+            for i in range(1, sequence.length):
+                logger.info("Updating on frame %d/%d", i, sequence.length-1)
+                runtime.update(sequence.frame(i))
+
+            logger.info("Stopping tracker")
 
         runtime.stop()
 
