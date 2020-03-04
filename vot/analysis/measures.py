@@ -7,7 +7,7 @@ from vot.experiment import Experiment
 from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.analysis import SeparatablePerformanceMeasure, NonSeparatablePerformanceMeasure, MissingResultsException, MeasureDescription
-from vot.analysis.routines import count_failures, compute_accuracy, compute_eao
+from vot.analysis.routines import count_failures, compute_accuracy, compute_eao, locate_failures_inits
 from vot.utilities import to_number, to_logical
 
 class AverageAccuracy(SeparatablePerformanceMeasure):
@@ -265,5 +265,56 @@ class EAOMultiStart(NonSeparatablePerformanceMeasure):
             frames_total += len(sequence)
 
         weights_all = [w / frames_total for w in weights_all]
+        
+        return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0]
+
+class EAO(NonSeparatablePerformanceMeasure):
+    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, interval_low: int = 99, interval_high: int = 355):
+        self._burnin = burnin
+        self._grace = grace
+        self._bounded = bounded
+        self._interval_low = interval_low
+        self._interval_high = interval_high
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, SupervisedExperiment)
+
+    def compute_measure(self, tracker: Tracker, experiment: Experiment):
+        from vot.region.utils import calculate_overlaps
+
+        overlaps_all = []
+        weights_all = []
+        success_all = []
+        
+        for sequence in experiment.workspace.dataset:
+
+            trajectories = experiment.gather(tracker, sequence)
+
+            if len(trajectories) == 0:
+                raise MissingResultsException()
+
+            for trajectory in trajectories:
+
+                overlaps = calculate_overlaps(trajectory.regions(), sequence.groundtruth(), (sequence.size) if self._bounded else None)
+                fail_idxs, init_idxs = locate_failures_inits(trajectory.regions())
+                
+                if len(fail_idxs) > 0:
+
+                    for i in range(len(fail_idxs)):
+                        overlaps_all.append(overlaps[init_idxs[i]:fail_idxs[i]])
+                        success_all.append(False)
+                        weights_all.append(1)
+
+                    # handle last initialization
+                    if len(init_idxs) > len(fail_idxs):
+                        # tracker was initilized, but it has not failed until the end of the sequence
+                        overlaps_all.append(overlaps[init_idxs[-1]:])
+                        success_all.append(True)
+                        weights_all.append(1)
+
+                else:
+                    overlaps_all.append(overlaps)
+                    success_all.append(True)
+                    weights_all.append(1)
         
         return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0]
