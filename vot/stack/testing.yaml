@@ -1,0 +1,10 @@
+title: VOT testing
+url: http://www.votchallenge.net/
+dataset: vot:segmentation
+experiments:
+  baseline:
+    type: vot.experiment.multistart.MultiStartExperiment
+    repetitions: 1
+    measures:
+      - type: vot.analysis.measures.AccuracyRobustnessMultiStart
+      - type: vot.analysis.measures.EAOMultiStart
