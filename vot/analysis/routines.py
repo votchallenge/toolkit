@@ -27,6 +27,10 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
+def locate_failures_inits(trajectory: List[Region]) -> Tuple[int, int]:
+    return [i for i, region in enumerate(trajectory) if is_special(region, Special.FAILURE)], \
+            [i for i, region in enumerate(trajectory) if is_special(region, Special.INITIALIZATION)]
+
 def compute_eao(overlaps: List, weights: List[float], success: List[bool], bound_low: int, bound_high: int):
     max_length = max([len(el) for el in overlaps])
     total_runs = len(overlaps)
@@ -44,6 +48,10 @@ def compute_eao(overlaps: List, weights: List[float], success: List[bool], bound
             # tracker has successfully tracked to the end - consider only this part of the sequence
             mask_array[i, :len(o)] = 1
 
-    eao_curve = np.sum(weights_vector * overlaps_array * mask_array, axis=0) / np.sum(mask_array * weights_vector, axis=0)
+    overlaps_array_sum = overlaps_array.copy()
+    for j in range(1, overlaps_array_sum.shape[1]):
+        overlaps_array_sum[:, j] = np.mean(overlaps_array[:, 1:j+1], axis=1)
+    
+    eao_curve = np.sum(weights_vector * overlaps_array_sum * mask_array, axis=0) / np.sum(mask_array * weights_vector, axis=0)
     
     return float(np.mean(eao_curve[bound_low:bound_high + 1])), eao_curve
