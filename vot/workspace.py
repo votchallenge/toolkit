@@ -28,9 +28,11 @@ def initialize_workspace(directory, config=dict()):
         yaml.dump(config, fp)
 
     os.makedirs(os.path.join(directory, "sequences"), exist_ok=True)
-    os.makedirs(os.path.join(directory, "trackers"), exist_ok=True)
     os.makedirs(os.path.join(directory, "results"), exist_ok=True)
     os.makedirs(os.path.join(directory, "logs"), exist_ok=True)
+
+    if not os.path.isfile(os.path.join(directory, "trackers.ini")):
+        open(os.path.join(directory, "trackers.ini"), 'w').close()
 
 def migrate_workspace(directory):
     import re

@@ -51,22 +51,32 @@ def load_trackers(directories, root=os.getcwd()):
         for name in [os.path.join(directory, x) for x in os.listdir(directory)]:
             if not os.path.isfile(name):
                 continue
-            if name.endswith(".yml") or name.endswith(".yaml"):
+            basename = os.path.basename(name).lower()
+            if basename == "trackers.yaml":
                 with open(name, 'r') as fp:
                     metadata = yaml.load(fp, Loader=yaml.BaseLoader)
                 for k, v in metadata.items():
                     if not is_valid_identifier(k):
-                        raise VOTException("Invalid identifier: {}".format(k))
-                    print(k, v)
+                        logger.warning("Invalid tracker identifier %s in %s", k, name)
+                        continue
+                    if k in trackers:
+                        logger.warning("Duplicate tracker identifier %s in %s", k, name)
+                        continue
+
                     trackers[k] = Tracker(identifier=k, **v)
 
-            if name.endswith(".ini"):
+            if basename == "trackers.ini":
                 config = configparser.ConfigParser()
                 config.read(name)
                 for section in config.sections():
                     if not is_valid_identifier(section):
-                        raise VOTException("Invalid identifier: {}".format(section))
-                    trackers[section] = Tracker(identifier = section, **config[section])
+                        logger.warning("Invalid identifier %s in %s", section, name)
+                        continue
+                    if section in trackers:
+                        logger.warning("Duplicate tracker identifier %s in %s", section, name)
+                        continue
+
+                    trackers[section] = Tracker(identifier=section, **config[section])
     return trackers
 
 def collect_envvars(**kwargs):
