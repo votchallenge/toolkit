@@ -30,7 +30,7 @@ setup(name='vot-toolkit',
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
     ],
-    python_requires='>=3.4',
+    python_requires='>=3.6',
     entry_points={
         'console_scripts': ['vot=vot.cli:main'],
     },
