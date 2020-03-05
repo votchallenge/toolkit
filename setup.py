@@ -22,6 +22,7 @@ setup(name='vot-toolkit',
     url='https://github.com/votchallenge/toolkit',
     packages=['vot', 'vot.analysis', 'vot.dataset', 'vot.experiment', 'vot.region', 'vot.stack', 'vot.tracker', 'vot.utilities'],
     install_requires=install_requires,
+    include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
