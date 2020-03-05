@@ -1,3 +1,5 @@
 include requirements.txt
 include README.md
 include vot/stack/*.yaml
+include vot/dataset/*.png
+include vot/dataset/*.jpg
