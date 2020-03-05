@@ -32,6 +32,13 @@ def do_test(config, logger):
     from vot.dataset.dummy import DummySequence
     trackers = load_trackers(config.registry)
 
+    if not config.tracker:
+        logger.error("Unable to continue without a tracker")
+        logger.error("List of available found trackers: ")
+        for k, _ in trackers.items():
+            logger.error(" * %s", k)
+        return
+
     if not config.tracker in trackers:
         logger.error("Tracker does not exist")
         return
@@ -119,7 +126,7 @@ def do_workspace(config, logger):
         logger.error("Experiment stack %s not found", stack_file)
         return
 
-    default_config = dict(stack=config.stack, registry=["."])
+    default_config = dict(stack=config.stack, registry=["./trackers.ini"])
 
     initialize_workspace(config.workspace, default_config)
 
@@ -143,6 +150,13 @@ def do_evaluate(config, logger):
         trackers = [registry[t.strip()] for t in config.trackers]
     except KeyError as ke:
         logger.error("Tracker not found: %s", str(ke))
+        return
+
+    if len(trackers) == 0:
+        logger.error("Unable to continue without at least on tracker")
+        logger.error("List of available found trackers: ")
+        for k, _ in trackers.items():
+            logger.error(" * %s", k)
         return
 
     try:
@@ -266,7 +280,7 @@ def main():
     subparsers = parser.add_subparsers(help='commands', dest='action', title="Commands")
 
     test_parser = subparsers.add_parser('test', help='Test a tracker integration on a synthetic sequence')
-    test_parser.add_argument("tracker", help='Tracker identifier')
+    test_parser.add_argument("tracker", help='Tracker identifier', nargs="?")
     test_parser.add_argument("--visualize", "-g", default=False, required=False, help='Visualize results of the test session', action='store_true')
 
     workspace_parser = subparsers.add_parser('workspace', help='Setup a new workspace and download data')

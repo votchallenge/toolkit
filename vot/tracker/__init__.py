@@ -41,42 +41,52 @@ def load_trackers(directories, root=os.getcwd()):
 
     logger = logging.getLogger("vot")
 
+    registries = []
+
     for directory in directories:
-        logger.info("Scanning directory %s", directory)
         if not os.path.isabs(directory):
             directory = os.path.normpath(os.path.abspath(os.path.join(root, directory)))
-        if not os.path.isdir(directory):
+
+        if os.path.isdir(directory):
+            registries.append(os.path.join(directory, "trackers.yaml"))
+            registries.append(os.path.join(directory, "trackers.ini"))
+
+        if os.path.isfile(directory):
+            registries.append(directory)
+
+    for registry in list(dict.fromkeys(registries)):
+        if not os.path.isfile(registry):
             continue
-        
-        for name in [os.path.join(directory, x) for x in os.listdir(directory)]:
-            if not os.path.isfile(name):
-                continue
-            basename = os.path.basename(name).lower()
-            if basename == "trackers.yaml":
-                with open(name, 'r') as fp:
-                    metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-                for k, v in metadata.items():
-                    if not is_valid_identifier(k):
-                        logger.warning("Invalid tracker identifier %s in %s", k, name)
-                        continue
-                    if k in trackers:
-                        logger.warning("Duplicate tracker identifier %s in %s", k, name)
-                        continue
 
-                    trackers[k] = Tracker(identifier=k, **v)
+        logger.info("Scanning registry %s", registry)
 
-            if basename == "trackers.ini":
-                config = configparser.ConfigParser()
-                config.read(name)
-                for section in config.sections():
-                    if not is_valid_identifier(section):
-                        logger.warning("Invalid identifier %s in %s", section, name)
-                        continue
-                    if section in trackers:
-                        logger.warning("Duplicate tracker identifier %s in %s", section, name)
-                        continue
+        extension = os.path.splitext(registry)[1].lower()
 
-                    trackers[section] = Tracker(identifier=section, **config[section])
+        if extension == ".yaml":
+            with open(registry, 'r') as fp:
+                metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+            for k, v in metadata.items():
+                if not is_valid_identifier(k):
+                    logger.warning("Invalid tracker identifier %s in %s", k, registry)
+                    continue
+                if k in trackers:
+                    logger.warning("Duplicate tracker identifier %s in %s", k, registry)
+                    continue
+
+                trackers[k] = Tracker(identifier=k, **v)
+
+        if extension == ".ini":
+            config = configparser.ConfigParser()
+            config.read(registry)
+            for section in config.sections():
+                if not is_valid_identifier(section):
+                    logger.warning("Invalid identifier %s in %s", section, registry)
+                    continue
+                if section in trackers:
+                    logger.warning("Duplicate tracker identifier %s in %s", section, registry)
+                    continue
+
+                trackers[section] = Tracker(identifier=section, **config[section])
     return trackers
 
 def collect_envvars(**kwargs):
