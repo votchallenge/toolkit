@@ -1,120 +1,75 @@
 
 import os
+import math
 import tempfile
-import shutil
 
-from vot.dataset import Sequence, Frame, Channel
-from vot.region import Rectangle
+from vot.dataset import VOTSequence
+from vot.region import Rectangle, write_file
+from vot.utilities import write_properties
 
-import cv2
+from PIL import Image
 import numpy as np
 
-class SingleFileChannel(Channel):
+class DummySequence(VOTSequence):
 
-    def __init__(self, filename, length):
-        super().__init__()
-        self._length = length
-        self._filename = filename
+    def __init__(self, length=100, size=(640, 480)):
+        base = os.path.join(tempfile.gettempdir(), "vot_dummy_%d_%d_%d" % (length, size[0], size[1]))
+        if not os.path.isdir(base) or not os.path.isfile(os.path.join(base, "groundtruth.txt")):
+            DummySequence._generate(base, length, size)
+        super().__init__(base, "dummy", None)
 
-        im = cv2.imread(self._filename)
-        self._width = im.shape[1]
-        self._height = im.shape[0]
-        self._depth = im.shape[2]
+    @staticmethod
+    def _generate(base, length, size):
 
+        background_color = Image.fromarray(np.random.normal(15, 5, (size[1], size[0], 3)).astype(np.uint8))
+        background_depth = Image.fromarray(np.ones((size[1], size[0]), dtype=np.uint8) * 200)
+        background_ir = Image.fromarray(np.zeros((size[1], size[0]), dtype=np.uint8))
 
-    @property
-    def length(self):
-        return self._length
+        template = Image.open(os.path.join(os.path.dirname(__file__), "cow.png"))
 
-    def frame(self, index):
-        if index < 0 or index >= self.length:
-            return None
+        dir_color = os.path.join(base, "color")
+        dir_depth = os.path.join(base, "depth")
+        dir_ir = os.path.join(base, "ir")
 
-        bgr = cv2.imread(self._filename)
-        return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        os.makedirs(dir_color, exist_ok=True)
+        os.makedirs(dir_depth, exist_ok=True)
+        os.makedirs(dir_ir, exist_ok=True)
 
-    @property
-    def size(self):
-        return self._width, self._height
+        path_color = os.path.join(dir_color, "%08d.jpg")
+        path_depth = os.path.join(dir_depth, "%08d.png")
+        path_ir = os.path.join(dir_ir, "%08d.png")
 
-    def filename(self, index):
-        if index < 0 or index >= self.length:
-            return None
+        groundtruth = []
 
-        return self._filename
+        center_x = size[0] / 2
+        center_y = size[1] / 2
 
-class DummySequence(Sequence):
+        radius = min(center_x - template.size[0], center_y - template.size[1])
 
-    def __init__(self, length=100):
-        super().__init__("dummy", None)
-        self._channels = dict()
-        self._base = tempfile.gettempdir()
-        self._metadata = {"fps" : 30, "format" : "default",
-                          "channel.default": "color", "length" : length}
-        self._metadata["name"] = "dummy"
-        self._groundtruth = Rectangle(300, 220, 40, 40)
-        self.__generate(self._base)
+        print(center_x, center_y)
 
-    def __generate(self, base):
+        speed = (math.pi * 2) / length
 
-        filename = os.path.join(base, "dummy_rgb.jpg")
+        for i in range(length):
+            frame_color = background_color.copy()
+            frame_depth = background_depth.copy()
+            frame_ir = background_ir.copy()
 
-        image = np.random.normal(15, 5, (480, 640, 3)).astype(np.uint8)
-        image[220:260, 300:340, :] = np.random.normal(230, 20, (40, 40, 3)).astype(np.uint8)
+            x = int(center_x + math.cos(i * speed) * radius - template.size[0] / 2)
+            y = int(center_y + math.sin(i * speed) * radius - template.size[1] / 2)
 
-        cv2.imwrite(filename, image)
+            frame_color.paste(template, (x, y), template)
+            frame_depth.paste(10, (x, y), template)
+            frame_ir.paste(240, (x, y), template)
 
-        self._channels["color"] = SingleFileChannel(filename, self.metadata("length"))
+            frame_color.save(path_color % (i + 1))
+            frame_depth.save(path_depth % (i + 1))
+            frame_ir.save(path_ir % (i + 1))
 
-        filename = os.path.join(base, "dummy_depth.jpg")
+            groundtruth.append(Rectangle(x, y, template.size[0], template.size[1]))
 
-        image = np.ones((480, 640), dtype=np.uint8) * 200
-        image[220:260, 300:340] = 10
+        write_file(os.path.join(base, "groundtruth.txt"), groundtruth)
+        metadata = {"name": "dummy", "fps" : 30, "format" : "dummy",
+                          "channel.default": "color"}
+        write_properties(os.path.join(base, "sequence"), metadata)
 
-        cv2.imwrite(filename, image)
-
-        self._channels["depth"] = SingleFileChannel(filename, self.metadata("length"))
-
-        filename = os.path.join(base, "dummy_ir.jpg")
-
-        image = np.zeros((480, 640), dtype=np.uint8)
-        image[220:260, 300:340] = 200
-
-        cv2.imwrite(filename, image)
-
-        self._channels["ir"] = SingleFileChannel(filename, self.metadata("length"))
-
-    def metadata(self, name, default=None):
-        return self._metadata.get(name, default)
-
-    def channels(self):
-        return self._channels
-
-    def channel(self, channel=None):
-        if channel is None:
-            channel = self.metadata("channel.default")
-        return self._channels[channel]
-
-    def frame(self, index):
-        return Frame(self, index)
-    
-    def groundtruth(self, index=None):
-        if index is None:
-            return [self._groundtruth] * self.length
-        return self._groundtruth
-
-    def tags(self, index=None):
-        return []
-
-    def values(self, index=None):
-        return {}
-
-    def size(self):
-        return self.channel().size()
-    
-    @property
-    def length(self):
-        return self.metadata("length")
-
-    def __del__(self):
-        shutil.rmtree(self._base, ignore_errors=True)

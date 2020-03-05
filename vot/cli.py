@@ -48,10 +48,14 @@ def do_test(config, logger):
         import matplotlib.pylab as plt
         from vot.utilities.draw import MatplotlibDrawHandle
         figure = plt.figure()
-        figure.title = "VOT Test"
+        figure.canvas.set_window_title('VOT Test')
         axes = figure.add_subplot(1, 1, 1)
+        axes.set_aspect("equal")
         handle = MatplotlibDrawHandle(axes)
+        handle.style(fill=False)
         figure.show()
+
+    runtime = None
 
     try:
 
@@ -66,8 +70,8 @@ def do_test(config, logger):
             if config.visualize:
                 axes.clear()
                 handle.image(sequence.frame(0).channel())
-                handle.style(color=(0, 0, 1, 1)).region(sequence.frame(0).groundtruth())
-                handle.style(color=(0, 1, 0, 1)).region(region)
+                handle.style(color="green").region(sequence.frame(0).groundtruth())
+                handle.style(color="red").region(region)
                 figure.canvas.draw()
 
             for i in range(1, sequence.length):
@@ -76,9 +80,9 @@ def do_test(config, logger):
 
                 if config.visualize:
                     axes.clear()
-                    handle.image(sequence.frame(0).channel())
-                    handle.style(color=(0, 0, 1, 1)).region(sequence.frame(i).groundtruth())
-                    handle.style(color=(0, 1, 0, 1)).region(region)
+                    handle.image(sequence.frame(i).channel())
+                    handle.style(color="green").region(sequence.frame(i).groundtruth())
+                    handle.style(color="red").region(region)
                     figure.canvas.draw()
 
             logger.info("Stopping tracker")
@@ -89,6 +93,9 @@ def do_test(config, logger):
 
     except TrackerException as te:
         logger.error("Error during tracker execution: {}".format(te))
+    except KeyboardInterrupt:
+        if runtime:
+            runtime.stop()
 
 def do_workspace(config, logger):
     
