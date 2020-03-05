@@ -25,65 +25,88 @@ def show_image(a):
 
 class DrawHandle(ABC):
 
+    def __init__(self, color: Tuple[float, float, float, float] = (1, 0, 0, 1), width: int = 1, fill: bool = False):
+        self._color = color
+        self._width = width
+        self._fill = fill
+
+    def style(self, color: Tuple[float, float, float, float] = (1, 0, 0, 1), width: int = 1, fill: bool = False):
+        self._color = color
+        self._width = width
+        self._fill = fill
+        return self
+
+    def region(self, region):
+        region.draw(self)
+
     @abstractmethod
-    def line(self, x, y, width, color):
+    def image(self, image):
         pass
 
     @abstractmethod
-    def lines(self, points, width, color):
+    def line(self, x, y):
         pass
 
     @abstractmethod
-    def polygon(self, points, width, color, fill=False):
+    def lines(self, points):
         pass
 
     @abstractmethod
-    def mask(self, mask, offset, color):
+    def polygon(self, points):
+        pass
+
+    @abstractmethod
+    def mask(self, mask, offset):
         pass
 
 class MatplotlibDrawHandle(DrawHandle):
 
-    def __init__(self, axis):
+    def __init__(self, axis, color: Tuple[float, float, float, float] = (1, 0, 0, 1), width: int = 1, fill: bool = False):
+        super().__init__(color, width, fill)
         self._axis = axis
 
-    def line(self, x, y, width, color):
-        self._axis.plot(x, y, linewidth=width, edgecolor=color)
+    def image(self, image):
+        self._axis.imshow(image)
 
-    def lines(self, points: List[Tuple[float, float]], width: float = 1, \
-        color: Tuple[float, float, float, float] = (1, 0, 0, 1)):
+    def line(self, x, y):
+        self._axis.plot(x, y, linewidth=self._width, edgecolor=self._color)
+
+    def lines(self, points: List[Tuple[float, float]]):
         pass
 
-    def polygon(self, points: List[Tuple[float, float]], width: float = 1, \
-        color: Tuple[float, float, float, float] = (1, 0, 0, 1), fill=False):
-        poly = Polygon(points, edgecolor=color, linewidth=width)
+    def polygon(self, points: List[Tuple[float, float]]):
+        poly = Polygon(points, edgecolor=self._color, linewidth=self._width)
         self._axis.add_patch(poly)
 
-    def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0), color: Tuple[float, float, float, float] = (1, 0, 0, 1)):
+    def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
 
-        cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], color]))
+        cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], self._color]))
         self._axis.imshow(mask > 0, cmap=cmap, interpolation='none', extent=[offset[0], \
              offset[0] + mask.shape[1], offset[1] + mask.shape[0], offset[1]])
 
 class NumpyCanvasDrawHandle(DrawHandle):
-
-    def __init__(self, canvas: np.array):
+    # Does not work at the moment, not implemented
+    
+    def __init__(self, canvas: np.array, color: Tuple[float, float, float, float] = (1, 0, 0, 1), width: int = 1, fill: bool = False):
+        super().__init__(color, width, fill)
         self._canvas = canvas
 
-    def line(self, x, y, width, color):
+    def image(self, image):
+        pass
+
+    def line(self, x, y):
         cv2.line(self._canvas, x, y)
         #self._axis.plot(x, y, linewidth=width, edgecolor=color)
 
-    def lines(self, points: List[Tuple[float, float]], width: float = 1, \
-        color: Tuple[float, float, float, float] = (1, 0, 0, 1)):
+    def lines(self, points: List[Tuple[float, float]]):
         pass
 
-    def polygon(self, points: List[Tuple[float, float]], width: float = 1, \
-        color: Tuple[float, float, float, float] = (1, 0, 0, 1), fill=False):
-        poly = Polygon(points, edgecolor=color, linewidth=width)
+    def polygon(self, points: List[Tuple[float, float]]):
+        poly = Polygon(points, edgecolor=self._color, linewidth=self._width)
         self._axis.add_patch(poly)
 
-    def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0), color: Tuple[float, float, float, float] = (1, 0, 0, 1)):
+    def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
 
-        cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], color]))
+        cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], self._color]))
         self._axis.imshow(mask > 0, cmap=cmap, interpolation='none', extent=[offset[0], \
              offset[0] + mask.shape[1], offset[1] + mask.shape[0], offset[1]])

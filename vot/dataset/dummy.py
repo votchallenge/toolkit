@@ -1,10 +1,9 @@
 
 import os
-import json
-import glob
 import tempfile
+import shutil
 
-from vot.dataset import Dataset, DatasetException, Sequence, Frame, Channel
+from vot.dataset import Sequence, Frame, Channel
 from vot.region import Rectangle
 
 import cv2
@@ -104,7 +103,7 @@ class DummySequence(Sequence):
             return [self._groundtruth] * self.length
         return self._groundtruth
 
-    def tags(self, index = None):
+    def tags(self, index=None):
         return []
 
     def values(self, index=None):
@@ -116,3 +115,6 @@ class DummySequence(Sequence):
     @property
     def length(self):
         return self.metadata("length")
+
+    def __del__(self):
+        shutil.rmtree(self._base, ignore_errors=True)

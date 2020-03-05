@@ -56,11 +56,11 @@ class Rectangle(Region):
         else:
             raise ConversionException("Unable to convert rectangle region to {}".format(rtype), source=self)
 
-    def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7), width=1):
+    def draw(self, handle: DrawHandle):
         polygon = [(self.x, self.y), (self.x + self.width, self.y), \
             (self.x + self.width, self.y + self.height), \
             (self.x, self.y + self.height)]
-        handle.polygon(polygon, width, color)
+        handle.polygon(polygon)
 
     def resize(self, factor=1):
         return Rectangle(self.x * factor, self.y * factor,
@@ -132,8 +132,8 @@ class Polygon(Region):
         else:
             raise ConversionException("Unable to convert polygon region to {}".format(rtype), source=self)
 
-    def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7), width=1):
-        handle.polygon(self.points, width, color)
+    def draw(self, handle: DrawHandle=1):
+        handle.polygon(self.points)
 
     def resize(self, factor=1):
         return Polygon([(p[0] * factor, p[1] * factor) for p in self.points])
@@ -185,8 +185,8 @@ class Mask(Region):
         else:
             raise ConversionException("Unable to convert mask region to {}".format(rtype), source=self)
 
-    def draw(self, handle: DrawHandle, color=(1, 0, 0, 0.7)):
-        handle.mask(self.mask, self.offset, color)
+    def draw(self, handle: DrawHandle):
+        handle.mask(self.mask, self.offset)
 
     def get_array(self, output_sz=None):
         """

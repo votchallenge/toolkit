@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 from vot.tracker import load_trackers, TrackerException
-from vot.stack import resolve_stack
+from vot.stack import resolve_stack, list_integrated_stacks
 from vot.workspace import Workspace
 from vot.utilities import Progress
 
@@ -44,6 +44,15 @@ def do_test(config, logger):
 
     logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
+    if config.visualize:
+        import matplotlib.pylab as plt
+        from vot.utilities.draw import MatplotlibDrawHandle
+        figure = plt.figure()
+        figure.title = "VOT Test"
+        axes = figure.add_subplot(1, 1, 1)
+        handle = MatplotlibDrawHandle(axes)
+        figure.show()
+
     try:
 
         runtime = tracker.runtime(log=True)
@@ -52,11 +61,25 @@ def do_test(config, logger):
 
             logger.info("Initializing tracker ({}/{})".format(repeat, 3))
 
-            runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+            region, _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+
+            if config.visualize:
+                axes.clear()
+                handle.image(sequence.frame(0).channel())
+                handle.style(color=(0, 0, 1, 1)).region(sequence.frame(0).groundtruth())
+                handle.style(color=(0, 1, 0, 1)).region(region)
+                figure.canvas.draw()
 
             for i in range(1, sequence.length):
                 logger.info("Updating on frame %d/%d", i, sequence.length-1)
-                runtime.update(sequence.frame(i))
+                region, _, _ = runtime.update(sequence.frame(i))
+
+                if config.visualize:
+                    axes.clear()
+                    handle.image(sequence.frame(0).channel())
+                    handle.style(color=(0, 0, 1, 1)).region(sequence.frame(i).groundtruth())
+                    handle.style(color=(0, 1, 0, 1)).region(region)
+                    figure.canvas.draw()
 
             logger.info("Stopping tracker")
 
@@ -75,16 +98,21 @@ def do_workspace(config, logger):
         migrate_workspace(config.workspace)
         return
     elif config.stack is None:
+        stacks = list_integrated_stacks()
         logger.error("Unable to continue without a stack")
+        logger.error("List of available integrated stacks: ")
+        for k, v in stacks.items():
+            logger.error(" * %s - %s", k, v)
+
         return
 
     stack_file = resolve_stack(config.stack)
 
     if stack_file is None:
-        logger.error("Experiment stack not found")
+        logger.error("Experiment stack %s not found", stack_file)
         return
 
-    default_config = dict(stack=config.stack, registry=["trackers"])
+    default_config = dict(stack=config.stack, registry=["."])
 
     initialize_workspace(config.workspace, default_config)
 
@@ -232,7 +260,7 @@ def main():
 
     test_parser = subparsers.add_parser('test', help='Test a tracker integration on a synthetic sequence')
     test_parser.add_argument("tracker", help='Tracker identifier')
-    test_parser.add_argument("--visualize", "-g", default=False, help='Visualize results of the test session')
+    test_parser.add_argument("--visualize", "-g", default=False, required=False, help='Visualize results of the test session', action='store_true')
 
     workspace_parser = subparsers.add_parser('workspace', help='Setup a new workspace and download data')
     workspace_parser.add_argument("--workspace", default=".", help='Workspace path')
@@ -240,8 +268,8 @@ def main():
 
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
     evaluate_parser.add_argument("trackers", nargs='+', default=None, help='Tracker identifiers')
-    evaluate_parser.add_argument("--force", "-f", default=False, help="Force rerun of the entire evaluation", required=False)
-    evaluate_parser.add_argument("--persist", "-p", default=False, help="Persist execution even in case of an error", required=False)
+    evaluate_parser.add_argument("--force", "-f", default=False, help="Force rerun of the entire evaluation", required=False, action='store_true')
+    evaluate_parser.add_argument("--persist", "-p", default=False, help="Persist execution even in case of an error", required=False, action='store_true')
     evaluate_parser.add_argument("--workspace", default=".", help='Workspace path')
 
     analysis_parser = subparsers.add_parser('analysis', help='Run interactive analysis')

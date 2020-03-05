@@ -1,6 +1,7 @@
 import os
 import json
 import glob
+import yaml
 from typing import List
 
 from vot.experiment import Experiment
@@ -77,4 +78,13 @@ def resolve_stack(name, *directories):
     full = os.path.join(os.path.dirname(__file__), name + ".yaml")
     if os.path.isfile(full):
         return full
-    return None    
+    return None
+
+def list_integrated_stacks():
+    stacks = {}
+    for stack_file in glob.glob(os.path.join(os.path.dirname(__file__), "*.yaml")):
+        with open(stack_file, 'r') as fp:
+            stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+        stacks[os.path.splitext(os.path.basename(stack_file))[0]] = stack_metadata.get("title", "")
+
+    return stacks    
