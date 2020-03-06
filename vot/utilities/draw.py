@@ -116,7 +116,6 @@ class MatplotlibDrawHandle(DrawHandle):
         # TODO: segmentation should also have option of non-filled
         kernel = np.ones((3, 3), np.uint8)
         mask[mask != 0] = 1
-        print(mask)
         if self._fill:
             mask = 2 * mask - cv2.erode(mask, kernel, borderValue=0)
             cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], self._fill, self._color]))
