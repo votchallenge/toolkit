@@ -46,8 +46,6 @@ class DummySequence(VOTSequence):
 
         radius = min(center_x - template.size[0], center_y - template.size[1])
 
-        print(center_x, center_y)
-
         speed = (math.pi * 2) / length
 
         for i in range(length):
