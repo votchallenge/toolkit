@@ -160,7 +160,7 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
                 raise MissingResultsException()
 
             if reverse:
-                proxy = FrameMapSequence(sequence, list(reversed(range(0, i))))
+                proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
             else:
                 proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
 
@@ -229,7 +229,7 @@ class EAOMultiStart(NonSeparatablePerformanceMeasure):
                     raise MissingResultsException()
 
                 if reverse:
-                    proxy = FrameMapSequence(sequence, list(reversed(range(0, i))))
+                    proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
                 else:
                     proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
 
