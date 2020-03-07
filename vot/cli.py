@@ -100,6 +100,8 @@ def do_test(config, logger):
 
     except TrackerException as te:
         logger.error("Error during tracker execution: {}".format(te))
+        if runtime:
+            runtime.stop()
     except KeyboardInterrupt:
         if runtime:
             runtime.stop()

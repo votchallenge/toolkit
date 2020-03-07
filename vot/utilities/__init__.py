@@ -42,6 +42,9 @@ else:
 
 class Progress(tqdm):
 
+  #  def __init__(self, desc=None, total=100):
+  #      super().__init__()
+
     def update_absolute(self, current, total = None):
         if total is not None:
             self.total = total

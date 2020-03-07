@@ -4,8 +4,10 @@ import os
 import time
 import re
 import subprocess
+import shutil
 import shlex
 import socket as socketio
+import tempfile
 from typing import Tuple
 from threading import Thread
 
@@ -114,6 +116,8 @@ class TrackerProcess(object):
         environment = dict(os.environ)
         environment.update(envvars)
 
+        self._workdir = tempfile.mkdtemp()
+
         self._returncode = None
         self._socket = None
 
@@ -128,6 +132,7 @@ class TrackerProcess(object):
         if sys.platform.startswith("win"):
             self._process = subprocess.Popen(
                     command,
+                    cwd=self._workdir,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -136,6 +141,7 @@ class TrackerProcess(object):
             self._process = subprocess.Popen(
                     shlex.split(command),
                     shell=False,
+                    cwd=self._workdir,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -261,6 +267,10 @@ class TrackerProcess(object):
         self._returncode = self._process.returncode
 
         self._process = None
+
+    def __del__(self):
+        if hasattr(self, "_workdir"):
+            shutil.rmtree(self._workdir, ignore_errors=True)
 
 class TraxTrackerRuntime(TrackerRuntime):
 
