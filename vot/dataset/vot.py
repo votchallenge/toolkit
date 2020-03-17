@@ -1,14 +1,15 @@
 
 import os
-import json
 import glob
 import tempfile
-import requests
 import six
+import logging
 
 from vot.dataset import Dataset, DatasetException, Sequence, PatternFileListChannel, Frame
 
-from vot.utilities import Progress, extract_files
+from vot.utilities import Progress, extract_files, localize_path
+
+logger = logging.getLogger("vot")
 
 def load_channel(source):
 
@@ -16,17 +17,19 @@ def load_channel(source):
 
     if extension == '':
         source = os.path.join(source, '%08d.jpg')
-
     return PatternFileListChannel(source)
 
 class VOTSequence(Sequence):
 
-    def __init__(self, base, name, dataset):
-        super().__init__(name, dataset)
+    def __init__(self, base, dataset=None):
         self._base = base
-        self._metadata = {"fps" : 30, "format" : "default",
-                          "channel.default": "color", "length" : 0}
+        self._metadata = {
+            "fps" : 30, 
+            "format" : "default",
+            "channel.default": "color",
+            "length" : 0}
         self._metadata["name"] = os.path.basename(base)
+        super().__init__(self._metadata["name"], dataset)
         self._channels = {}
         self._tags = {}
         self._values = {}
@@ -41,13 +44,11 @@ class VOTSequence(Sequence):
         data = read_properties(metadata_file)
         for c in ["color", "depth", "ir"]:
             if "channels.%s" % c in data:
-                self._channels[c] = load_channel(os.path.join(self._base,
-                                                 data["channels.%s" % c]))
+                self._channels[c] = load_channel(os.path.join(self._base, localize_path(data["channels.%s" % c])))
 
         # Load default channel if no explicit channel data available
         if len(self._channels) == 0:
-            self._channels["color"] = load_channel(os.path.join(os.path.join(self._base, "color"),
-                                                   "%08d.jpg"))
+            self._channels["color"] = load_channel(os.path.join(self._base, "color", "%08d.jpg"))
         else:
             self._metadata["channel.default"] = next(iter(self._channels.keys()))
 
@@ -75,8 +76,17 @@ class VOTSequence(Sequence):
                 valuename = os.path.splitext(os.path.basename(valuefile))[0]
                 self._values[valuename] = [float(line.strip()) for line in filehandle.readlines()]
 
-        # TODO: validate size and length!
+        for name, channel in self._channels.items():
+            if not channel.length == len(self._groundtruth):
+                raise DatasetException("Length mismatch in channel %s" % name)
 
+        for name, tags in self._tags.items():
+            if not len(tags) == len(self._groundtruth):
+                raise DatasetException("Length mismatch in tag %s" % name)
+
+        for name, values in self._values.items():
+            if not len(values) == len(self._groundtruth):
+                raise DatasetException("Length mismatch in value %s" % name)
 
     def metadata(self, name, default=None):
         return self._metadata.get(name, default)
@@ -100,7 +110,7 @@ class VOTSequence(Sequence):
     def tags(self, index=None):
         if index is None:
             return self._tags.keys()
-        return [t for t in self._tags if t[index]]
+        return [t for t, sq in self._tags.items() if sq[index]]
 
     def values(self, index=None):
         if index is None:
@@ -126,7 +136,7 @@ class VOTDataset(Dataset):
 
         with open(os.path.join(path, "list.txt"), 'r') as fd:
             names = fd.readlines()
-        self._sequences = { name.strip() : VOTSequence(os.path.join(path, name.strip()), name.strip(), self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
+        self._sequences = { name.strip() : VOTSequence(os.path.join(path, name.strip()), self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
 
     @property
     def path(self):
@@ -163,7 +173,7 @@ class VOTDataset(Dataset):
 
 
         if os.path.splitext(url)[1] == '.zip':
-            print('Downloading sequence bundle from "{}". This may take a while ...'.format(url))
+            logger.info('Downloading sequence bundle from "%s". This may take a while ...', url)
 
             try:
                 download_uncompress(url, path)
@@ -176,7 +186,7 @@ class VOTDataset(Dataset):
 
             meta = download_json(url)
 
-            print('Downloading sequence dataset "{}" with {} sequences.'.format(meta["name"], len(meta["sequences"])))
+            logger.info('Downloading sequence dataset "%s" with %s sequences.', meta["name"], len(meta["sequences"]))
 
             base_url = get_base_url(url) + "/"
 

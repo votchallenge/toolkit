@@ -16,7 +16,7 @@ class DummySequence(VOTSequence):
         base = os.path.join(tempfile.gettempdir(), "vot_dummy_%d_%d_%d" % (length, size[0], size[1]))
         if not os.path.isdir(base) or not os.path.isfile(os.path.join(base, "groundtruth.txt")):
             DummySequence._generate(base, length, size)
-        super().__init__(base, "dummy", None)
+        super().__init__(base, None)
 
     @staticmethod
     def _generate(base, length, size):
