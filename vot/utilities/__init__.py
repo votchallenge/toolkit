@@ -112,16 +112,6 @@ def file_hash(filename):
 
     return md5.hexdigest(), sha1.hexdigest()
 
-
-def mkpath(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc: 
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
-
 def which(program):
 
     def is_exe(fpath):
@@ -139,13 +129,18 @@ def which(program):
 
     return None
 
-def normalize(path, root=None):
+def normalize_path(path, root=None):
     if os.path.isabs(path):
         return path
     if not root:
         root = os.getcwd()
     return os.path.normpath(os.path.join(root, path))
 
+def localize_path(path):
+    if sys.platform.startswith("win"):
+        return path.replace("/", "\\")
+    else:
+        return path.replace("\\", "/")
 
 def to_string(n):
     if n is None:
