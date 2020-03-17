@@ -8,6 +8,7 @@ import shutil
 import shlex
 import socket as socketio
 import tempfile
+import logging
 from typing import Tuple
 from threading import Thread
 
@@ -29,6 +30,8 @@ from vot.utilities import to_logical
 PORT_POOL_MIN = 9090
 PORT_POOL_MAX = 65535
 
+logger = logging.getLogger("vot")
+
 class LogAggregator(object):
 
     def __init__(self):
@@ -48,7 +51,7 @@ class ColorizedOutput(object):
     def __call__(self, fragment):
         print(colorama.Fore.CYAN + fragment + colorama.Fore.RESET, end="")
 
-class PythonDebugHelper(object):
+class PythonCrashHelper(object):
 
     def __init__(self):
         self._matcher = re.compile(r'''
@@ -57,8 +60,8 @@ class PythonDebugHelper(object):
             (?=^\[|\Z)
             ''', re.M | re.X)
 
-    def __call__(self, output):
-        matches = self._matcher.findall(output)
+    def __call__(self, log, directory):
+        matches = self._matcher.findall(log)
         if len(matches) > 0:
             return matches[-1].group(0)
         return None
@@ -197,6 +200,10 @@ class TrackerProcess(object):
         return self._returncode
 
     @property
+    def workdir(self):
+        return self._workdir
+
+    @property
     def alive(self):
         if not self._process:
             return False
@@ -274,7 +281,7 @@ class TrackerProcess(object):
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=None, envvars=None, arguments=None, socket=False, restart=False):
+    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=None, envvars=None, arguments=None, socket=False, restart=False, onerror=None):
         super().__init__(tracker)
         self._command = command
         self._process = None
@@ -290,6 +297,7 @@ class TraxTrackerRuntime(TrackerRuntime):
         else:
             self._output = None
         self._arguments = arguments
+        self._onerror = onerror
 
         if sys.platform.startswith("win"):
             pathvar = "PATH"
@@ -315,17 +323,29 @@ class TraxTrackerRuntime(TrackerRuntime):
                 self._restart = True
 
     def _error(self, exception):
+        workdir = None
         if not self._output is None:
             if not self._process is None:
                 if not self._process.alive:
                     self._output("Process exited with code ({})".format(self._process.returncode))
                 else:
                     self._output("Process did not finish yet")
+                self._workdir = self._process.workdir
             else:
                 self._output("Process not alive anymore, unable to retrieve return code")
 
+        log = str(self._output)
+
+        try:
+
+            if not self._onerror is None and isinstance(self._onerror, callable):
+                self._onerror(log, workdir)
+
+        except Exception as e:
+            logger.exception("Error during error handler for runtime of tracker %s", self._tracker.identifier, exc_info=e)
+
         raise TrackerException(exception, tracker=self._tracker, \
-            tracker_log=str(self._output) if not self._output is None else None)
+            tracker_log=log if not self._output is None else None)
 
     def restart(self):
         try:

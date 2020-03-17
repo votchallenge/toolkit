@@ -232,3 +232,10 @@ class Mask(Region):
             mask_ = np.pad(mask_, ((0, pad_y), (0, pad_x)), 'constant', constant_values=0)
 
         return mask_
+
+    def resize(self, factor=1):
+
+        offset = (int(self.offset[0] * factor), int(self.offset[1] * factor))
+        mask = cv2.resize(self.mask, dsize=None, fx=factor, fy=factor, interpolation=cv2.INTER_NEAREST)
+
+        return Mask(mask, offset, False)
