@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 from matplotlib import colors
 from matplotlib.patches import Polygon
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 import cv2
 
@@ -60,7 +60,7 @@ class DrawHandle(ABC):
         region.draw(self)
 
     @abstractmethod
-    def image(self, image: Union[np.ndarray, Image.Image]):
+    def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
         pass
 
     @abstractmethod
@@ -81,12 +81,19 @@ class DrawHandle(ABC):
 
 class MatplotlibDrawHandle(DrawHandle):
 
-    def __init__(self, axis, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False):
+    def __init__(self, axis, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False, size:Tuple[int, int] = None):
         super().__init__(color, width, fill)
         self._axis = axis
+        if not size is None:
+            self._axis.set_xlim(left=0, right=size[0])
+            self._axis.set_ylim(top=0, bottom=size[1])
 
-    def image(self, image: Union[np.ndarray, Image.Image]):
-        self._axis.imshow(image)
+
+    def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
+
+        if offset is None:
+            offset = (0, 0)
+
         if isinstance(image, np.ndarray):
             width = image.shape[1]
             height = image.shape[0]
@@ -94,8 +101,8 @@ class MatplotlibDrawHandle(DrawHandle):
             width = image.size[0]
             height = image.size[1]
 
-        self._axis.set_xlim(left=0, right=width)
-        self._axis.set_ylim(top=0, bottom=height)
+        self._axis.imshow(image, extent=[offset[0], \
+                offset[0] + width, offset[1] + height, offset[1]])
 
     def line(self, p1: Tuple[float, float], p2: Tuple[float, float]):
         self._axis.plot((p1[0], p2[0]), (p1[1], p2[1]), linewidth=self._width, color=self._color)
@@ -114,7 +121,7 @@ class MatplotlibDrawHandle(DrawHandle):
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
         # TODO: segmentation should also have option of non-filled
-        kernel = np.ones((3, 3), np.uint8)
+        kernel = np.ones(self._width * 2 + 1, np.uint8)
         mask[mask != 0] = 1
         if self._fill:
             mask = 2 * mask - cv2.erode(mask, kernel, borderValue=0)
@@ -127,30 +134,65 @@ class MatplotlibDrawHandle(DrawHandle):
             self._axis.imshow(mask, cmap=cmap, interpolation='none', extent=[offset[0], \
                 offset[0] + mask.shape[1], offset[1] + mask.shape[0], offset[1]])
 
-class NumpyCanvasDrawHandle(DrawHandle):
-    # Does not work at the moment, not implemented
-    
-    def __init__(self, canvas: np.ndarray, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False):
-        super().__init__(color, width, fill)
-        self._canvas = canvas
+class ImageDrawHandle(DrawHandle):
 
-    def image(self, image: Union[np.ndarray, Image.Image]):
-        pass
+    @staticmethod
+    def _convert_color(c, alpha=255):
+        return (int(c[0] * 255), int(c[1] * 255), int(c[2] * 255), alpha)
+
+    def __init__(self, image: Union[np.ndarray, Image.Image], color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False):
+        super().__init__(color, width, fill)
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+
+        self._image = image
+        self._handle = ImageDraw.Draw(self._image, 'RGBA')
+
+    @property
+    def array(self):
+        return np.asarray(self._image)
+
+    @property
+    def snapshot(self):
+        return self._image.copy()
+
+    def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+        if offset is None:
+            offset = (0, 0)
+        self._handle.bitmap(offset, image)
 
     def line(self, p1, p2):
-        cv2.line(self._canvas, p1, p2)
+        color = ImageDrawHandle._convert_color(self._color)
+        self._handle.line([p1, p2], fill=color, width=self._width)
 
     def lines(self, points: List[Tuple[float, float]]):
         if len(points) == 0:
             return
-        p1 = points[0]
-        for x, y in points[1:]:
-            p2 = (x, y)
-            cv2.line(self._canvas, p1, p2)
-            p1 = p2
+        color = ImageDrawHandle._convert_color(self._color)
+        self._handle.line(points, fill=color, width=self._width)
 
     def polygon(self, points: List[Tuple[float, float]]):
-        raise NotImplementedError()
+        if len(points) == 0:
+            return
+
+        if self._fill:
+            color = ImageDrawHandle._convert_color(self._color, alpha=128)
+            self._handle.polygon(points, fill=color)
+    
+        color = ImageDrawHandle._convert_color(self._color)
+        self._handle.line(points + [points[0]], fill=color, width=self._width)
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
-        raise NotImplementedError()
+        if self._fill:
+            image = Image.fromarray(mask * 128, mode="L")
+            image.save("/tmp/test.png")
+            color = ImageDrawHandle._convert_color(self._color, 128)
+            self._image.paste(color, offset, mask=image)
+            #self._handle.bitmap(offset, image, fill=color)
+
+        image = Image.fromarray((mask - cv2.erode(mask, kernel=None, iterations=self._width, borderValue=0)) * 255, mode="L")
+        color = ImageDrawHandle._convert_color(self._color)
+        #self._image.paste(color, offset, mask=image)
+        self._handle.bitmap(offset, image, fill=color)
