@@ -181,7 +181,11 @@ class Mask(Region):
                             bounds[2] - bounds[0], bounds[3] - bounds[1])
         elif rtype == RegionType.POLYGON:
             bounds = mask2bbox(self.mask)
-            return Polygon([(bounds[0], bounds[1]), (bounds[2], bounds[1]), (bounds[2], bounds[3]), (bounds[0], bounds[3])])
+            return Polygon([
+                (bounds[0] + self.offset[0], bounds[1] + self.offset[1]), 
+                (bounds[2] + self.offset[0], bounds[1] + self.offset[1]), 
+                (bounds[2] + self.offset[0], bounds[3] + self.offset[1]), 
+                (bounds[0] + self.offset[0], bounds[3] + self.offset[1])])
         else:
             raise ConversionException("Unable to convert mask region to {}".format(rtype), source=self)
 
