@@ -3,6 +3,7 @@ import sys
 from copy import copy
 from functools import reduce
 from typing import Tuple
+from abc import ABC, abstractmethod
 
 import numpy as np
 import cv2
@@ -10,7 +11,21 @@ import cv2
 from vot.region import Region, ConversionException, RegionType, RegionException
 from vot.utilities.draw import DrawHandle
 
-class Rectangle(Region):
+class Shape(Region, ABC):
+
+    @abstractmethod
+    def draw(self, handle: DrawHandle):
+        pass
+
+    @abstractmethod
+    def resize(self, factor=1):
+        pass
+
+    @abstractmethod
+    def move(self, dx=0, dy=0):
+        pass
+
+class Rectangle(Shape):
     """
     Rectangle region
 
@@ -28,11 +43,27 @@ class Rectangle(Region):
             :param float h: height of the rectangle region
         """
         super().__init__()
-        self.x, self.y, self.width, self.height = x, y, width, height
+        self._x, self._y, self._width, self._height = x, y, width, height
 
     def __str__(self):
         """ Create string from class """
-        return '{},{},{},{}'.format(self.x, self.y, self.width, self.height)
+        return '{},{},{},{}'.format(self._x, self._y, self._width, self._height)
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def height(self):
+        return self._height
 
     @property
     def type(self):
@@ -68,6 +99,9 @@ class Rectangle(Region):
 
     def center(self):
         return (self.x + self.width / 2, self.y + self.height / 2)
+
+    def move(self, dx=0, dy=0):
+        return Rectangle(self.x + dx, self.y + dy, self.width, self.height)
 
 class Polygon(Region):
     """
@@ -138,6 +172,10 @@ class Polygon(Region):
     def resize(self, factor=1):
         return Polygon([(p[0] * factor, p[1] * factor) for p in self.points])
 
+    def move(self, dx=0, dy=0):
+        return Polygon([(p[0] + dx, p[1] + dy) for p in self.points])
+
+
 from vot.region.utils import mask2bbox, mask_to_rle
 
 class Mask(Region):
@@ -146,9 +184,9 @@ class Mask(Region):
 
     def __init__(self, mask: np.array, offset: Tuple[int, int] = (0, 0), optimize=False):
         super().__init__()
-        self.mask = mask.astype(np.uint8)
-        self.mask[self.mask > 0] = 1
-        self.offset = offset
+        self._mask = mask.astype(np.uint8)
+        self._mask[self._mask > 0] = 1
+        self._offset = offset
         if optimize:  # optimize is used when mask without an offset is given (e.g. full-image mask)
             self._optimize()
 
@@ -162,8 +200,16 @@ class Mask(Region):
         bounds = mask2bbox(self.mask)
         if bounds[0] is None:
             raise RegionException("Mask is empty")
-        self.mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
-        self.offset = (bounds[0], bounds[1])
+        self._mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
+        self._offset = (bounds[0], bounds[1])
+
+    @property
+    def mask(self):
+        return self._mask
+
+    @property
+    def offset(self):
+        return self._offset
 
     @property
     def type(self):
@@ -190,7 +236,7 @@ class Mask(Region):
             raise ConversionException("Unable to convert mask region to {}".format(rtype), source=self)
 
     def draw(self, handle: DrawHandle):
-        handle.mask(self.mask, self.offset)
+        handle.mask(self._mask, self.offset)
 
     def get_array(self, output_sz=None):
         """
@@ -243,3 +289,6 @@ class Mask(Region):
         mask = cv2.resize(self.mask, dsize=None, fx=factor, fy=factor, interpolation=cv2.INTER_NEAREST)
 
         return Mask(mask, offset, False)
+
+    def move(self, dx=0, dy=0):
+        return Mask(self._mask, (self.offset[0] + dx, self.offset[1] + dy))
