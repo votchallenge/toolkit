@@ -190,9 +190,7 @@ class ImageDrawHandle(DrawHandle):
             image.save("/tmp/test.png")
             color = ImageDrawHandle._convert_color(self._color, 128)
             self._image.paste(color, offset, mask=image)
-            #self._handle.bitmap(offset, image, fill=color)
 
         image = Image.fromarray((mask - cv2.erode(mask, kernel=None, iterations=self._width, borderValue=0)) * 255, mode="L")
         color = ImageDrawHandle._convert_color(self._color)
-        #self._image.paste(color, offset, mask=image)
         self._handle.bitmap(offset, image, fill=color)

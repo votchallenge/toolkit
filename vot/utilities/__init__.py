@@ -8,11 +8,32 @@ from typing import Tuple
 
 import six
 
-def import_class(cl):
-    d = cl.rfind(".")
-    classname = cl[d+1:len(cl)]
-    m = __import__(cl[0:d], globals(), locals(), [classname])
-    return getattr(m, classname)
+def import_class(classpath, hints=None):
+    delimiter = classpath.rfind(".")
+    if delimiter == -1:
+        if hints is None:
+            hints = []
+        for hint in hints:
+            try:
+                classname = classpath
+                module = __import__(hint, globals(), locals(), [classname])
+                return getattr(module, classname)
+            except ImportError:
+                pass
+            except TypeError:
+                pass
+        raise ImportError("Class {} not found in any of paths {}".format(classpath, hints))
+    else:
+        classname = classpath[delimiter+1:len(classpath)]
+        module = __import__(classpath[0:delimiter], globals(), locals(), [classname])
+        return getattr(module, classname)
+
+def class_fullname(o):
+    module = o.__class__.__module__
+    if module is None or module == str.__class__.__module__:
+        return o.__class__.__name__  # Avoid reporting __builtin__
+    else:
+        return module + '.' + o.__class__.__name__
 
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
     return (size[1], size[0])
@@ -111,6 +132,14 @@ def file_hash(filename):
             sha1.update(data)
 
     return md5.hexdigest(), sha1.hexdigest()
+
+def arg_hash(*args):
+    sha1 = hashlib.sha1()
+
+    for arg in args:
+        sha1.update(("(" + str(arg) + ")").encode("utf-8"))
+
+    return sha1.hexdigest()
 
 def which(program):
 
