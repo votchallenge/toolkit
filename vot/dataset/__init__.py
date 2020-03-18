@@ -4,6 +4,9 @@ import glob
 
 from abc import abstractmethod, ABC
 
+from PIL.Image import Image
+import numpy as np
+
 from vot import VOTException
 from vot.utilities import read_properties
 from vot.region import parse
@@ -65,6 +68,12 @@ class Frame(object):
             return None
         return channelobj.filename(self._index)
 
+    def image(self, channel=None):
+        channelobj = self._sequence.channel(channel)
+        if channelobj is None:
+            return None
+        return channelobj.frame(self._index)
+
     def groundtruth(self):
         return self._sequence.groundtruth(self._index)
 
@@ -89,6 +98,56 @@ class SequenceIterator(object):
         index = self._position
         self._position += 1
         return Frame(self._sequence, index)
+
+class InMemoryChannel(Channel):
+
+    def __init__(self):
+        super().__init__()
+        self._images = []
+        self._width = 0
+        self._height = 0
+        self._depth = 0
+
+    def append(self, image):
+        if isinstance(image, Image):
+            image = np.asarray(image)
+
+        if len(image.shape) == 3:
+            height, width, depth = image.shape
+        elif len(image.shape) == 2:
+            height, width = image.shape
+            depth = 1
+        else:
+            raise DatasetException("Illegal image dimensions")
+
+        if self._width > 0:
+            if not (self._width == width and self._height == height):
+                raise DatasetException("Size of images does not match")
+            if not self._depth == depth:
+                raise DatasetException("Channels of images does not match")
+        else:
+            self._width = width
+            self._height = height
+            self._depth = depth
+
+        self._images.append(image)
+
+    @property
+    def length(self):
+        return len(self._images)
+
+    def frame(self, index):
+        if index < 0 or index >= self.length:
+            return None
+
+        return self._images[index]
+
+    @property
+    def size(self):
+        return self._width, self._height
+
+    def filename(self, index):
+        raise DatasetException("Sequence is available in memory, image files not available")
 
 class PatternFileListChannel(Channel):
 
@@ -246,6 +305,90 @@ class Dataset(ABC):
     @abstractmethod
     def list(self):
         return []
+
+class BaseSequence(Sequence):
+
+    def __init__(self, name, dataset=None):
+        super().__init__(name, dataset)
+        self._metadata = {}
+        self._channels = {}
+        self._tags = {}
+        self._values = {}
+        self._groundtruth = []
+    
+    def metadata(self, name, default=None):
+        return self._metadata.get(name, default)
+
+    def channels(self):
+        return self._channels
+
+    def channel(self, channel=None):
+        if channel is None:
+            channel = self.metadata("channel.default")
+        return self._channels.get(channel, None)
+
+    def frame(self, index):
+        return Frame(self, index)
+
+    def groundtruth(self, index=None):
+        if index is None:
+            return self._groundtruth
+        return self._groundtruth[index]
+
+    def tags(self, index=None):
+        if index is None:
+            return self._tags.keys()
+        return [t for t, sq in self._tags.items() if sq[index]]
+
+    def values(self, index=None):
+        if index is None:
+            return self._values.keys()
+        return {v: sq[index] for v, sq in self._values.items()}
+
+    @property
+    def size(self):
+        return self.channel().size
+
+    @property
+    def length(self):
+        return len(self._groundtruth)
+
+class InMemorySequence(BaseSequence):
+
+    def __init__(self, name, channels):
+        super().__init__(name, None)
+        self._channels = {c: InMemoryChannel() for c in channels}
+
+    def append(self, images: dict, region: "Region", tags: list = None, values: dict = None):
+
+        if not set(images.keys()).issuperset(self._channels.keys()):
+            raise DatasetException("Images not provided for all channels")
+
+        for k, channel in self._channels.items():
+            channel.append(images[k])
+
+        if tags is None:
+            tags = set()
+        else:
+            tags = set(tags)
+        for tag in tags:
+            if not tag in self._tags:
+                self._tags[tag] = [False] * self.length
+            self._tags[tag].append(True)
+        for tag in set(self._tags.keys()).difference(tags):
+                self._tags[tag].append(False)
+
+        if values is None:
+            values = dict()
+        for name, value in values.items():
+            if not name in self._values:
+                self._values[name] = [0] * self.length
+            self._values[tag].append(value)
+        for name in set(self._values.keys()).difference(values.keys()):
+                self._values[name].append(0)
+
+        self._groundtruth.append(region)
+
 
 from .vot import VOTDataset, VOTSequence
 

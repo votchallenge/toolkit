@@ -69,8 +69,7 @@ class FrameMapSequence(Sequence):
     def values(self, index=None):
         if index is None:
             return self._source.values()
-        else:
-            return self._source.values(self._map[index])
+        return self._source.values(self._map[index])
 
     @property
     def size(self):

@@ -5,9 +5,11 @@ import tempfile
 import six
 import logging
 
-from vot.dataset import Dataset, DatasetException, Sequence, PatternFileListChannel, Frame
+import cv2
 
-from vot.utilities import Progress, extract_files, localize_path
+from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel, Frame
+from vot.region import parse, Region, write_file
+from vot.utilities import Progress, extract_files, localize_path, read_properties, write_properties
 
 logger = logging.getLogger("vot")
 
@@ -19,26 +21,19 @@ def load_channel(source):
         source = os.path.join(source, '%08d.jpg')
     return PatternFileListChannel(source)
 
-class VOTSequence(Sequence):
+class VOTSequence(BaseSequence):
 
-    def __init__(self, base, dataset=None):
+    def __init__(self, base, name=None, dataset=None):
         self._base = base
-        self._metadata = {
-            "fps" : 30, 
-            "format" : "default",
-            "channel.default": "color",
-            "length" : 0}
-        self._metadata["name"] = os.path.basename(base)
-        super().__init__(self._metadata["name"], dataset)
-        self._channels = {}
-        self._tags = {}
-        self._values = {}
-        self._groundtruth = []
-        self.__scan(base)
+        if name is None:
+            name = os.path.basename(base)
+        super().__init__(name, dataset)
+        self._metadata["fps"] = 30
+        self._metadata["format"] = "default"
+        self._metadata["channel.default"] = "color"
+        self._scan(base)
 
-    def __scan(self, base):
-        from vot.utilities import read_properties
-        from vot.region import parse
+    def _scan(self, base):
 
         metadata_file = os.path.join(base, 'sequence')
         data = read_properties(metadata_file)
@@ -67,64 +62,32 @@ class VOTSequence(Sequence):
         for tagfile in tagfiles:
             with open(tagfile, 'r') as filehandle:
                 tagname = os.path.splitext(os.path.basename(tagfile))[0]
-                self._tags[tagname] = [line.strip() == "1" for line in filehandle.readlines()]
-
+                tag = [line.strip() == "1" for line in filehandle.readlines()]
+                while not len(tag) >= len(self._groundtruth):
+                    tag.append(False)
+                self._tags[tagname] = tag
+            
         valuefiles = glob.glob(os.path.join(self._base, '*.value'))
 
         for valuefile in valuefiles:
             with open(valuefile, 'r') as filehandle:
                 valuename = os.path.splitext(os.path.basename(valuefile))[0]
-                self._values[valuename] = [float(line.strip()) for line in filehandle.readlines()]
+                value = [float(line.strip()) for line in filehandle.readlines()]
+                while not len(value) >= len(self._groundtruth):
+                    value.append(0.0)
+                self._values[valuename] = value
 
         for name, channel in self._channels.items():
             if not channel.length == len(self._groundtruth):
-                raise DatasetException("Length mismatch in channel %s" % name)
+                raise DatasetException("Length mismatch for channel %s" % name)
 
         for name, tags in self._tags.items():
             if not len(tags) == len(self._groundtruth):
-                raise DatasetException("Length mismatch in tag %s" % name)
+                raise DatasetException("Length mismatch for tag %s" % name)
 
         for name, values in self._values.items():
             if not len(values) == len(self._groundtruth):
-                raise DatasetException("Length mismatch in value %s" % name)
-
-    def metadata(self, name, default=None):
-        return self._metadata.get(name, default)
-
-    def channels(self):
-        return self._channels
-
-    def channel(self, channel=None):
-        if channel is None:
-            channel = self.metadata("channel.default")
-        return self._channels.get(channel, None)
-
-    def frame(self, index):
-        return Frame(self, index)
-
-    def groundtruth(self, index=None):
-        if index is None:
-            return self._groundtruth
-        return self._groundtruth[index]
-
-    def tags(self, index=None):
-        if index is None:
-            return self._tags.keys()
-        return [t for t, sq in self._tags.items() if sq[index]]
-
-    def values(self, index=None):
-        if index is None:
-            return self._values.keys()
-        return {v: sq[index] for v, sq in self._values.items()}
-
-    @property
-    def size(self):
-        return self.channel().size
-
-    @property
-    def length(self):
-        return len(self._groundtruth)
-
+                raise DatasetException("Length mismatch for value %s" % name)
 
 class VOTDataset(Dataset):
 
@@ -136,7 +99,7 @@ class VOTDataset(Dataset):
 
         with open(os.path.join(path, "list.txt"), 'r') as fd:
             names = fd.readlines()
-        self._sequences = { name.strip() : VOTSequence(os.path.join(path, name.strip()), self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
+        self._sequences = {name.strip() : VOTSequence(os.path.join(path, name.strip()), dataset=self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
 
     @property
     def path(self):
@@ -228,6 +191,38 @@ class VOTDataset(Dataset):
             with open(os.path.join(path, "list.txt"), "w") as fp:
                 for sequence in meta["sequences"]:
                     fp.write('{}\n'.format(sequence["name"]))
+
+def write_sequence(directory: str, sequence: Sequence):
+    
+    channels = sequence.channels()
+
+    metadata = dict()
+    metadata["channel.default"] = sequence.metadata("channel.default", "color")
+    metadata["fps"] = sequence.metadata("fps", "30")
+
+    for channel in channels:
+        cdir = os.path.join(directory, channel)
+        os.makedirs(cdir, exist_ok=True)
+
+        metadata["channels.%s" % channel] = os.path.join(channel, "%08d.jpg")
+
+        for i in range(sequence.length):
+            frame = sequence.frame(i).channel(channel)
+            cv2.imwrite(os.path.join(cdir, "%08d.jpg" % (i + 1)), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+    for tag in sequence.tags():
+        data = "\n".join(["1" if tag in sequence.tags(i) else "0" for i in range(sequence.length)])
+        with open(os.path.join(directory, "%s.tag" % tag), "w") as fp:
+            fp.write(data)
+
+    for value in sequence.values():
+        data = "\n".join([ str(sequence.values(i).get(value, "")) for i in range(sequence.length)])
+        with open(os.path.join(directory, "%s.value" % value), "w") as fp:
+            fp.write(data)
+
+    write_file(os.path.join(directory, "groundtruth.txt"), [f.groundtruth() for f in sequence])
+    write_properties(os.path.join(directory, "sequence"), metadata)
+
 
 VOT_DATASETS = {
     "vot2013" : "http://data.votchallenge.net/vot2013/dataset/description.json",
