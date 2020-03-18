@@ -14,10 +14,12 @@ from vot.utilities import Progress, to_number
 
 class Experiment(ABC):
 
-    def __init__(self, identifier: str, workspace: "Workspace"):
+    def __init__(self, identifier: str, workspace: "Workspace", realtime: dict = None, noise: dict = None):
         super().__init__()
         self._identifier = identifier
         self._workspace = workspace
+        self._realtime = realtime
+        self._noise = noise
 
     @property
     def workspace(self) -> "Workspace":
@@ -27,7 +29,15 @@ class Experiment(ABC):
     def identifier(self) -> str:
         return self._identifier
 
+    def _get_initialization(self, sequence: "Sequence", index: int):
+        return sequence.groundtruth(index)
+
     def _get_runtime(self, tracker: "Tracker", sequence: "Sequence"):
+        if not self._realtime is None:
+            grace = to_number(self._realtime.get("grace", 0), min_n=0)
+            fps = to_number(self._realtime.get("fps", 20), min_n=0, conversion=float)
+            interval = 1 / float(sequence.metadata("fps", fps))
+            return RealtimeTrackerRuntime(tracker.runtime(), grace, interval)
         return tracker.runtime()
 
     @abstractmethod
@@ -41,20 +51,8 @@ class Experiment(ABC):
     def results(self, tracker: "Tracker", sequence: "Sequence") -> "Results":
         return self._workspace.results(tracker, self, sequence)
 
-class RealtimeMixin(Experiment):
-
-    def __init__(self, identifier: str, workspace: "Workspace", grace:int = 1):
-        super().__init__(identifier, workspace)
-        self._grace = to_number(grace, min_n=0)
-
-    def _get_runtime(self, tracker: "Tracker", sequence: "Sequence"):
-        interval = 1 / float(sequence.metadata("fps", 20))
-
-        return RealtimeTrackerRuntime(super()._get_runtime(tracker, sequence), self._grace, interval)
-
-from .multirun import UnsupervisedExperiment, SupervisedExperiment, RealtimeSupervisedExperiment, RealtimeUnsupervisedExperiment
-
-from .multistart import MultiStartExperiment, RealtimeMultiStartExperiment
+from .multirun import UnsupervisedExperiment, SupervisedExperiment
+from .multistart import MultiStartExperiment
 
 class EvaluationProgress(object):
 
@@ -75,6 +73,9 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", force: bool = Fal
 
     progress = EvaluationProgress("{}/{}".format(tracker.identifier, experiment.identifier), len(experiment.workspace.dataset))
     for sequence in experiment.workspace.dataset:
+        transformers = experiment.workspace.stack.transformers(experiment)
+        for transformer in transformers:
+            sequence = transformer(sequence)
         try:
             experiment.execute(tracker, sequence, force=force, callback=progress)
         except TrackerException as te:

@@ -5,6 +5,7 @@ import yaml
 from typing import List
 
 from vot.experiment import Experiment
+from vot.experiment.transformer import Transformer
 from vot.utilities import import_class
 from vot.analysis import PerformanceMeasure
 
@@ -20,24 +21,38 @@ class Stack(object):
         self._deprecated = metadata.get("deprecated", False)
         self._experiments = []
         self._measures = dict()
+        self._transformers = dict()
 
         for identifier, experiment_metadata in metadata["experiments"].items():
-            experiment_class = import_class(experiment_metadata["type"])
+            experiment_class = import_class(experiment_metadata["type"], hints=["vot.experiment"])
             assert issubclass(experiment_class, Experiment)
             del experiment_metadata["type"]
+
+            transformers = []
+            if "transformers" in experiment_metadata:
+                transformers_metadata = experiment_metadata["transformers"]
+                del experiment_metadata["transformers"]
+
+                for transformer_metadata in transformers_metadata:
+                    transformer_class = import_class(transformer_metadata["type"], hints=["vot.experiment.transformer"])
+                    assert issubclass(transformer_class, Transformer)
+                    del transformer_metadata["type"]
+                    transformers.append(transformer_class(workspace, **transformer_metadata))
+
             measures = []
             if "measures" in experiment_metadata:
                 measures_metadata = experiment_metadata["measures"]
                 del experiment_metadata["measures"]
 
                 for measure_metadata in measures_metadata:
-                    measure_class = import_class(measure_metadata["type"])
+                    measure_class = import_class(measure_metadata["type"], hints=["vot.analysis.measures"])
                     assert issubclass(measure_class, PerformanceMeasure)
                     del measure_metadata["type"]
                     measures.append(measure_class(**measure_metadata))
             experiment = experiment_class(identifier, workspace, **experiment_metadata)
             self._experiments.append(experiment)
             self._measures[experiment] = measures
+            self._transformers[experiment] = transformers
 
     @property
     def title(self) -> str:
@@ -61,6 +76,9 @@ class Stack(object):
         
     def measures(self, experiment: Experiment) -> List["PerformanceMeasure"]:
         return self._measures[experiment]
+
+    def transformers(self, experiment: Experiment) -> List["Transformer"]:
+        return self._transformers[experiment]
 
     def __iter__(self):
         return iter(self._experiments)

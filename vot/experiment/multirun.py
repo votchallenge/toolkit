@@ -6,14 +6,14 @@ from typing import Callable
 from vot.dataset import Sequence
 from vot.region import Special, calculate_overlap
 
-from vot.experiment import Experiment, RealtimeMixin
-from vot.tracker import Tracker, Trajectory, RealtimeTrackerRuntime
+from vot.experiment import Experiment
+from vot.tracker import Tracker, Trajectory
 from vot.utilities import to_number
 
 class MultiRunExperiment(Experiment, ABC):
 
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1):
-        super().__init__(identifier, workspace)
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, **kwargs):
+        super().__init__(identifier, workspace, **kwargs)
         self._repetitions = to_number(repetitions, min_n=1)
 
     @property
@@ -60,7 +60,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
             trajectory = Trajectory(sequence.length)
 
             with self._get_runtime(tracker, sequence) as runtime:
-                _, properties, elapsed = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+                _, properties, elapsed = runtime.initialize(sequence.frame(0), self._get_initialization(sequence, 0))
 
                 properties["time"] = elapsed
 
@@ -80,8 +80,8 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 class SupervisedExperiment(MultiRunExperiment):
 
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0):
-        super().__init__(identifier, workspace, repetitions)
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0, **kwargs):
+        super().__init__(identifier, workspace, repetitions, **kwargs)
         self._skip_initialize = to_number(skip_initialize, min_n=1)
         self._skip_tags = tuple(skip_tags)
         self._failure_overlap = to_number(failure_overlap, min_n=0, max_n=1, conversion=float)
@@ -115,7 +115,7 @@ class SupervisedExperiment(MultiRunExperiment):
                 frame = 0
                 while frame < sequence.length:
 
-                    _, properties, elapsed = runtime.initialize(sequence.frame(frame), sequence.groundtruth(frame))
+                    _, properties, elapsed = runtime.initialize(sequence.frame(frame), self._get_initialization(sequence, frame))
 
                     properties["time"] = elapsed
 
@@ -147,15 +147,3 @@ class SupervisedExperiment(MultiRunExperiment):
                 callback(i / self._repetitions)
 
             trajectory.write(results, name)
-
-class RealtimeUnsupervisedExperiment(UnsupervisedExperiment, RealtimeMixin):
-
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, grace=0):
-        super().__init__(identifier, workspace, repetitions)
-        RealtimeMixin.__init__(self, identifier, workspace, grace)
-
-class RealtimeSupervisedExperiment(SupervisedExperiment, RealtimeMixin):
-
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0, grace=0):
-        super().__init__(identifier, workspace, repetitions, skip_initialize, skip_tags, failure_overlap)
-        RealtimeMixin.__init__(self, identifier, workspace, grace)

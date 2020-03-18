@@ -244,6 +244,9 @@ def do_pack(config, logger):
 
     for experiment in workspace.stack:
         for sequence in workspace.dataset:
+            transformers = experiment.workspace.stack.transformers(experiment)
+            for transformer in transformers:
+                sequence = transformer(sequence)
             complete, files, results = experiment.scan(tracker, sequence)
             all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
             if not complete:

@@ -3,7 +3,22 @@ url: http://www.votchallenge.net/
 dataset: vot:segmentation
 experiments:
   baseline:
-    type: vot.experiment.multistart.MultiStartExperiment
+    type: MultiStartExperiment
     measures:
-      - type: vot.analysis.measures.AccuracyRobustnessMultiStart
-      - type: vot.analysis.measures.EAOMultiStart
+      - type: AccuracyRobustnessMultiStart
+      - type: EAOMultiStart
+  realtime:
+    type: MultiStartExperiment
+    realtime:
+      grace: 3
+    measures:
+      - type: AccuracyRobustnessMultiStart
+      - type: EAOMultiStart
+  redetection:
+    type: UnsupervisedExperiment
+    transformers:
+      - type: Redetection
+        length: 200
+        initialization: 5
+        padding: 2
+        scaling: 3
