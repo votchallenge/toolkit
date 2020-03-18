@@ -10,7 +10,7 @@ from vot.tracker import Tracker, Results
 from vot.experiment import Experiment
 from vot.stack import Stack, resolve_stack
 
-from vot.utilities import normalize
+from vot.utilities import normalize_path, class_fullname
 
 logger = logging.getLogger("vot")
 
@@ -104,8 +104,9 @@ class Workspace(object):
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
             self._stack = Stack(self, stack_metadata)
 
-        dataset_directory = normalize(self._config.get("sequences", "sequences"), directory)
-        results_directory = normalize(self._config.get("results", "results"), directory)
+        dataset_directory = normalize_path(self._config.get("sequences", "sequences"), directory)
+        results_directory = normalize_path(self._config.get("results", "results"), directory)
+        cache_directory = normalize_path("cache", directory)
 
         if not os.path.exists(os.path.join(dataset_directory, "list.txt")) and not self._stack.dataset is None:
             logger.info("Stack has a dataset attached, downloading bundle '%s'", self._stack.dataset)
@@ -117,12 +118,30 @@ class Workspace(object):
 
         self._dataset = VOTDataset(dataset_directory)
         self._results = results_directory
+        self._cache = cache_directory
 
         self._root = directory
 
     @property
     def directory(self):
         return self._root
+
+    def cache(self, *args):
+        segments = []
+        for arg in args:
+            if arg is None:
+                continue
+            if isinstance(arg, str):
+                segments.append(arg)
+            elif isinstance(arg, (int, float)):
+                segments.append(str(arg))
+            else:
+                segments.append(class_fullname(arg))
+
+        path = os.path.join(self._cache, *segments)
+        os.makedirs(path, exist_ok=True)
+
+        return path
 
     @property
     def registry(self):
