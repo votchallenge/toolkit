@@ -8,17 +8,32 @@ from vot.region import Special, calculate_overlap
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
-from vot.utilities import to_number
+from vot.utilities import to_number, to_logical
 
 class MultiRunExperiment(Experiment, ABC):
 
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, **kwargs):
+    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, early_stop=True, **kwargs):
         super().__init__(identifier, workspace, **kwargs)
         self._repetitions = to_number(repetitions, min_n=1)
+        self._early_stop = to_logical(early_stop)
 
     @property
     def repetitions(self):
         return self._repetitions
+
+    def _can_stop(self, tracker: Tracker, sequence: Sequence):
+        if not self._early_stop:
+            return False
+        trajectories = self.gather(tracker, sequence)
+        if len(trajectories) < 3:
+            return False
+
+        for trajectory in trajectories[1:]:
+            if not trajectory.equals(trajectories[0]):
+                return False
+
+        return True
+
 
     def scan(self, tracker: Tracker, sequence: Sequence):
         
@@ -31,8 +46,11 @@ class MultiRunExperiment(Experiment, ABC):
             name = "%s_%03d" % (sequence.name, i)
             if Trajectory.exists(results, name):
                 files.extend(Trajectory.gather(results, name))
+            elif self._can_stop(tracker, sequence):
+                break
             else:
                 complete = False
+                break
 
         return complete, files, results
 
@@ -56,6 +74,9 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
             if Trajectory.exists(results, name) and not force:
                 continue
+
+            if self._can_stop(tracker, sequence):
+                return
 
             trajectory = Trajectory(sequence.length)
 
@@ -107,6 +128,9 @@ class SupervisedExperiment(MultiRunExperiment):
 
             if Trajectory.exists(results, name) and not force:
                 continue
+
+            if self._can_stop(tracker, sequence):
+                return
 
             trajectory = Trajectory(sequence.length)
 

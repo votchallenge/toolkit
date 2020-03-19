@@ -2,7 +2,7 @@
 import os, glob
 from typing import List
 from copy import copy
-from vot.region import Region, Special, write_file, read_file
+from vot.region import Region, RegionType, Special, write_file, read_file, calculate_overlap
 from vot.utilities import to_string
 
 class Results(object):
@@ -68,11 +68,14 @@ class Trajectory(object):
         self._regions = [Special(Special.UNKNOWN)] * length
         self._properties = dict()
 
-    def set(self, frame:int, region:Region, properties:dict):
+    def set(self, frame: int, region: Region, properties: dict = None):
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
     
         self._regions[frame] = region
+
+        if properties is None:
+            properties = dict()
 
         for k, v in properties.items():
             if not k in self._properties:
@@ -105,3 +108,20 @@ class Trajectory(object):
             with results.write(name + "_" + k + ".value") as fp:
                 fp.writelines([to_string(e) + "\n" for e in v])
 
+
+    def equals(self, trajectory: 'Trajectory', check_properties: bool = False, overlap_threshold: float = 0.99999):
+        if not len(self) == len(trajectory):
+            return False
+        
+        for r1, r2 in zip(self.regions(), trajectory.regions()):
+            if calculate_overlap(r1, r2) < overlap_threshold and not (r1.type == RegionType.SPECIAL and r2.type == RegionType.SPECIAL):
+                return False
+
+        if check_properties:
+            if not set(self._properties.keys()) == set(trajectory._properties.keys()):
+                return False
+            for name, _ in self._properties.items():
+                for p1, p2 in zip(self._properties[name], trajectory._properties[name]):
+                    if not p1 == p2 and not (p1 is None and p2 is None):
+                        return False
+        return True
