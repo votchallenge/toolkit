@@ -1,4 +1,4 @@
-
+import math
 from typing import Union, TextIO
 
 from vot.region import Special
@@ -19,9 +19,15 @@ def parse(string):
         if len(tokens) == 1:
             return Special(tokens[0])
         if len(tokens) == 4:
-            return Rectangle(tokens[0], tokens[1], tokens[2], tokens[3])
+            if any([math.isnan(el) for el in tokens]):
+                return Special(0)
+            else:
+                return Rectangle(tokens[0], tokens[1], tokens[2], tokens[3])
         elif len(tokens) % 2 == 0 and len(tokens) > 4:
-            return Polygon([(x_, y_) for x_, y_ in zip(tokens[::2], tokens[1::2])])
+            if any([math.isnan(el) for el in tokens]):
+                return Special(0)
+            else:
+                return Polygon([(x_, y_) for x_, y_ in zip(tokens[::2], tokens[1::2])])
     print('Unknown region format.')
     return None
 

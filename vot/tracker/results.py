@@ -60,7 +60,7 @@ class Trajectory(object):
         for propertyfile in results.find(name + "*.value"):
             with results.read(propertyfile) as filehandle:
                 propertyname = os.path.splitext(os.path.basename(propertyfile))[0][len(name)+1:]
-                trajectory._properties[propertyname] = [float(line.strip()) if line.strip() != '' else 'none' for line in filehandle.readlines()]
+                trajectory._properties[propertyname] = [float(line.strip()) if line.strip() != '' else float('nan') for line in filehandle.readlines()]
 
         return trajectory
 
