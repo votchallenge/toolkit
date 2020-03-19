@@ -7,3 +7,11 @@ experiments:
     repetitions: 1
     measures:
       - type: vot.analysis.measures.PrecisionRecall
+  redetection:
+    type: UnsupervisedExperiment
+    transformers:
+      - type: Redetection
+        length: 200
+        initialization: 5
+        padding: 2
+        scaling: 3

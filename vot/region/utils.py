@@ -155,7 +155,7 @@ def create_mask_from_string(mask_encoding):
 def mask_mask_overlap(m1, m2):
     m_inter_sum = np.sum(m1 * m2)
     union_sum = np.sum(m1) + np.sum(m2) - m_inter_sum
-    return float(m_inter_sum) / float(union_sum)
+    return float(m_inter_sum) / float(union_sum) if union_sum > 0 else float(0)
 
 def are_overlaping(tl_1, br_1, tl_2, br_2):
     # one rectangle is on left side of other

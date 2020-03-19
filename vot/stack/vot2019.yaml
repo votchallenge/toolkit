@@ -9,13 +9,19 @@ experiments:
     measures:
       - type: vot.analysis.measures.AccuracyRobustness
         sensitivity: 30
+      - type: EAO
   unsupervised:
     type: vot.experiment.UnsupervisedExperiment
     repetitions: 1
     measures:
       - type: vot.analysis.measures.AverageAccuracy
   realtime:
-    type: vot.experiment.RealtimeSupervisedExperiment
-    grace: 3
+    type: vot.experiment.SupervisedExperiment
+    realtime:
+      grace: 3
     repetitions: 1
     skip_initialize: 5
+    measures:
+      - type: vot.analysis.measures.AccuracyRobustness
+        sensitivity: 30
+      - type: EAO
