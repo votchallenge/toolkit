@@ -83,7 +83,9 @@ class VOTSequence(BaseSequence):
 
         for name, tags in self._tags.items():
             if not len(tags) == len(self._groundtruth):
-                raise DatasetException("Length mismatch for tag %s" % name)
+                tag_tmp = len(self._groundtruth) * [False]
+                tag_tmp[:len(tags)] = tags
+                tags = tag_tmp
 
         for name, values in self._values.items():
             if not len(values) == len(self._groundtruth):
@@ -233,8 +235,9 @@ VOT_DATASETS = {
     "vot-tir2016" : "http://data.votchallenge.net/vot2016/vot-tir2016.zip",
     "vot2017" : "http://data.votchallenge.net/vot2017/main/description.json",
     "vot-st2018" : "http://data.votchallenge.net/vot2018/main/description.json",
-    "vot-lt2018-lt" : "http://data.votchallenge.net/vot2018/longterm/description.json",
+    "vot-lt2018" : "http://data.votchallenge.net/vot2018/longterm/description.json",
     "vot-st2019" : "http://data.votchallenge.net/vot2019/main/description.json",
+    "vot-lt2019" : "http://data.votchallenge.net/vot2019/longterm/description.json",
     "vot-rgbd2019" : "http://data.votchallenge.net/vot2019/rgbd/description.json",
     "vot-rgbt2019" : "http://data.votchallenge.net/vot2019/rgbtir/meta/description.json",
     "test" : "http://data.votchallenge.net/toolkit/test.zip",

@@ -4,10 +4,10 @@ from vot.tracker import Tracker, Trajectory
 from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
-from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment
+from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment, UnsupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.analysis import SeparatablePerformanceMeasure, NonSeparatablePerformanceMeasure, MissingResultsException, MeasureDescription
-from vot.analysis.routines import count_failures, compute_accuracy, compute_eao, locate_failures_inits
+from vot.analysis.routines import count_failures, compute_accuracy, compute_eao, locate_failures_inits, determine_thresholds, compute_tpr_curves
 from vot.utilities import to_number, to_logical
 
 class AverageAccuracy(SeparatablePerformanceMeasure):
@@ -72,6 +72,85 @@ class FailureCount(SeparatablePerformanceMeasure):
             failures = failures + count_failures(trajectory.regions())
 
         return failures / len(trajectories), len(trajectories[0])
+
+class PrecisionRecall(NonSeparatablePerformanceMeasure):
+
+    def __init__(self, resolution: int = 100, ignore_unknown: bool = True, bounded: bool = True):
+        self._resolution = resolution
+        self._ignore_unknown = ignore_unknown
+        self._bounded = bounded
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, UnsupervisedExperiment)
+
+    def compute_measure(self, tracker: Tracker, experiment: Experiment):
+
+        # calculate thresholds
+        total_scores = 0
+        for sequence in experiment.workspace.dataset:
+            trajectories = experiment.gather(tracker, sequence)
+            for trajectory in trajectories:
+                total_scores += len(trajectory)
+
+        # allocate memory for all scores
+        scores_all = total_scores * [float(0)]
+
+        idx = 0
+        for sequence in experiment.workspace.dataset:
+            trajectories = experiment.gather(tracker, sequence)
+            for trajectory in trajectories:
+                conf_ = [trajectory.properties(i).get('confidence', 0) for i in range(len(trajectory))]
+                scores_all[idx:idx + len(conf_)] = conf_
+                idx += len(conf_)
+
+        thresholds = determine_thresholds(scores_all, self._resolution)
+
+        # calculate per-sequence Precision and Recall curves
+        pr_curves = []
+        re_curves = []
+
+        for sequence in experiment.workspace.dataset:
+
+            trajectories = experiment.gather(tracker, sequence)
+
+            if len(trajectories) == 0:
+                raise MissingResultsException()
+
+            pr = len(thresholds) * [float(0)]
+            re = len(thresholds) * [float(0)]
+            for trajectory in trajectories:
+                conf_ = [trajectory.properties(i).get('confidence', 0) for i in range(len(trajectory))]
+                pr_, re_ = compute_tpr_curves(trajectory.regions(), conf_, sequence, thresholds, self._ignore_unknown, self._bounded)
+                pr = [p1 + p2 for p1, p2 in zip(pr, pr_)]
+                re = [r1 + r2 for r1, r2 in zip(re, re_)]
+
+            pr = [p1 / len(trajectories) for p1 in pr]
+            re = [r1 / len(trajectories) for r1 in re]
+
+            pr_curves.append(pr)
+            re_curves.append(re)
+
+        # calculate a single Precision, Recall and F-score curves for a given tracker
+        # average Pr-Re curves over the sequences
+        pr_curve = len(thresholds) * [float(0)]
+        re_curve = len(thresholds) * [float(0)]
+
+        for i in range(len(thresholds)):
+            for j in range(len(pr_curves)):
+                pr_curve[i] += pr_curves[j][i]
+                re_curve[i] += re_curves[j][i]
+
+        pr_curve = [pr_ / len(pr_curves) for pr_ in pr_curve]
+        re_curve = [re_ / len(re_curves) for re_ in re_curve]
+        f_curve = [(2 * pr_ * re_) / (pr_ + re_) for pr_, re_ in zip(pr_curve, re_curve)]
+
+        # get optimal F-score and Pr and Re at this threshold
+        f_score = max(f_curve)
+        best_i = f_curve.index(f_score)
+        pr_score = pr_curve[best_i]
+        re_score = re_curve[best_i]
+
+        return pr_score, re_score, f_score
 
 class AccuracyRobustness(SeparatablePerformanceMeasure):
 

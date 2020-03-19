@@ -1,0 +1,9 @@
+title: VOT-LT2019 challenge
+dataset: vot:vot-lt2019
+url: http://www.votchallenge.net/vot2019/
+experiments:
+  longterm:
+    type: vot.experiment.UnsupervisedExperiment
+    repetitions: 1
+    measures:
+      - type: vot.analysis.measures.PrecisionRecall
