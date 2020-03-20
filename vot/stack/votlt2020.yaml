@@ -1,0 +1,17 @@
+title: VOT-LT2020 challenge
+dataset: vot:vot-lt2019
+url: http://www.votchallenge.net/vot2020/
+experiments:
+  longterm:
+    type: vot.experiment.UnsupervisedExperiment
+    repetitions: 1
+    measures:
+      - type: vot.analysis.measures.PrecisionRecall
+  redetection:
+    type: UnsupervisedExperiment
+    transformers:
+      - type: Redetection
+        length: 200
+        initialization: 5
+        padding: 2
+        scaling: 3

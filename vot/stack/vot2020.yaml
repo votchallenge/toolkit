@@ -1,6 +1,6 @@
-title: VOT-ST2018 challenge
-dataset: vot:vot-st2018
-url: http://www.votchallenge.net/vot2018/
+title: VOT-ST2020 challenge
+dataset: vot:vot-st2020
+url: http://www.votchallenge.net/vot2020/
 experiments:
   baseline:
     type: vot.experiment.SupervisedExperiment

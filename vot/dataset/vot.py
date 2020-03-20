@@ -240,6 +240,7 @@ VOT_DATASETS = {
     "vot-lt2019" : "http://data.votchallenge.net/vot2019/longterm/description.json",
     "vot-rgbd2019" : "http://data.votchallenge.net/vot2019/rgbd/description.json",
     "vot-rgbt2019" : "http://data.votchallenge.net/vot2019/rgbtir/meta/description.json",
+    "vot-st2020" : "TODO",
     "test" : "http://data.votchallenge.net/toolkit/test.zip",
     "segmentation" : "http://box.vicos.si/tracking/vot20_test_dataset.zip"
 }
