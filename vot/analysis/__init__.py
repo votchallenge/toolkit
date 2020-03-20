@@ -5,6 +5,7 @@ from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.region import Region, RegionType
+from vot.utilities import class_fullname
 
 class MissingResultsException(Exception):
     pass
@@ -88,13 +89,21 @@ def process_measures(workspace: "Workspace", trackers: List[Tracker]):
     results = dict()
 
     for experiment in workspace.stack:
+
         results[experiment.identifier] = list()
-        for measure in workspace.stack.measures(experiment):
-            if not measure.compatible(experiment):
-                continue
-            measure_results = dict()
-            for tracker in trackers:
-                measure_results[tracker.identifier] = measure.compute(tracker, experiment)
-            results[experiment.identifier].append(measure_results)
+
+        for tracker in trackers:
+
+            tracker_results = {}
+            tracker_results['tracker_name'] = tracker.identifier
+
+            for measure in workspace.stack.measures(experiment):
+
+                if not measure.compatible(experiment):
+                    continue
+
+                tracker_results[class_fullname(measure)] = measure.compute(tracker, experiment)
+
+            results[experiment.identifier].append(tracker_results)
 
     return results

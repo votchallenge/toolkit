@@ -211,7 +211,7 @@ def do_analysis(config, logger):
         results = process_measures(workspace, trackers)
         file_name = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H-%M-%S.%f%z}.json".format(datetime.now()))
         with open(file_name, "w") as fp:
-            json.dump(results, fp)
+            json.dump(results, fp, indent=2)
 
     logger.info("Analysis successful, results available in %s", file_name)
 
