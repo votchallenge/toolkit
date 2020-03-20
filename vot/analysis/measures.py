@@ -254,13 +254,13 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
                 if overlap <= self._threshold:
                     grace = grace - 1
                     if grace == 0:
-                        progress = j - self._grace  # subtract since we need actual point of the failure
+                        progress = j + 1 - self._grace  # subtract since we need actual point of the failure
                         break
                 else:
                     grace = self._grace
 
             robustness += progress  # simplified original equation: len(proxy) * (progress / len(proxy))
-            accuracy += len(proxy) * (sum(overlaps[0:progress]) / progress)
+            accuracy += len(proxy) * (sum(overlaps[0:progress]) / (progress - 1)) if progress > 1 else 0
             total += len(proxy)
             
         return accuracy / total, robustness / total, len(sequence)
@@ -277,7 +277,7 @@ class EAOMultiStart(NonSeparatablePerformanceMeasure):
 
     @classmethod
     def describe(cls):
-        return MeasureDescription("EAO", 0, 1, MeasureDescription.DESCENDING), None
+        return MeasureDescription("EAO", 0, 1, MeasureDescription.DESCENDING)
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
@@ -323,7 +323,7 @@ class EAOMultiStart(NonSeparatablePerformanceMeasure):
                     if overlap <= self._threshold:
                         grace = grace - 1
                         if grace == 0:
-                            progress = j - self._grace  # subtract since we need actual point of the failure
+                            progress = j + 1 - self._grace  # subtract since we need actual point of the failure
                             break
                     else:
                         grace = self._grace
