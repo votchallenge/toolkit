@@ -354,18 +354,26 @@ class TraxTrackerRuntime(TrackerRuntime):
         except TraxException as e:
             self._error(e)
 
-    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
         try:
             if self._restart:
                 self.stop()
             self._connect()
-            return self._process.initialize(frame, region, self._arguments)
+
+            tproperties = dict(self._arguments)
+
+            if not properties is None:
+                tproperties.update(properties)
+
+            return self._process.initialize(frame, region, tproperties)
         except TraxException as e:
             self._error(e)
 
-    def update(self, frame: Frame) -> Tuple[Region, dict, float]:
+    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
         try:
-            return self._process.frame(frame)
+            if properties is None:
+                properties = dict()
+            return self._process.frame(frame, properties)
         except TraxException as e:
             self._error(e)
 

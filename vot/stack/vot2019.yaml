@@ -3,25 +3,25 @@ dataset: vot:vot-st2019
 url: http://www.votchallenge.net/vot2019/
 experiments:
   baseline:
-    type: vot.experiment.SupervisedExperiment
+    type: SupervisedExperiment
     repetitions: 15
     skip_initialize: 5
     measures:
-      - type: vot.analysis.measures.AccuracyRobustness
+      - type: AccuracyRobustness
         sensitivity: 30
       - type: EAO
   unsupervised:
-    type: vot.experiment.UnsupervisedExperiment
+    type: UnsupervisedExperiment
     repetitions: 1
     measures:
-      - type: vot.analysis.measures.AverageAccuracy
+      - type: AverageAccuracy
   realtime:
-    type: vot.experiment.SupervisedExperiment
+    type: SupervisedExperiment
     realtime:
       grace: 3
     repetitions: 1
     skip_initialize: 5
     measures:
-      - type: vot.analysis.measures.AccuracyRobustness
+      - type: AccuracyRobustness
         sensitivity: 30
       - type: EAO

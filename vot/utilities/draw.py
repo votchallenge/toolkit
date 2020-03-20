@@ -185,6 +185,9 @@ class ImageDrawHandle(DrawHandle):
         self._handle.line(points + [points[0]], fill=color, width=self._width)
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
+        if mask.size == 0:
+            return
+
         if self._fill:
             image = Image.fromarray(mask * 128, mode="L")
             image.save("/tmp/test.png")

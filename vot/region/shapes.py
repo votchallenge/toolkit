@@ -286,7 +286,13 @@ class Mask(Region):
     def resize(self, factor=1):
 
         offset = (int(self.offset[0] * factor), int(self.offset[1] * factor))
-        mask = cv2.resize(self.mask, dsize=None, fx=factor, fy=factor, interpolation=cv2.INTER_NEAREST)
+        height = max(1, int(self.mask.shape[0] * factor))
+        width = max(1, int(self.mask.shape[1] * factor))
+
+        if self.mask.size == 0:
+            mask = np.zeros((0, 0), dtype=np.uint8)
+        else:
+            mask = cv2.resize(self.mask, dsize=(width, height), interpolation=cv2.INTER_NEAREST)
 
         return Mask(mask, offset, False)
 

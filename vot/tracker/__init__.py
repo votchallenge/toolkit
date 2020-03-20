@@ -1,15 +1,19 @@
 
-import os, re
+import os
+import re
 import configparser
-import yaml
 import logging
 from typing import Tuple
 
 from abc import abstractmethod, ABC
 
+import yaml
+
 from vot import VOTException
 from vot.dataset import Frame
 from vot.region import Region
+
+logger = logging.getLogger("vot")
 
 class TrackerException(VOTException):
     def __init__(self, *args, tracker, tracker_log=None):
@@ -159,6 +163,7 @@ class TrackerRuntime(ABC):
     def __init__(self, tracker: Tracker):
         self._tracker = tracker
 
+    @property
     def tracker(self) -> Tracker:
         return self._tracker
 
@@ -177,25 +182,23 @@ class TrackerRuntime(ABC):
         pass
 
     @abstractmethod
-    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
         pass
 
     @abstractmethod
-    def update(self, frame: Frame) -> Tuple[Region, dict, float]:
+    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
         pass
 
 class RealtimeTrackerRuntime(TrackerRuntime):
 
     def __init__(self, runtime: TrackerRuntime, grace:int = 1, interval:float = 0.1):
+        super().__init__(runtime.tracker)
         self._runtime = runtime
         self._grace = grace
         self._interval = interval
         self._countdown = 0
         self._time = 0
         self._out = None
-
-    def tracker(self) -> Tracker:
-        return self._runtime.tracker
 
     def __enter__(self):
         return self
@@ -213,11 +216,11 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         self._time = 0
         self._out = None
 
-    def initialize(self, frame: Frame, region: Region) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
         self._countdown = self._grace
         self._out = None
 
-        out, prop, time = self._runtime.initialize(frame, region)
+        out, prop, time = self._runtime.initialize(frame, region, properties)
 
         if time > self._interval:
             if self._countdown > 0:
@@ -232,7 +235,7 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         return out, prop, time
 
 
-    def update(self, frame: Frame) -> Tuple[Region, dict, float]:
+    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
 
         if self._time > self._interval:
             self._time = self._time - self._interval
@@ -241,7 +244,7 @@ class RealtimeTrackerRuntime(TrackerRuntime):
             self._out = None
             self._time = 0
 
-        out, prop, time = self._runtime.update(frame)
+        out, prop, time = self._runtime.update(frame, properties)
 
         if time > self._interval:
             if self._countdown > 0:
@@ -252,6 +255,42 @@ class RealtimeTrackerRuntime(TrackerRuntime):
                 self._out = out
 
         return out, prop, time
+
+
+class PropertyInjectorTrackerRuntime(TrackerRuntime):
+
+    def __init__(self, runtime: TrackerRuntime, **kwargs):
+        super().__init__(runtime.tracker)
+        self._runtime = runtime
+        self._properties = {k : str(v) for k, v in kwargs.items()}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+    def stop(self):
+        self._runtime.stop()
+
+    def restart(self):
+        self._runtime.restart()
+
+    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
+        
+        if not properties is None:
+            tproperties = dict(properties)
+        else:
+            tproperties = dict()
+
+        tproperties.update(self._properties)
+
+        return self._runtime.initialize(frame, region, tproperties)
+
+
+    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
+        return self._runtime.update(frame, properties)
+
 
 try:
 
@@ -266,7 +305,7 @@ except OSError:
     pass
 
 except ImportError:
-    # TODO: print some kind of error
+    logger.error("Unable to import support for TraX protocol")
     pass
 
 from vot.tracker.results import Trajectory, Results

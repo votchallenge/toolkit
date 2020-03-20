@@ -14,12 +14,13 @@ from vot.utilities import Progress, to_number
 
 class Experiment(ABC):
 
-    def __init__(self, identifier: str, workspace: "Workspace", realtime: dict = None, noise: dict = None):
+    def __init__(self, identifier: str, workspace: "Workspace", realtime: dict = None, noise: dict = None, inject: dict = None):
         super().__init__()
         self._identifier = identifier
         self._workspace = workspace
         self._realtime = realtime
-        self._noise = noise
+        self._noise = noise # Not implemented yet
+        self._inject = inject # Not implemented yet
 
     @property
     def workspace(self) -> "Workspace":
