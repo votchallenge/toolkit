@@ -56,13 +56,14 @@ def mask_to_rle(m):
             rle.append(i - last_idx)
             last_idx = i
 
-    # handle last element of rle
-    if last_idx < v.size - 1:
-        # last element is the same as one element before it - add number of these last elements
-        rle.append(v.size - last_idx)
-    else:
-        # last element is different than one element before - add 1
-        rle.append(1)
+    if v.size > 0:
+        # handle last element of rle
+        if last_idx < v.size - 1:
+            # last element is the same as one element before it - add number of these last elements
+            rle.append(v.size - last_idx)
+        else:
+            # last element is different than one element before - add 1
+            rle.append(1)
 
     return rle
 
