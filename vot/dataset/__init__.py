@@ -155,11 +155,16 @@ class PatternFileListChannel(Channel):
         super().__init__()
         base, pattern = os.path.split(path)
         self._base = base
+        self._pattern = pattern
         self.__scan(pattern, start, step)
 
     @property
     def base(self):
         return self._base
+
+    @property
+    def pattern(self):
+        return self._pattern
 
     def __scan(self, pattern, start, step):
 

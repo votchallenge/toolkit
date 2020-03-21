@@ -132,6 +132,8 @@ class TrackerProcess(object):
                     break
             environment["TRAX_SOCKET"] = "{}".format(port)
 
+        logger.debug("Running process: %s", command)
+
         if sys.platform.startswith("win"):
             self._process = subprocess.Popen(
                     command,

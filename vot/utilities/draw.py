@@ -121,15 +121,14 @@ class MatplotlibDrawHandle(DrawHandle):
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
         # TODO: segmentation should also have option of non-filled
-        kernel = np.ones(self._width * 2 + 1, np.uint8)
         mask[mask != 0] = 1
         if self._fill:
-            mask = 2 * mask - cv2.erode(mask, kernel, borderValue=0)
+            mask = 2 * mask - cv2.erode(mask, kernel=None, iterations=self._width, borderValue=0)
             cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], self._fill, self._color]))
             self._axis.imshow(mask, cmap=cmap, interpolation='none', extent=[offset[0], \
                 offset[0] + mask.shape[1], offset[1] + mask.shape[0], offset[1]])
         else:
-            mask = mask - cv2.erode(mask, kernel, borderValue=0)
+            mask = mask - cv2.erode(mask, kernel=None, iterations=self._width, borderValue=0)
             cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], self._color]))
             self._axis.imshow(mask, cmap=cmap, interpolation='none', extent=[offset[0], \
                 offset[0] + mask.shape[1], offset[1] + mask.shape[0], offset[1]])
