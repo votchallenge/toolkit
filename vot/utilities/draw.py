@@ -81,12 +81,13 @@ class DrawHandle(ABC):
 
 class MatplotlibDrawHandle(DrawHandle):
 
-    def __init__(self, axis, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False, size:Tuple[int, int] = None):
+    def __init__(self, axis, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False, size: Tuple[int, int] = None):
         super().__init__(color, width, fill)
         self._axis = axis
-        if not size is None:
-            self._axis.set_xlim(left=0, right=size[0])
-            self._axis.set_ylim(top=0, bottom=size[1])
+        self._size = size
+        if not self._size is None:
+            self._axis.set_xlim(left=0, right=self._size[0])
+            self._axis.set_ylim(top=0, bottom=self._size[1])
 
 
     def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
@@ -132,6 +133,11 @@ class MatplotlibDrawHandle(DrawHandle):
             cmap = colors.ListedColormap(np.array([[0, 0, 0, 0], self._color]))
             self._axis.imshow(mask, cmap=cmap, interpolation='none', extent=[offset[0], \
                 offset[0] + mask.shape[1], offset[1] + mask.shape[0], offset[1]])
+
+        if not self._size is None:
+            self._axis.set_xlim(left=0, right=self._size[0])
+            self._axis.set_ylim(top=0, bottom=self._size[1])
+
 
 class ImageDrawHandle(DrawHandle):
 

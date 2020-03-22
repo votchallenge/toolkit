@@ -58,7 +58,7 @@ def do_test(config, logger):
         figure.canvas.set_window_title('VOT Test')
         axes = figure.add_subplot(1, 1, 1)
         axes.set_aspect("equal")
-        handle = MatplotlibDrawHandle(axes)
+        handle = MatplotlibDrawHandle(axes, size=sequence.size)
         handle.style(fill=False)
         figure.show()
 
