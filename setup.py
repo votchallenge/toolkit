@@ -13,7 +13,7 @@ if path.isfile(path.join(this_directory, "requirements.txt")):
         install_requires = f.readlines()
 
 setup(name='vot-toolkit',
-    version='0.1.0',
+    version='0.2.0',
     description='Perform visual object tracking experiments and analyze results',
     long_description=long_description,
     long_description_content_type='text/markdown',
