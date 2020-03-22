@@ -95,7 +95,7 @@ def convert_traxregion(region: TraxRegion) -> Region:
     elif region.type == TraxRegion.POLYGON:
         return Polygon(list(region))
     elif region.type == TraxRegion.MASK:
-        return Mask(region.array(), region.offset())
+        return Mask(region.array(), region.offset(), optimize=True)
 
     return None
 
