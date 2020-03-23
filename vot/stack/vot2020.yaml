@@ -12,6 +12,7 @@ experiments:
     repetitions: 1
     measures:
       - type: vot.analysis.measures.AverageAccuracy
+        burnin: 1
   realtime:
     type: vot.experiment.MultiStartExperiment
     realtime:

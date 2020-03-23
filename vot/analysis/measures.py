@@ -26,7 +26,7 @@ class AverageAccuracy(SeparatablePerformanceMeasure):
         frames = 0
 
         for a, n in results:
-            accuracy = accuracy + a
+            accuracy = accuracy + a * n
             frames = frames + n
 
         return accuracy / frames, frames
