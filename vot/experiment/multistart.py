@@ -77,7 +77,7 @@ class MultiStartExperiment(Experiment):
 
             trajectory = Trajectory(proxy.length)
 
-            with tracker.runtime() as runtime:
+            with self._get_runtime(tracker, sequence) as runtime:
                 _, properties, elapsed = runtime.initialize(proxy.frame(0), self._get_initialization(proxy, 0))
 
                 properties["time"] = elapsed

@@ -38,8 +38,10 @@ class Experiment(ABC):
             grace = to_number(self._realtime.get("grace", 0), min_n=0)
             fps = to_number(self._realtime.get("fps", 20), min_n=0, conversion=float)
             interval = 1 / float(sequence.metadata("fps", fps))
-            return RealtimeTrackerRuntime(tracker.runtime(), grace, interval)
-        return tracker.runtime()
+            runtime = RealtimeTrackerRuntime(tracker.runtime(), grace, interval)
+        else:
+            runtime = tracker.runtime()
+        return runtime
 
     @abstractmethod
     def execute(self, tracker: "Tracker", sequence: "Sequence", force: bool = False, callback: Callable = None):

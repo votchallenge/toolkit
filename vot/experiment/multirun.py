@@ -101,8 +101,8 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 class SupervisedExperiment(MultiRunExperiment):
 
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, skip_initialize=1, skip_tags=(), failure_overlap=0, **kwargs):
-        super().__init__(identifier, workspace, repetitions, **kwargs)
+    def __init__(self, identifier: str, workspace: "Workspace", skip_initialize=1, skip_tags=(), failure_overlap=0, **kwargs):
+        super().__init__(identifier, workspace, **kwargs)
         self._skip_initialize = to_number(skip_initialize, min_n=1)
         self._skip_tags = tuple(skip_tags)
         self._failure_overlap = to_number(failure_overlap, min_n=0, max_n=1, conversion=float)
