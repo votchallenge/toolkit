@@ -42,6 +42,9 @@ def mask_to_rle(m):
     # reshape mask to vector
     v = m.reshape((m.shape[0] * m.shape[1]))
 
+    if v.size == 0:
+        return [0]
+
     # output is empty at the beginning
     rle = []
     # index of the last different element

@@ -199,9 +199,12 @@ class Mask(Region):
     def _optimize(self):
         bounds = mask2bbox(self.mask)
         if bounds[0] is None:
-            raise RegionException("Mask is empty")
-        self._mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
-        self._offset = (bounds[0], bounds[1])
+            # mask is empty
+            self._mask = np.zeros((0, 0), dtype=np.uint8)
+            self._offset = (0, 0)
+        else:
+            self._mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
+            self._offset = (bounds[0], bounds[1])
 
     @property
     def mask(self):
