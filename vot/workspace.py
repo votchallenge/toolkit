@@ -72,7 +72,7 @@ def migrate_workspace(directory):
 
     try:
         resolve_stack(stack)
-    except Exception:
+    except:
         logging.warning("Stack %s not found, you will have to manually edit and correct config file.", stack)
 
     with open(config_file, 'w') as fp:
@@ -108,6 +108,15 @@ class Workspace(object):
         results_directory = normalize_path(self._config.get("results", "results"), directory)
         cache_directory = normalize_path("cache", directory)
 
+        self._download(dataset_directory)
+
+        self._dataset = VOTDataset(dataset_directory)
+        self._results = results_directory
+        self._cache = cache_directory
+
+        self._root = directory
+
+    def _download(self, dataset_directory):
         if not os.path.exists(os.path.join(dataset_directory, "list.txt")) and not self._stack.dataset is None:
             logger.info("Stack has a dataset attached, downloading bundle '%s'", self._stack.dataset)
 
@@ -115,12 +124,6 @@ class Workspace(object):
             download_dataset(self._stack.dataset, dataset_directory)
 
             logger.info("Download completed")
-
-        self._dataset = VOTDataset(dataset_directory)
-        self._results = results_directory
-        self._cache = cache_directory
-
-        self._root = directory
 
     @property
     def directory(self):

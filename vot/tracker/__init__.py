@@ -77,7 +77,7 @@ def load_trackers(directories, root=os.getcwd()):
                     logger.warning("Duplicate tracker identifier %s in %s", k, registry)
                     continue
 
-                trackers[k] = Tracker(identifier=k, **v)
+                trackers[k] = Tracker(_identifier=k, _registry=registry, **v)
 
         if extension == ".ini":
             config = configparser.ConfigParser()
@@ -90,7 +90,7 @@ def load_trackers(directories, root=os.getcwd()):
                     logger.warning("Duplicate tracker identifier %s in %s", section, registry)
                     continue
 
-                trackers[section] = Tracker(identifier=section, **config[section])
+                trackers[section] = Tracker(_identifier=section, _registry=registry, **config[section])
     return trackers
 
 def collect_envvars(**kwargs):
@@ -129,8 +129,9 @@ def collect_arguments(**kwargs):
 
 class Tracker(object):
 
-    def __init__(self, identifier, command, protocol=None, label=None, **kwargs):
-        self._identifier = identifier
+    def __init__(self, _identifier, _registry, command, protocol=None, label=None, **kwargs):
+        self._identifier = _identifier
+        self._registry = _registry
         self._command = command
         self._protocol = protocol
         self._label = label
@@ -145,6 +146,10 @@ class Tracker(object):
             raise TrackerException("Runtime protocol '{}' not available".format(self._protocol), tracker=self)
 
         return _runtime_protocols[self._protocol](self, self._command, log=log, envvars=self._envvars, arguments=self._arguments, **self._args)
+
+    @property
+    def registry(self):
+        return self._registry
 
     @property
     def identifier(self):

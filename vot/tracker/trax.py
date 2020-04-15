@@ -25,7 +25,7 @@ from trax.region import Rectangle as TraxRectangle
 from vot.dataset import Frame, DatasetException
 from vot.region import Region, Polygon, Rectangle, Mask
 from vot.tracker import Tracker, TrackerRuntime, TrackerException
-from vot.utilities import to_logical
+from vot.utilities import to_logical, normalize_path
 
 PORT_POOL_MIN = 9090
 PORT_POOL_MAX = 65535
@@ -112,6 +112,10 @@ def open_local_port(port: int):
         except OSError:
             pass
         return None
+
+def normalize_paths(paths, tracker):
+    root = os.path.dirname(tracker.registry)
+    return [normalize_path(path, root) for path in paths]
 
 class TrackerProcess(object):
 
@@ -292,6 +296,7 @@ class TraxTrackerRuntime(TrackerRuntime):
             linkpaths = []
         if isinstance(linkpaths, str):
             linkpaths = linkpaths.split(os.pathsep)
+        linkpaths = normalize_paths(linkpaths, tracker)
         self._socket = to_logical(socket)
         self._restart = to_logical(restart)
         if not log:
@@ -399,7 +404,7 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
-    pathimport = " ".join(["sys.path.insert(0, '{}');".format(escape_path(x)) for x in paths[::-1]])
+    pathimport = " ".join(["sys.path.insert(0, '{}');".format(escape_path(x)) for x in normalize_paths(paths[::-1], tracker)])
 
     interpreter = sys.executable
 
@@ -433,6 +438,13 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
         if os.path.isfile(activate_function):
             virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))
 
+    # simple check if the command is only a package name to be imported or a script
+    if not re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", command) is None:
+        # We have to escape all double quotes
+        command = command.replace("\"", "\\\"")
+    else:
+        command = "import " + command
+
     command = '{} -c "{}import sys;{} import {}"'.format(interpreter, virtualenv_launch, pathimport, command)
 
     return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
@@ -441,7 +453,7 @@ def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, lin
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
-    pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
+    pathimport = " ".join(["addpath('{}');".format(x) for x in normalize_paths(paths, tracker)])
 
     matlabroot = os.getenv("MATLAB_ROOT", None)
 
@@ -477,7 +489,7 @@ def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, lin
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
-    pathimport = " ".join(["addpath('{}');".format(x) for x in paths])
+    pathimport = " ".join(["addpath('{}');".format(x) for x in normalize_paths(paths, tracker)])
 
     octaveroot = os.getenv("OCTAVE_ROOT", None)
 
