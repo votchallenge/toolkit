@@ -108,7 +108,7 @@ def do_test(config, logger):
 
 def do_workspace(config, logger):
     
-    from vot.workspace import initialize_workspace, migrate_workspace
+    from vot.workspace import initialize_workspace, migrate_workspace, WorkspaceException
 
     if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
         migrate_workspace(config.workspace)
@@ -130,9 +130,12 @@ def do_workspace(config, logger):
 
     default_config = dict(stack=config.stack, registry=["./trackers.ini"])
 
-    initialize_workspace(config.workspace, default_config)
 
-    logger.info("Initialized workspace in '%s'", config.workspace)
+    try:
+        initialize_workspace(config.workspace, default_config)
+        logger.info("Initialized workspace in '%s'", config.workspace)
+    except WorkspaceException as we:
+        logger.error("Error during workspace initialization: %s", we)
 
 def do_evaluate(config, logger):
 
@@ -199,14 +202,10 @@ def do_analysis(config, logger):
         logger.error("Tracker not found %s", str(ke))
         return
 
-    if config.output == "dash":
-        from vot.analysis.dashboard import run_dashboard
-        run_dashboard(workspace, trackers)
-        return
-    elif config.output == "latex":
-        pass
+    if config.output == "latex":
+        raise NotImplementedError("LaTeX export not implemented")
     elif config.output == "html":
-        pass
+        raise NotImplementedError("HTML export not implemented")
     elif config.output == "json":
         results = process_measures(workspace, trackers)
         file_name = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H-%M-%S.%f%z}.json".format(datetime.now()))
@@ -298,10 +297,10 @@ def main():
     evaluate_parser.add_argument("--persist", "-p", default=False, help="Persist execution even in case of an error", required=False, action='store_true')
     evaluate_parser.add_argument("--workspace", default=".", help='Workspace path')
 
-    analysis_parser = subparsers.add_parser('analysis', help='Run interactive analysis')
+    analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=".", help='Workspace path')
-    analysis_parser.add_argument("--output", choices=("dash", "latex", "html", "json"), default="dash", help='Analysis output format')
+    analysis_parser.add_argument("--output", choices=("latex", "html", "json"), default="json", help='Analysis output format')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=".", help='Workspace path')
