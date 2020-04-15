@@ -23,7 +23,10 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
         elif is_special(region, Special.FAILURE):
             mask[i] = False
     
-    return np.mean(overlaps[mask]), np.sum(mask)
+    if any(mask):
+        return np.mean(overlaps[mask]), np.sum(mask)
+    else:
+        return 0, 0
 
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
