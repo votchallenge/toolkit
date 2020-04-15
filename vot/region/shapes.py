@@ -87,6 +87,12 @@ class Rectangle(Shape):
         else:
             raise ConversionException("Unable to convert rectangle region to {}".format(rtype), source=self)
 
+    def is_empty(self):
+        if self._width > 0 and self._height > 0:
+            return False
+        else:
+            return True
+
     def draw(self, handle: DrawHandle):
         polygon = [(self.x, self.y), (self.x + self.width, self.y), \
             (self.x + self.width, self.y + self.height), \
@@ -166,6 +172,14 @@ class Polygon(Region):
         else:
             raise ConversionException("Unable to convert polygon region to {}".format(rtype), source=self)
 
+    def is_empty(self):
+        x_ = np.array([p[0] for p in self.points])
+        y_ = np.array([p[1] for p in self.points])
+        if (np.max(x_) - np.min(x_)) > 0 and (np.max(y_) - np.min(y_)) > 0:
+            return False
+        else:
+            return True
+
     def draw(self, handle: DrawHandle=1):
         handle.polygon(self.points)
 
@@ -226,10 +240,12 @@ class Mask(Region):
             return self.copy()
         elif rtype == RegionType.RECTANGLE:
             bounds = mask2bbox(self.mask)
+            if None in bounds: return Rectangle(0, 0, 0, 0)
             return Rectangle(bounds[0] + self.offset[0], bounds[1] + self.offset[1],
                             bounds[2] - bounds[0], bounds[3] - bounds[1])
         elif rtype == RegionType.POLYGON:
             bounds = mask2bbox(self.mask)
+            if None in bounds: return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)])
             return Polygon([
                 (bounds[0] + self.offset[0], bounds[1] + self.offset[1]), 
                 (bounds[2] + self.offset[0], bounds[1] + self.offset[1]), 
@@ -285,6 +301,12 @@ class Mask(Region):
             mask_ = np.pad(mask_, ((0, pad_y), (0, pad_x)), 'constant', constant_values=0)
 
         return mask_
+
+    def is_empty(self):
+        if self.mask.shape[1] > 0 and self.mask.shape[0] > 0:
+            return False
+        else:
+            return True
 
     def resize(self, factor=1):
 

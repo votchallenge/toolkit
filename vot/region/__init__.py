@@ -50,6 +50,11 @@ class Region(ABC):
             rtype {RegionType} -- Desired type.
         """
 
+    @abstractmethod
+    def is_empty(self):
+        """Check if region is empty (not annotated or not reported)
+        """
+
 class Special(Region):
     """
     Special region
@@ -96,6 +101,9 @@ class Special(Region):
 
     def draw(self, handle: DrawHandle, color, width):
         pass
+
+    def is_empty(self):
+        return False
 
 from vot.region.io import read_file, write_file
 from .shapes import Rectangle, Polygon, Mask

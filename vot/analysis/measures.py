@@ -251,7 +251,7 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
             progress = len(proxy)
 
             for j, overlap in enumerate(overlaps):
-                if overlap <= self._threshold:
+                if overlap <= self._threshold and not proxy.groundtruth(j).is_empty():
                     grace = grace - 1
                     if grace == 0:
                         progress = j + 1 - self._grace  # subtract since we need actual point of the failure
@@ -320,7 +320,7 @@ class EAOMultiStart(NonSeparatablePerformanceMeasure):
                 progress = len(proxy)
 
                 for j, overlap in enumerate(overlaps):
-                    if overlap <= self._threshold:
+                    if overlap <= self._threshold and not proxy.groundtruth(j).is_empty():
                         grace = grace - 1
                         if grace == 0:
                             progress = j + 1 - self._grace  # subtract since we need actual point of the failure
