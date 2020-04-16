@@ -225,7 +225,7 @@ def do_pack(config, logger):
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
-    registry = load_trackers(workspace.registry + config.registry)
+    registry = load_trackers(workspace.registry + config.registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
