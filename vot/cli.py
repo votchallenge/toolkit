@@ -1,8 +1,10 @@
 import os
+import sys
 import argparse
 import traceback
 import logging
 import json
+import yaml
 from datetime import datetime
 
 from vot.tracker import load_trackers, TrackerException
@@ -260,15 +262,26 @@ def do_pack(config, logger):
 
     logger.info("Collected %d files, compressing to archive ...", len(all_files))
 
-    archive_name = os.path.join(workspace.directory, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.zip".format(tracker.identifier, datetime.now()))
+    timestamp = datetime.now()
+
+    archive_name = os.path.join(workspace.directory, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.zip".format(tracker.identifier, timestamp))
 
     progress = Progress(desc="Compressing", total=len(all_files))
 
+    manifest = dict(identifier=tracker.identifier, protocol=tracker.protocol,
+        timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform, python=sys.version)
+
+
     with zipfile.ZipFile(archive_name, 'w') as archive:
         for f in all_files:
-            with io.TextIOWrapper(archive.open(os.path.join(f[1], f[2], f[0]), mode="w")) as fout, f[3].read(f[0]) as fin:
+            info = zipfile.ZipInfo(filename=os.path.join(f[1], f[2], f[0]), date_time=timestamp.timetuple())
+            with io.TextIOWrapper(archive.open(info, mode="w")) as fout, f[3].read(f[0]) as fin:
                 copyfileobj(fin, fout)
             progress.update_relative(1)
+
+        info = zipfile.ZipInfo(filename="manifest.yml", date_time=timestamp.timetuple())
+        with io.TextIOWrapper(archive.open(info, mode="w")) as fout:
+            yaml.dump(manifest, fout)
 
     logger.info("Result packaging successful, archive available in %s", archive_name)
 
