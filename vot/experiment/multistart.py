@@ -50,7 +50,7 @@ class MultiStartExperiment(Experiment):
             else:
                 complete = False
 
-        return complete, files
+        return complete, files, results
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
