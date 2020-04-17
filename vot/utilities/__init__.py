@@ -133,11 +133,14 @@ def file_hash(filename):
 
     return md5.hexdigest(), sha1.hexdigest()
 
-def arg_hash(*args):
+def arg_hash(*args, **kwargs):
     sha1 = hashlib.sha1()
 
     for arg in args:
         sha1.update(("(" + str(arg) + ")").encode("utf-8"))
+
+    for (key, val) in sorted(kwargs.items()):
+        sha1.update(("(" + str(key) + ":" + str(val) + ")").encode("utf-8"))
 
     return sha1.hexdigest()
 
