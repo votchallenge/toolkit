@@ -7,20 +7,18 @@ from typing import List
 from vot.experiment import Experiment
 from vot.experiment.transformer import Transformer
 from vot.utilities import import_class
-from vot.analysis import PerformanceMeasure
+from vot.analysis import Analysis
 
 class Stack(object):
 
     def __init__(self, workspace: "Workspace", metadata: dict):
-        from vot.analysis import PerformanceMeasure
-        
         self._workspace = workspace
 
         self._title = metadata["title"]
         self._dataset = metadata.get("dataset", None)
         self._deprecated = metadata.get("deprecated", False)
         self._experiments = []
-        self._measures = dict()
+        self._analyses = dict()
         self._transformers = dict()
 
         for identifier, experiment_metadata in metadata["experiments"].items():
@@ -39,19 +37,19 @@ class Stack(object):
                     del transformer_metadata["type"]
                     transformers.append(transformer_class(workspace, **transformer_metadata))
 
-            measures = []
+            analyses = []
             if "measures" in experiment_metadata:
                 measures_metadata = experiment_metadata["measures"]
                 del experiment_metadata["measures"]
 
                 for measure_metadata in measures_metadata:
-                    measure_class = import_class(measure_metadata["type"], hints=["vot.analysis.measures"])
-                    assert issubclass(measure_class, PerformanceMeasure)
+                    analysis_class = import_class(measure_metadata["type"], hints=["vot.analysis.measures"])
+                    assert issubclass(analysis_class, Analysis)
                     del measure_metadata["type"]
-                    measures.append(measure_class(**measure_metadata))
+                    analyses.append(analysis_class(**measure_metadata))
             experiment = experiment_class(identifier, workspace, **experiment_metadata)
             self._experiments.append(experiment)
-            self._measures[experiment] = measures
+            self._analyses[experiment] = analyses
             self._transformers[experiment] = transformers
 
     @property
@@ -74,8 +72,8 @@ class Stack(object):
     def experiments(self) -> List[Experiment]:
         return self._experiments
         
-    def measures(self, experiment: Experiment) -> List["PerformanceMeasure"]:
-        return self._measures[experiment]
+    def analyses(self, experiment: Experiment) -> List["Analysis"]:
+        return self._analyses[experiment]
 
     def transformers(self, experiment: Experiment) -> List["Transformer"]:
         return self._transformers[experiment]

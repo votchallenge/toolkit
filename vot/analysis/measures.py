@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 
 from vot.tracker import Tracker, Trajectory
 from vot.dataset import Sequence
@@ -6,19 +6,33 @@ from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment, UnsupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
-from vot.analysis import SeparatablePerformanceMeasure, NonSeparatablePerformanceMeasure, MissingResultsException, MeasureDescription
-from vot.analysis.routines import count_failures, compute_accuracy, compute_eao, locate_failures_inits, determine_thresholds, compute_tpr_curves
+from vot.analysis import SeparatableAnalysis, NonSeparatableAnaysis, \
+    MissingResultsException, MeasureDescription
+from vot.analysis.routines import count_failures, compute_accuracy, compute_eao, \
+    locate_failures_inits, determine_thresholds, compute_tpr_curves
 from vot.utilities import to_number, to_logical
 
-class AverageAccuracy(SeparatablePerformanceMeasure):
+class AverageAccuracy(SeparatableAnalysis):
 
     def __init__(self, burnin: int = 10, ignore_unknown: bool = True, bounded: bool = True):
+        super().__init__()
         self._burnin = to_number(burnin, min_n=0)
         self._ignore_unknown = to_logical(ignore_unknown)
         self._bounded = to_logical(bounded)
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiRunExperiment)
+
+    @property
+    def name(self):
+        return "Average accurarcy"
+
+    def parameters(self) -> Dict[str, Any]:
+        return dict(burnin=self._burnin, ignore_unknown=self._ignore_unknown, bounded=self._bounded)
+
+    def describe(self):
+        return MeasureDescription("Accuracy", 0, 1, MeasureDescription.DESCENDING), \
+            None
 
     # TODO: turn off weighted average
     def join(self, results: List[tuple]):
@@ -46,10 +60,18 @@ class AverageAccuracy(SeparatablePerformanceMeasure):
 
             return cummulative / len(trajectories), len(sequence)
 
-class FailureCount(SeparatablePerformanceMeasure):
+class FailureCount(SeparatableAnalysis):
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
+
+    @property
+    def name(self):
+        return "Nuber of failures"
+
+    def describe(self):
+        return MeasureDescription("Failures", 0, None, MeasureDescription.ASCENDING), \
+            None
 
     def join(self, results: List[tuple]):
         failures = 0
@@ -73,12 +95,25 @@ class FailureCount(SeparatablePerformanceMeasure):
 
         return failures / len(trajectories), len(trajectories[0])
 
-class PrecisionRecall(NonSeparatablePerformanceMeasure):
+class PrecisionRecall(NonSeparatableAnaysis):
 
     def __init__(self, resolution: int = 100, ignore_unknown: bool = True, bounded: bool = True):
+        super().__init__()
         self._resolution = resolution
         self._ignore_unknown = ignore_unknown
         self._bounded = bounded
+
+    @property
+    def name(self):
+        return "Tracking precision/recall"
+
+    def parameters(self) -> Dict[str, Any]:
+        return dict(resolution=self._resolution, ignore_unknown=self._ignore_unknown, bounded=self._bounded)
+
+    def describe(self):
+        return MeasureDescription("Precision", 0, 1, MeasureDescription.DESCENDING), \
+             MeasureDescription("Recall", 0, 1, MeasureDescription.DESCENDING), \
+             MeasureDescription("F", 0, 1, MeasureDescription.DESCENDING)
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
@@ -152,13 +187,26 @@ class PrecisionRecall(NonSeparatablePerformanceMeasure):
 
         return pr_score, re_score, f_score
 
-class AccuracyRobustness(SeparatablePerformanceMeasure):
+class AccuracyRobustness(SeparatableAnalysis):
 
     def __init__(self, sensitivity: int = 30, burnin: int = 10, ignore_unknown: bool = True, bounded: bool = True):
+        super().__init__()
         self._sensitivity = sensitivity
         self._burnin = burnin
         self._ignore_unknown = ignore_unknown
         self._bounded = bounded
+
+    @property
+    def name(self):
+        return "AR analysis"
+
+    def parameters(self) -> Dict[str, Any]:
+        return dict(sensitivity=self._sensitivity, burnin=self._burnin, ignore_unknown=self._ignore_unknown, bounded=self._bounded)
+
+    def describe(self):
+        return MeasureDescription("Accuracy", 0, 1, MeasureDescription.DESCENDING), \
+             MeasureDescription("Robustness", 0, 1, MeasureDescription.DESCENDING), \
+             None
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
@@ -189,16 +237,23 @@ class AccuracyRobustness(SeparatablePerformanceMeasure):
 
         return accuracy / len(trajectories), failures / len(trajectories), len(trajectories[0])
 
-class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
+class AccuracyRobustnessMultiStart(SeparatableAnalysis):
 
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True):
+        super().__init__()
         self._burnin = burnin
         self._grace = grace
         self._bounded = bounded
         self._threshold = 0.1
 
-    @classmethod
-    def describe(cls):
+    @property
+    def name(self):
+        return "AR analysis"
+
+    def parameters(self) -> Dict[str, Any]:
+        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded)
+
+    def describe(self):
         return MeasureDescription("Accuracy", 0, 1, MeasureDescription.DESCENDING), \
             MeasureDescription("Robustness", 0, 1, MeasureDescription.DESCENDING), \
             None
@@ -265,9 +320,10 @@ class AccuracyRobustnessMultiStart(SeparatablePerformanceMeasure):
             
         return accuracy / total, robustness / total, len(sequence)
 
-class EAOMultiStart(NonSeparatablePerformanceMeasure):
+class EAOMultiStart(NonSeparatableAnaysis):
 
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, interval_low: int = 115, interval_high: int = 755):
+        super().__init__()
         self._burnin = burnin
         self._grace = grace
         self._bounded = bounded
@@ -275,14 +331,20 @@ class EAOMultiStart(NonSeparatablePerformanceMeasure):
         self._interval_low = interval_low
         self._interval_high = interval_high
 
-    @classmethod
-    def describe(cls):
-        return MeasureDescription("EAO", 0, 1, MeasureDescription.DESCENDING)
+    @property
+    def name(self):
+        return "EAO analysis"
+
+    def parameters(self) -> Dict[str, Any]:
+        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded, interval_low=self._interval_low, interval_high=self._interval_high)
+
+    def describe(self):
+        return MeasureDescription("EAO", 0, 1, MeasureDescription.DESCENDING),
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
 
-    def compute_measure(self, tracker: Tracker, experiment: Experiment):
+    def compute_entire(self, tracker: Tracker, experiment: Experiment):
 
         from vot.region.utils import calculate_overlaps
 
@@ -347,18 +409,29 @@ class EAOMultiStart(NonSeparatablePerformanceMeasure):
         
         return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0]
 
-class EAO(NonSeparatablePerformanceMeasure):
+class EAO(NonSeparatableAnaysis):
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, interval_low: int = 99, interval_high: int = 355):
+        super().__init__()
         self._burnin = burnin
         self._grace = grace
         self._bounded = bounded
         self._interval_low = interval_low
         self._interval_high = interval_high
 
+    @property
+    def name(self):
+        return "EAO analysis"
+
+    def parameters(self) -> Dict[str, Any]:
+        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded, interval_low=self._interval_low, interval_high=self._interval_high)
+
+    def describe(self):
+        return MeasureDescription("EAO", 0, 1, MeasureDescription.DESCENDING),
+
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
 
-    def compute_measure(self, tracker: Tracker, experiment: Experiment):
+    def compute_entire(self, tracker: Tracker, experiment: Experiment):
         from vot.region.utils import calculate_overlaps
 
         overlaps_all = []

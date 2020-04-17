@@ -7,8 +7,8 @@ import logging
 
 import cv2
 
-from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel, Frame
-from vot.region import parse, Region, write_file
+from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel
+from vot.region import parse, write_file
 from vot.utilities import Progress, extract_files, localize_path, read_properties, write_properties
 
 logger = logging.getLogger("vot")
