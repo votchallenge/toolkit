@@ -5,7 +5,7 @@ import json
 import glob
 import logging
 
-from typing import Callable
+from typing import Callable, List
 
 from abc import abstractmethod, ABC
 
@@ -14,17 +14,15 @@ from vot.utilities import Progress, to_number
 
 class Experiment(ABC):
 
-    def __init__(self, identifier: str, workspace: "Workspace", realtime: dict = None, noise: dict = None, inject: dict = None):
+    def __init__(self, _identifier: str, _storage: "Storage", _transformers: List["Transformer"],
+        realtime: dict = None, noise: dict = None, inject: dict = None, **kwargs):
         super().__init__()
-        self._identifier = identifier
-        self._workspace = workspace
+        self._identifier = _identifier
+        self._transformers = _transformers
+        self._storage = _storage
         self._realtime = realtime
         self._noise = noise # Not implemented yet
         self._inject = inject # Not implemented yet
-
-    @property
-    def workspace(self) -> "Workspace":
-        return self._workspace
 
     @property
     def identifier(self) -> str:
@@ -52,7 +50,15 @@ class Experiment(ABC):
         pass
 
     def results(self, tracker: "Tracker", sequence: "Sequence") -> "Results":
-        return self._workspace.results(tracker, self, sequence)
+        return self._storage.results(tracker, self, sequence)
+
+    def log(self, identifier: str):
+        return self._storage.open_log(identifier)
+
+    def transform(self, sequence: "Sequence"):
+        for transformer in self._transformers:
+            sequence = transformer(sequence)
+        return sequence
 
 from .multirun import UnsupervisedExperiment, SupervisedExperiment
 from .multistart import MultiStartExperiment
@@ -70,22 +76,20 @@ class EvaluationProgress(object):
         self._finished = self._finished + 1
         self.bar.update_absolute(self._finished)
 
-def run_experiment(experiment: Experiment, tracker: "Tracker", force: bool = False, persist: bool = False):
+def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: List["Sequence"], force: bool = False, persist: bool = False):
 
     logger = logging.getLogger("vot")
 
-    progress = EvaluationProgress("{}/{}".format(tracker.identifier, experiment.identifier), len(experiment.workspace.dataset))
-    for sequence in experiment.workspace.dataset:
-        transformers = experiment.workspace.stack.transformers(experiment)
-        for transformer in transformers:
-            sequence = transformer(sequence)
+    progress = EvaluationProgress("{}/{}".format(tracker.identifier, experiment.identifier), len(sequences))
+    for sequence in sequences:
+        sequence = experiment.transform(sequence)
         try:
             experiment.execute(tracker, sequence, force=force, callback=progress)
         except TrackerException as te:
             logger.error("Tracker %s encountered an error: %s", te.tracker.identifier, te)
             logger.debug(te, exc_info=True)
             if not te.log is None:
-                with experiment.workspace.open_log(te.tracker.identifier) as flog:
+                with experiment.log(te.tracker.identifier) as flog:
                     flog.write(te.log)
                     logger.error("Tracker output writtent to file: %s", flog.name)
             if not persist:

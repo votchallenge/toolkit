@@ -1,6 +1,7 @@
 
 import os, yaml, glob
 import logging
+from abc import ABC, abstractmethod
 from datetime import datetime
 
 from vot import VOTException
@@ -29,7 +30,6 @@ def initialize_workspace(directory, config=dict()):
 
     os.makedirs(os.path.join(directory, "sequences"), exist_ok=True)
     os.makedirs(os.path.join(directory, "results"), exist_ok=True)
-    os.makedirs(os.path.join(directory, "logs"), exist_ok=True)
 
     if not os.path.isfile(os.path.join(directory, "trackers.ini")):
         open(os.path.join(directory, "trackers.ini"), 'w').close()
@@ -82,9 +82,74 @@ def migrate_workspace(directory):
 
     logging.info("Workspace %s migrated", directory)
 
+class Storage(ABC):
+
+    @abstractmethod
+    def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+        pass
+
+    @abstractmethod
+    def list_results(self):
+        pass
+
+    @abstractmethod
+    def open_log(self, identifier):
+        pass
+
+class LocalStorage(ABC):
+
+    def __init__(self, root: str):
+        self._root = root
+        self._results = os.path.join(root, "results")
+
+    @property
+    def base(self):
+        return self._root
+
+    def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+        root = os.path.join(self._results, os.path.join(tracker.identifier, os.path.join(experiment.identifier, sequence.name)))
+        return Results(root)
+
+    def list_results(self):
+        return [os.path.basename(x) for x in glob.glob(os.path.join(self._results, "*")) if os.path.isdir(x)]
+
+    def open_log(self, identifier):
+
+        logdir = os.path.join(self.base, "logs")
+        os.makedirs(logdir, exist_ok=True)
+
+        return open(os.path.join(logdir, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now())), "w")
+
+class Cache(object):
+
+    def __init__(self, root: str):
+        self._root = root
+
+    @property
+    def base(self):
+        return self._root
+
+    def directory(self, *args):
+        segments = []
+        for arg in args:
+            if arg is None:
+                continue
+            if isinstance(arg, str):
+                segments.append(arg)
+            elif isinstance(arg, (int, float)):
+                segments.append(str(arg))
+            else:
+                segments.append(class_fullname(arg))
+
+        path = os.path.join(self._root, *segments)
+        os.makedirs(path, exist_ok=True)
+
+        return path
+
 class Workspace(object):
 
     def __init__(self, directory):
+        directory = normalize_path(directory)
         config_file = os.path.join(directory, "config.yaml")
         if not os.path.isfile(config_file):
             raise WorkspaceException("Workspace not initialized")
@@ -100,20 +165,17 @@ class Workspace(object):
         if stack_file is None:
             raise WorkspaceException("Experiment stack does not exist")
 
+        self._storage = LocalStorage(directory)
+        self._cache = Cache(os.path.join(directory, "cache"))
+
         with open(stack_file, 'r') as fp:
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
             self._stack = Stack(self, stack_metadata)
 
         dataset_directory = normalize_path(self._config.get("sequences", "sequences"), directory)
-        results_directory = normalize_path(self._config.get("results", "results"), directory)
-        cache_directory = normalize_path("cache", directory)
 
         self._download(dataset_directory)
-
         self._dataset = VOTDataset(dataset_directory)
-        self._results = results_directory
-        self._cache = cache_directory
-
         self._root = directory
 
     def _download(self, dataset_directory):
@@ -129,23 +191,6 @@ class Workspace(object):
     def directory(self):
         return self._root
 
-    def cache(self, *args):
-        segments = []
-        for arg in args:
-            if arg is None:
-                continue
-            if isinstance(arg, str):
-                segments.append(arg)
-            elif isinstance(arg, (int, float)):
-                segments.append(str(arg))
-            else:
-                segments.append(class_fullname(arg))
-
-        path = os.path.join(self._cache, *segments)
-        os.makedirs(path, exist_ok=True)
-
-        return path
-
     @property
     def registry(self):
         return self._config.get("registry", [])
@@ -158,17 +203,10 @@ class Workspace(object):
     def stack(self) -> Stack:
         return self._stack
 
-    def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
-        root = os.path.join(self._results, os.path.join(tracker.identifier, os.path.join(experiment.identifier, sequence.name)))
-        return Results(root)
+    @property
+    def storage(self) -> Storage:
+        return self._storage
 
-    def list_results(self):
-        return [os.path.basename(x) for x in glob.glob(os.path.join(self._results, "*")) if os.path.isdir(x)]
-
-    def open_log(self, identifier):
-
-        logdir = os.path.join(self.directory, "logs")
-        os.makedirs(logdir, exist_ok=True)
-
-        return open(os.path.join(logdir, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now())), "w")
-
+    @property
+    def cache(self) -> Cache:
+        return self._cache

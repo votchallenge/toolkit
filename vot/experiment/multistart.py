@@ -7,7 +7,6 @@ from vot.region import Special
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
-from vot.utilities import to_number
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
     forward = []
@@ -23,8 +22,8 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
 
 class MultiStartExperiment(Experiment):
 
-    def __init__(self, identifier: str, workspace: "Workspace", anchor: str = "anchor", **kwargs):
-        super().__init__(identifier, workspace, **kwargs)
+    def __init__(self, anchor: str = "anchor", **kwargs):
+        super().__init__(**kwargs)
         self._anchor = str(anchor)
 
     @property
@@ -36,7 +35,7 @@ class MultiStartExperiment(Experiment):
         files = []
         complete = True
 
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
         forward, backward = find_anchors(sequence, self._anchor)
 
@@ -54,7 +53,7 @@ class MultiStartExperiment(Experiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
         forward, backward = find_anchors(sequence, self._anchor)
 

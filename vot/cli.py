@@ -170,7 +170,7 @@ def do_evaluate(config, logger):
         for tracker in trackers:
             logger.info("Evaluating tracker %s", tracker.identifier)
             for experiment in workspace.stack:
-                run_experiment(experiment, tracker, config.force, config.persist)
+                run_experiment(experiment, tracker, workspace.dataset, config.force, config.persist)
 
         logger.info("Evaluation concluded successfuly")
 

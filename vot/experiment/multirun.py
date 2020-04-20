@@ -12,8 +12,8 @@ from vot.utilities import to_number, to_logical
 
 class MultiRunExperiment(Experiment, ABC):
 
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, early_stop=True, **kwargs):
-        super().__init__(identifier, workspace, **kwargs)
+    def __init__(self, repetitions=1, early_stop=True, **kwargs):
+        super().__init__(**kwargs)
         self._repetitions = to_number(repetitions, min_n=1)
         self._early_stop = to_logical(early_stop)
 
@@ -37,7 +37,7 @@ class MultiRunExperiment(Experiment, ABC):
 
     def scan(self, tracker: Tracker, sequence: Sequence):
         
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
         files = []
         complete = True
@@ -56,7 +56,7 @@ class MultiRunExperiment(Experiment, ABC):
 
     def gather(self, tracker: Tracker, sequence: Sequence):
         trajectories = list()
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
             if Trajectory.exists(results, name):
@@ -67,7 +67,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
@@ -101,8 +101,8 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 class SupervisedExperiment(MultiRunExperiment):
 
-    def __init__(self, identifier: str, workspace: "Workspace", skip_initialize=1, skip_tags=(), failure_overlap=0, **kwargs):
-        super().__init__(identifier, workspace, **kwargs)
+    def __init__(self, skip_initialize=1, skip_tags=(), failure_overlap=0, **kwargs):
+        super().__init__(**kwargs)
         self._skip_initialize = to_number(skip_initialize, min_n=1)
         self._skip_tags = tuple(skip_tags)
         self._failure_overlap = to_number(failure_overlap, min_n=0, max_n=1, conversion=float)
@@ -121,7 +121,7 @@ class SupervisedExperiment(MultiRunExperiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
         for i in range(1, self._repetitions+1):
             name = "%s_%03d" % (sequence.name, i)

@@ -35,7 +35,7 @@ class Stack(object):
                     transformer_class = import_class(transformer_metadata["type"], hints=["vot.experiment.transformer"])
                     assert issubclass(transformer_class, Transformer)
                     del transformer_metadata["type"]
-                    transformers.append(transformer_class(workspace, **transformer_metadata))
+                    transformers.append(transformer_class(workspace.cache, **transformer_metadata))
 
             analyses = []
             if "measures" in experiment_metadata:
@@ -47,7 +47,8 @@ class Stack(object):
                     assert issubclass(analysis_class, Analysis)
                     del measure_metadata["type"]
                     analyses.append(analysis_class(**measure_metadata))
-            experiment = experiment_class(identifier, workspace, **experiment_metadata)
+            experiment = experiment_class(_identifier=identifier, _storage=workspace._storage, 
+                    _transformers=transformers, **experiment_metadata)
             self._experiments.append(experiment)
             self._analyses[experiment] = analyses
             self._transformers[experiment] = transformers

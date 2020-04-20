@@ -11,19 +11,17 @@ from vot.utilities import to_number, arg_hash
 
 class Transformer(ABC):
 
-    def __init__(self, workspace: "Workspace", **kwargs):
-        self._workspace = workspace
+    def __init__(self, cache: "Cache", **kwargs):
+        self._cache = cache
 
     @abstractmethod
     def __call__(self, sequence: Sequence) -> Sequence:
         pass
 
-
 class Redetection(Transformer):
 
-    def __init__(self, workspace: "Workspace", length: int = 100, initialization: int = 5, padding: float = 2, scaling: float = 1, **kwargs):
-        super().__init__(workspace, **kwargs)
-        self._workspace = workspace
+    def __init__(self, cache: "Cache", length: int = 100, initialization: int = 5, padding: float = 2, scaling: float = 1, **kwargs):
+        super().__init__(cache, **kwargs)
         self._initialization = to_number(initialization, min_n=1)
         self._length = to_number(length, min_n=self._initialization+1)
         self._padding = to_number(padding, min_n=0, conversion=float)
@@ -31,7 +29,7 @@ class Redetection(Transformer):
 
     def __call__(self, sequence: Sequence) -> Sequence:
 
-        chache_dir = self._workspace.cache(self, arg_hash(sequence.name, self._length, self._initialization, self._padding, self._scaling))
+        chache_dir = self._cache.directory(self, arg_hash(sequence.name, self._length, self._initialization, self._padding, self._scaling))
 
         if not os.path.isfile(os.path.join(chache_dir, "sequence")):
             generated = InMemorySequence(sequence.name, sequence.channels())
