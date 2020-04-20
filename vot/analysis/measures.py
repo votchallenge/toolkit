@@ -6,8 +6,7 @@ from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment, UnsupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
-from vot.analysis import SeparatableAnalysis, NonSeparatableAnaysis, \
-    MissingResultsException, MeasureDescription
+from vot.analysis import Analysis, SeparatableAnalysis, MissingResultsException, MeasureDescription
 from vot.analysis.routines import count_failures, compute_accuracy, compute_eao, \
     locate_failures_inits, determine_thresholds, compute_tpr_curves
 from vot.utilities import to_number, to_logical
@@ -95,7 +94,7 @@ class FailureCount(SeparatableAnalysis):
 
         return failures / len(trajectories), len(trajectories[0])
 
-class PrecisionRecall(NonSeparatableAnaysis):
+class PrecisionRecall(Analysis):
 
     def __init__(self, resolution: int = 100, ignore_unknown: bool = True, bounded: bool = True):
         super().__init__()
@@ -118,11 +117,11 @@ class PrecisionRecall(NonSeparatableAnaysis):
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
 
-    def compute_measure(self, tracker: Tracker, experiment: Experiment):
+    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
 
         # calculate thresholds
         total_scores = 0
-        for sequence in experiment.workspace.dataset:
+        for sequence in sequences:
             trajectories = experiment.gather(tracker, sequence)
             for trajectory in trajectories:
                 total_scores += len(trajectory)
@@ -131,7 +130,7 @@ class PrecisionRecall(NonSeparatableAnaysis):
         scores_all = total_scores * [float(0)]
 
         idx = 0
-        for sequence in experiment.workspace.dataset:
+        for sequence in sequences:
             trajectories = experiment.gather(tracker, sequence)
             for trajectory in trajectories:
                 conf_ = [trajectory.properties(i).get('confidence', 0) for i in range(len(trajectory))]
@@ -144,7 +143,7 @@ class PrecisionRecall(NonSeparatableAnaysis):
         pr_curves = []
         re_curves = []
 
-        for sequence in experiment.workspace.dataset:
+        for sequence in sequences:
 
             trajectories = experiment.gather(tracker, sequence)
 
@@ -320,7 +319,7 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
             
         return accuracy / total, robustness / total, len(sequence)
 
-class EAOMultiStart(NonSeparatableAnaysis):
+class EAOMultiStart(Analysis):
 
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, interval_low: int = 115, interval_high: int = 755):
         super().__init__()
@@ -344,7 +343,7 @@ class EAOMultiStart(NonSeparatableAnaysis):
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
 
-    def compute_entire(self, tracker: Tracker, experiment: Experiment):
+    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
 
         from vot.region.utils import calculate_overlaps
 
@@ -353,7 +352,7 @@ class EAOMultiStart(NonSeparatableAnaysis):
         success_all = []
         frames_total = 0
 
-        for sequence in experiment.workspace.dataset:
+        for sequence in sequences:
 
             results = experiment.results(tracker, sequence)
 
@@ -407,9 +406,9 @@ class EAOMultiStart(NonSeparatableAnaysis):
 
         weights_all = [w / frames_total for w in weights_all]
         
-        return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0]
+        return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0], 
 
-class EAO(NonSeparatableAnaysis):
+class EAO(Analysis):
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, interval_low: int = 99, interval_high: int = 355):
         super().__init__()
         self._burnin = burnin
@@ -431,14 +430,14 @@ class EAO(NonSeparatableAnaysis):
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
 
-    def compute_entire(self, tracker: Tracker, experiment: Experiment):
+    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
         from vot.region.utils import calculate_overlaps
 
         overlaps_all = []
         weights_all = []
         success_all = []
         
-        for sequence in experiment.workspace.dataset:
+        for sequence in sequences:
 
             trajectories = experiment.gather(tracker, sequence)
 
@@ -469,4 +468,4 @@ class EAO(NonSeparatableAnaysis):
                     success_all.append(True)
                     weights_all.append(1)
         
-        return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0]
+        return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0],

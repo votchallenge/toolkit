@@ -49,7 +49,7 @@ class Analysis(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def compute(self, tracker: Tracker, experiment: Experiment):
+    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
         raise NotImplementedError
 
 class MeasureDescription(object):
@@ -90,21 +90,12 @@ class SeparatableAnalysis(Analysis):
     def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
         raise NotImplementedError
 
-    def compute(self, tracker: Tracker, experiment: Experiment):
+    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
         partial = []
-        for sequence in experiment.workspace.dataset:
+        for sequence in sequences:
             partial.append(self.compute_partial(tracker, experiment, sequence))
 
         return self.join(partial)
-
-class NonSeparatableAnaysis(Analysis):
-
-    @abstractmethod
-    def compute_entire(self, tracker: Tracker, experiment: Experiment):
-        raise NotImplementedError
-
-    def compute(self, tracker: Tracker, experiment: Experiment):
-        return self.compute_entire(tracker, experiment)
 
 _ANALYSES = list()
 
@@ -129,7 +120,7 @@ def process_measures(workspace: "Workspace", trackers: List[Tracker]):
                 if not analysis.compatible(experiment):
                     continue
 
-                tracker_results[class_fullname(analysis)] = analysis.compute(tracker, experiment)
+                tracker_results[class_fullname(analysis)] = analysis.compute(tracker, experiment, workspace.dataset)
 
             results[experiment.identifier].append(tracker_results)
 
