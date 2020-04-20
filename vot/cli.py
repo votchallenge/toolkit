@@ -301,22 +301,22 @@ def main():
     test_parser.add_argument("--visualize", "-g", default=False, required=False, help='Visualize results of the test session', action='store_true')
 
     workspace_parser = subparsers.add_parser('workspace', help='Setup a new workspace and download data')
-    workspace_parser.add_argument("--workspace", default=".", help='Workspace path')
+    workspace_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     workspace_parser.add_argument("stack", nargs="?", help='Experiment stack')
 
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
     evaluate_parser.add_argument("trackers", nargs='+', default=None, help='Tracker identifiers')
     evaluate_parser.add_argument("--force", "-f", default=False, help="Force rerun of the entire evaluation", required=False, action='store_true')
     evaluate_parser.add_argument("--persist", "-p", default=False, help="Persist execution even in case of an error", required=False, action='store_true')
-    evaluate_parser.add_argument("--workspace", default=".", help='Workspace path')
+    evaluate_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
 
     analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
-    analysis_parser.add_argument("--workspace", default=".", help='Workspace path')
+    analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     analysis_parser.add_argument("--output", choices=("latex", "html", "json"), default="json", help='Analysis output format')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
-    pack_parser.add_argument("--workspace", default=".", help='Workspace path')
+    pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     pack_parser.add_argument("tracker", help='Tracker identifier')
 
     try:
