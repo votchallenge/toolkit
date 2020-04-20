@@ -268,7 +268,7 @@ def do_pack(config, logger):
 
     progress = Progress(desc="Compressing", total=len(all_files))
 
-    manifest = dict(identifier=tracker.identifier, protocol=tracker.protocol,
+    manifest = dict(identifier=tracker.identifier, configuration=tracker.configuration(),
         timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform, python=sys.version)
 
 
