@@ -400,7 +400,7 @@ def escape_path(path):
     else:
         return path
 
-def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, virtualenv=None, condaenv=None, socket=False, **kwargs):
+def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, virtualenv=None, condaenv=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -439,17 +439,17 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
             virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))
 
     # simple check if the command is only a package name to be imported or a script
-    if not re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", command) is None:
+    if re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", command) is None:
         # We have to escape all double quotes
         command = command.replace("\"", "\\\"")
     else:
         command = "import " + command
 
-    command = '{} -c "{}import sys;{} import {}"'.format(interpreter, virtualenv_launch, pathimport, command)
+    command = '{} -c "{}import sys;{} {}"'.format(interpreter, virtualenv_launch, pathimport, command)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket, restart)
 
-def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, **kwargs):
+def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -483,9 +483,9 @@ def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} {} -r "{}"'.format(matlab_executable, " ".join(matlab_flags), matlab_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket, restart)
 
-def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, **kwargs):
+def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -518,5 +518,5 @@ def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} {} --eval "{}"'.format(octave_executable, " ".join(octave_flags), octave_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket)
+    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket, restart)
 
