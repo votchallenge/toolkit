@@ -163,6 +163,11 @@ class Tracker(object):
     def protocol(self):
         return self._protocol
 
+    def configuration(self):
+        data = dict(command=self._command, label=self.label, protocol=self.protocol, arguments=self._arguments, env=self._envvars)
+        data.update(self._args)
+        return data
+
 class TrackerRuntime(ABC):
 
     def __init__(self, tracker: Tracker):
