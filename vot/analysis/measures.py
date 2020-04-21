@@ -284,7 +284,7 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
             raise RuntimeError("Sequence does not contain any anchors")
 
         robustness = 0
-        accuracy = 0        
+        accuracy = 0
         total = 0
         for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
             name = "%s_%08d" % (sequence.name, i)
@@ -316,7 +316,7 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
             robustness += progress  # simplified original equation: len(proxy) * (progress / len(proxy))
             accuracy += len(proxy) * (sum(overlaps[0:progress]) / (progress - 1)) if progress > 1 else 0
             total += len(proxy)
-            
+
         return accuracy / total, robustness / total, len(sequence)
 
 class EAOMultiStart(Analysis):
@@ -405,7 +405,7 @@ class EAOMultiStart(Analysis):
             frames_total += len(sequence)
 
         weights_all = [w / frames_total for w in weights_all]
-        
+
         return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0], 
 
 class EAO(Analysis):
@@ -436,7 +436,7 @@ class EAO(Analysis):
         overlaps_all = []
         weights_all = []
         success_all = []
-        
+
         for sequence in sequences:
 
             trajectories = experiment.gather(tracker, sequence)
@@ -448,7 +448,7 @@ class EAO(Analysis):
 
                 overlaps = calculate_overlaps(trajectory.regions(), sequence.groundtruth(), (sequence.size) if self._bounded else None)
                 fail_idxs, init_idxs = locate_failures_inits(trajectory.regions())
-                
+
                 if len(fail_idxs) > 0:
 
                     for i in range(len(fail_idxs)):
@@ -467,5 +467,5 @@ class EAO(Analysis):
                     overlaps_all.append(overlaps)
                     success_all.append(True)
                     weights_all.append(1)
-        
+
         return compute_eao(overlaps_all, weights_all, success_all, self._interval_low, self._interval_high)[0],
