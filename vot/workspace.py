@@ -177,6 +177,7 @@ class Workspace(object):
         self._download(dataset_directory)
         self._dataset = VOTDataset(dataset_directory)
         self._root = directory
+        self._registry = [normalize_path(r, directory) for r in self._config.get("registry", [])]
 
     def _download(self, dataset_directory):
         if not os.path.exists(os.path.join(dataset_directory, "list.txt")) and not self._stack.dataset is None:
@@ -193,7 +194,7 @@ class Workspace(object):
 
     @property
     def registry(self):
-        return self._config.get("registry", [])
+        return self._registry
 
     @property
     def dataset(self) -> Dataset:
