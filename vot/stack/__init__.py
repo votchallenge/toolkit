@@ -17,7 +17,7 @@ class Stack(object):
         self._title = metadata["title"]
         self._dataset = metadata.get("dataset", None)
         self._deprecated = metadata.get("deprecated", False)
-        self._experiments = []
+        self._experiments = dict()
         self._analyses = dict()
         self._transformers = dict()
 
@@ -47,9 +47,9 @@ class Stack(object):
                     assert issubclass(analysis_class, Analysis)
                     del measure_metadata["type"]
                     analyses.append(analysis_class(**measure_metadata))
-            experiment = experiment_class(_identifier=identifier, _storage=workspace._storage, 
+            experiment = experiment_class(_identifier=identifier, _storage=workspace._storage,
                     _transformers=transformers, **experiment_metadata)
-            self._experiments.append(experiment)
+            self._experiments[identifier] = experiment
             self._analyses[experiment] = analyses
             self._transformers[experiment] = transformers
 
@@ -71,8 +71,8 @@ class Stack(object):
 
     @property
     def experiments(self) -> List[Experiment]:
-        return self._experiments
-        
+        return self._experiments.values()
+
     def analyses(self, experiment: Experiment) -> List["Analysis"]:
         return self._analyses[experiment]
 
@@ -80,10 +80,13 @@ class Stack(object):
         return self._transformers[experiment]
 
     def __iter__(self):
-        return iter(self._experiments)
+        return iter(self._experiments.values())
 
     def __len__(self):
         return len(self._experiments)
+
+    def __getitem__(self, identifier):
+        return self._experiments[identifier]
 
 def resolve_stack(name, *directories):
     if os.path.isabs(name):
@@ -104,4 +107,4 @@ def list_integrated_stacks():
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
         stacks[os.path.splitext(os.path.basename(stack_file))[0]] = stack_metadata.get("title", "")
 
-    return stacks    
+    return stacks
