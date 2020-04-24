@@ -6,7 +6,9 @@ import logging
 import json
 import yaml
 from datetime import datetime
+import colorama
 
+from vot import check_updates
 from vot.tracker import load_trackers, TrackerException
 from vot.stack import resolve_stack, list_integrated_stacks
 from vot.workspace import Workspace
@@ -109,7 +111,7 @@ def do_test(config, logger):
             runtime.stop()
 
 def do_workspace(config, logger):
-    
+
     from vot.workspace import initialize_workspace, migrate_workspace, WorkspaceException
 
     if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
@@ -182,7 +184,7 @@ def do_evaluate(config, logger):
 def do_analysis(config, logger):
 
     from vot.analysis import process_measures
-  
+
     workspace = Workspace(config.workspace)
 
     logger.info("Loaded workspace in '%s'", config.workspace)
@@ -190,11 +192,11 @@ def do_analysis(config, logger):
     global_registry = [os.path.abspath(x) for x in config.registry]
 
     registry = load_trackers(workspace.registry + global_registry, root=config.workspace)
-    
+
     logger.info("Found data for %d trackers", len(registry))
 
     if not hasattr(config, 'trackers'):
-        trackers = workspace.list_results()
+        trackers = workspace.storage.list_results()
     else:
         trackers = config.trackers
 
@@ -251,7 +253,7 @@ def do_pack(config, logger):
             complete, files, results = experiment.scan(tracker, sequence)
             all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
             if not complete:
-                logger.error("Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name) 
+                logger.error("Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name)
                 can_finish = False
             progress.update_relative(1)
 
@@ -325,6 +327,11 @@ def main():
 
         if args.debug:
             logger.setLevel(logging.DEBUG)
+
+        update, version = check_updates()
+        if update:
+            colorama.init()
+            print(colorama.Fore.GREEN + "A newer version of VOT toolkit is available: {}".format(version) + colorama.Fore.RESET)
 
         if args.action == "test":
             do_test(args, logger)

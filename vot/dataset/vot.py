@@ -195,7 +195,7 @@ class VOTDataset(Dataset):
                     fp.write('{}\n'.format(sequence["name"]))
 
 def write_sequence(directory: str, sequence: Sequence):
-    
+
     channels = sequence.channels()
 
     metadata = dict()
