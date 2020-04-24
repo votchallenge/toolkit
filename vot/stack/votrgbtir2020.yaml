@@ -1,0 +1,9 @@
+title: VOT-RGBTIR2020 challenge
+dataset: vot:vot-rgbt2020
+url: http://www.votchallenge.net/vot2020/
+experiments:
+  baseline:
+    type: vot.experiment.MultiStartExperiment
+    measures:
+      - type: vot.analysis.measures.AccuracyRobustnessMultiStart
+      - type: EAOMultiStart
