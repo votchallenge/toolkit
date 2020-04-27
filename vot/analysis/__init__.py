@@ -40,33 +40,36 @@ class Analysis(ABC):
 
         return self._identifier_cache
 
-
     def parameters(self) -> Dict[str, Any]:
         return dict()
 
     @abstractmethod
-    def describe(self) -> Tuple["MeasureDescription"]:
+    def describe(self) -> Tuple["Measure"]:
         raise NotImplementedError
 
     @abstractmethod
     def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
         raise NotImplementedError
 
-class MeasureDescription(object):
+class Result(ABC):
+    def __init__(self, name: str):
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+
+class Measure(Result):
 
     DESCENDING = "descending"
     ASCENDING = "ascending"
 
     def __init__(self, name: str, minimal: Optional[float] = None, \
         maximal: Optional[float] = None, direction: Optional[str] = ASCENDING):
-        self._name = name
+        super().__init__(name)
         self._minimal = minimal
         self._maximal = maximal
         self._direction = direction
-
-    @property
-    def name(self):
-        return self._name
 
     @property
     def minimal(self):
@@ -79,6 +82,12 @@ class MeasureDescription(object):
     @property
     def direction(self):
         return self._direction
+
+class Curve(Result):
+
+    def __init__(self, name: str):
+        super().__init__(name)
+
 
 class SeparatableAnalysis(Analysis):
 
@@ -94,6 +103,23 @@ class SeparatableAnalysis(Analysis):
         partial = []
         for sequence in sequences:
             partial.append(self.compute_partial(tracker, experiment, sequence))
+
+        return self.join(partial)
+
+class DependentAnalysis(Analysis):
+
+    @abstractmethod
+    def join(self, results: List[tuple]):
+        raise NotImplementedError
+
+    @abstractmethod
+    def dependencies(self) -> List[Analysis]:
+        raise NotImplementedError
+
+    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
+        partial = []
+        for dependency in self.dependencies():
+            partial.append(dependency.compute(tracker, experiment, sequences))
 
         return self.join(partial)
 

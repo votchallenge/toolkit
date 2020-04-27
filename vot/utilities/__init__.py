@@ -70,7 +70,7 @@ class Progress(tqdm):
         if total is not None:
             self.total = total
         self.update(current - self.n)  # will also set self.n = b * bsize
-        
+
     def update_relative(self, n, total = None):
         if total is not None:
             self.total = total
@@ -78,7 +78,7 @@ class Progress(tqdm):
 
 def extract_files(archive, destination, callback = None):
     from zipfile import ZipFile
-    
+
     with ZipFile(file=archive) as zip_file:
         # Loop over each file
         total=len(zip_file.namelist())
