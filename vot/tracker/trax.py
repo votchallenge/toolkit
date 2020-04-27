@@ -211,7 +211,7 @@ class TrackerProcess(object):
 
     @property
     def alive(self):
-        if not self._process:
+        if self._process is None:
             return False
         self._returncode = self._process.returncode
         return self._returncode is None
