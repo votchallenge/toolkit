@@ -72,7 +72,7 @@ class Stack(object):
     @property
     def experiments(self) -> List[Experiment]:
         return self._experiments.values()
-
+        
     def analyses(self, experiment: Experiment) -> List["Analysis"]:
         return self._analyses[experiment]
 
