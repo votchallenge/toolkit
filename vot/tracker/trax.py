@@ -447,6 +447,8 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} -c "{}import sys;{} {}"'.format(interpreter, virtualenv_launch, pathimport, command)
 
+    envvars["PYTHONUNBUFFERED"] = "1"
+
     return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket, restart)
 
 def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
