@@ -3,7 +3,6 @@ import sys
 import argparse
 import traceback
 import logging
-import json
 import yaml
 from datetime import datetime
 import colorama
@@ -188,6 +187,7 @@ def do_evaluate(config, logger):
 def do_analysis(config, logger):
 
     from vot.analysis import process_measures
+    from vot.analysis.document import generate_json_document, generate_latex_document, generate_html_document
 
     workspace = Workspace(config.workspace)
 
@@ -210,17 +210,19 @@ def do_analysis(config, logger):
         logger.error("Tracker not found %s", str(ke))
         return
 
-    if config.output == "latex":
-        raise NotImplementedError("LaTeX export not implemented")
-    elif config.output == "html":
-        raise NotImplementedError("HTML export not implemented")
-    elif config.output == "json":
-        results = process_measures(workspace, trackers)
-        file_name = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H-%M-%S.%f%z}.json".format(datetime.now()))
-        with open(file_name, "w") as fp:
-            json.dump(results, fp, indent=2)
+    results = process_measures(workspace, trackers)
 
-    logger.info("Analysis successful, results available in %s", file_name)
+    if config.output == "latex":
+        output = os.path.join(workspace.directory, "analysis", "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now()))
+        generate_latex_document(results, output)
+    elif config.output == "html":
+        output = os.path.join(workspace.directory, "analysis", "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now()))
+        generate_html_document(results, output)
+    elif config.output == "json":
+        output = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H-%M-%S.%f%z}.json".format(datetime.now()))
+        generate_json_document(results, output)
+
+    logger.info("Analysis successful, results available in %s", output)
 
 
 def do_pack(config, logger):

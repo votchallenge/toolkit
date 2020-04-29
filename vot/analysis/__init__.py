@@ -44,7 +44,9 @@ class Analysis(ABC):
         return dict()
 
     @abstractmethod
-    def describe(self) -> Tuple["Measure"]:
+    def describe(self) -> Tuple["Result"]:
+        """Returns a tuple of descriptions of results
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -52,21 +54,47 @@ class Analysis(ABC):
         raise NotImplementedError
 
 class Result(ABC):
-    def __init__(self, name: str):
+    """Abstract result object base. This is the base class for all result descriptions.
+    """
+
+    def __init__(self, name: str, abbreviation: Optional[str] = None):
+        """Constructor
+
+        Arguments:
+            name {str} -- Name of the result, used in reports
+
+        Keyword Arguments:
+            abbreviation {Optional[str]} -- Abbreviation, if empty, then name is used. 
+            Can be used to define a shorter text representation. (default: {None})
+        """
         self._name = name
+        if abbreviation is None:
+            self._abbreviation = name
 
     @property
     def name(self):
         return self._name
 
+    @property
+    def abbreviation(self):
+        return self._abbreviation
+
+class Label(Result):
+
+    def __init__(self, name: str, abbreviation: Optional[str] = None):
+        super().__init__(name, abbreviation)
+
 class Measure(Result):
+    """Measure describes a single value numerical output of an analysis. Can have minimum and maximum value as well
+    as direction of sorting.
+    """
 
     DESCENDING = "descending"
     ASCENDING = "ascending"
 
-    def __init__(self, name: str, minimal: Optional[float] = None, \
+    def __init__(self, name: str, abbreviation: Optional[str] = None, minimal: Optional[float] = None, \
         maximal: Optional[float] = None, direction: Optional[str] = ASCENDING):
-        super().__init__(name)
+        super().__init__(name, abbreviation)
         self._minimal = minimal
         self._maximal = maximal
         self._direction = direction
@@ -83,11 +111,74 @@ class Measure(Result):
     def direction(self):
         return self._direction
 
+class Point(Result):
+    """Point is a two or more dimensional numerical output that can be visualized in a scatter plot.
+    """
+
+    def __init__(self, name: str, dimensions: int, abbreviation: Optional[str] = None, minimal: Optional[Tuple[float]] = None, \
+        maximal: Optional[Tuple[float]] = None):
+        assert(dimensions > 1)
+        super().__init__(name, abbreviation)
+        self._dimensions = dimensions
+        self._minimal = minimal
+        self._maximal = maximal
+
+    @property
+    def dimensions(self):
+        return self._dimensions
+
+    def minimal(self, i):
+        return self._minimal[i]
+
+    def maximal(self, i):
+        return self._maximal[i]
+
+class Plot(Result):
+    """Plot describes a result in form of a list of values with optional minimum and maximum with respect to some unit. The
+    results of the same analysis for different trackers should have the same number of measurements (independent variable).
+    """
+
+    def __init__(self, name: str, abbreviation: Optional[str] = None, wrt: str = "frames", minimal: Optional[float] = None, \
+        maximal: Optional[float] = None):
+        super().__init__(name, abbreviation)
+        self._wrt = wrt
+        self._minimal = minimal
+        self._maximal = maximal
+
+    @property
+    def minimal(self):
+        return self._minimal
+
+    @property
+    def maximal(self):
+        return self._maximal
+
+
+    @property
+    def wrt(self):
+        return self._wrt
+
 class Curve(Result):
+    """Curve is a list of 2 or more dimensional results. The number of elements in a list can vary.
+    """
 
-    def __init__(self, name: str):
-        super().__init__(name)
+    def __init__(self, name: str, dimensions: int, abbreviation: Optional[str] = None, minimal: Optional[Tuple[float]] = None, \
+        maximal: Optional[Tuple[float]] = None):
+        assert(dimensions > 1)
+        super().__init__(name, abbreviation)
+        self._dimensions = dimensions
+        self._minimal = minimal
+        self._maximal = maximal
 
+    @property
+    def dimensions(self):
+        return self._dimensions
+
+    def minimal(self, i):
+        return self._minimal[i]
+
+    def maximal(self, i):
+        return self._maximal[i]
 
 class SeparatableAnalysis(Analysis):
 
@@ -134,20 +225,23 @@ def process_measures(workspace: "Workspace", trackers: List[Tracker]):
 
     for experiment in workspace.stack:
 
-        results[experiment.identifier] = list()
+        results[experiment] = dict()
 
-        for tracker in trackers:
+        for analysis in workspace.stack.analyses(experiment):
 
-            tracker_results = {}
-            tracker_results['tracker_name'] = tracker.identifier
+            if not analysis.compatible(experiment):
+                continue
 
-            for analysis in workspace.stack.analyses(experiment):
+            analysis_results = dict()
 
-                if not analysis.compatible(experiment):
-                    continue
+            for tracker in trackers:
+                try:
+                    analysis_results[tracker] = analysis.compute(tracker, experiment, workspace.dataset)
+                except MissingResultsException:
+                    analysis_results[tracker] = None
 
-                tracker_results[class_fullname(analysis)] = analysis.compute(tracker, experiment, workspace.dataset)
-
-            results[experiment.identifier].append(tracker_results)
+            results[experiment][analysis] = analysis_results
 
     return results
+
+

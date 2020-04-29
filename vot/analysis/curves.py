@@ -2,14 +2,12 @@ import math
 import numpy as np
 from typing import List, Dict, Any
 
-from vot.tracker import Tracker, Trajectory
+from vot.tracker import Tracker
 from vot.dataset import Sequence
-from vot.dataset.proxy import FrameMapSequence
 from vot.region.utils import calculate_overlaps
-from vot.region import Region, Special, RegionType
+from vot.region import Region, RegionType
 from vot.experiment import Experiment
-from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment, UnsupervisedExperiment
-from vot.experiment.multistart import MultiStartExperiment, find_anchors
+from vot.experiment.multirun import UnsupervisedExperiment
 from vot.analysis import Analysis, DependentAnalysis, MissingResultsException, Curve
 from vot.utilities import to_number, to_logical
 
@@ -57,7 +55,7 @@ class PrecisionRecallCurve(Analysis):
 
     def __init__(self, resolution: int = 100, ignore_unknown: bool = True, bounded: bool = True):
         super().__init__()
-        self._resolution = resolution
+        self._resolution = to_number(resolution, min_n=1)
         self._ignore_unknown = to_logical(ignore_unknown)
         self._bounded = to_logical(bounded)
 
@@ -69,7 +67,7 @@ class PrecisionRecallCurve(Analysis):
         return dict(resolution=self._resolution, ignore_unknown=self._ignore_unknown, bounded=self._bounded)
 
     def describe(self):
-        return Curve("Precision"), Curve("Recall")
+        return Curve("Precision Recall curve", dimensions=2, abbreviation="PR", minimal=(0, 0), maximal=(1, 1)),
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
@@ -126,15 +124,14 @@ class PrecisionRecallCurve(Analysis):
         pr_curve = len(thresholds) * [float(0)]
         re_curve = len(thresholds) * [float(0)]
 
-        for i in range(len(thresholds)):
-            for j in range(len(pr_curves)):
+        for i, _ in enumerate(thresholds):
+            for j, _ in enumerate(pr_curves):
                 pr_curve[i] += pr_curves[j][i]
                 re_curve[i] += re_curves[j][i]
 
-        pr_curve = [pr_ / len(pr_curves) for pr_ in pr_curve]
-        re_curve = [re_ / len(re_curves) for re_ in re_curve]
+        curve = [(pr / len(pr_curves), re / len(pr_curves)) for pr, re in zip(pr_curve, re_curve)]
 
-        return pr_curve, re_curve
+        return curve
 
 class FScoreCurve(DependentAnalysis):
 
@@ -153,7 +150,7 @@ class FScoreCurve(DependentAnalysis):
         return dict(resolution=self._resolution, ignore_unknown=self._ignore_unknown, bounded=self._bounded)
 
     def describe(self):
-        return Curve("F"),
+        return Curve("F", None),
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
@@ -163,6 +160,7 @@ class FScoreCurve(DependentAnalysis):
 
     def join(self, results):
 
-        f_curve = [(2 * pr_ * re_) / (pr_ + re_) for pr_, re_ in zip(results[0], results[1])]
+        f_curve = [(2 * pr_ * re_) / (pr_ + re_) for pr_, re_ in results[0][0]]
 
         return f_curve,
+
