@@ -1,4 +1,4 @@
-vot-trax>=3.0
+vot-trax>=3.0.2
 tqdm==4.32
 numpy>=1.16
 opencv-python>=4.0
