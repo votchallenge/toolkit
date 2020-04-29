@@ -12,6 +12,7 @@ import yaml
 from vot import VOTException
 from vot.dataset import Frame
 from vot.region import Region
+from vot.utilities import to_string
 
 logger = logging.getLogger("vot")
 
@@ -34,17 +35,25 @@ class TrackerTimeoutException(TrackerException):
 
 VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9-_]+$")
 
+VALID_REFERENCE = re.compile("^([a-zA-Z0-9-_]+)(@[a-zA-Z0-9]+)?$")
+
 def is_valid_identifier(identifier):
     return not VALID_IDENTIFIER.match(identifier) is None
+
+def is_valid_reference(reference):
+    return not VALID_REFERENCE.match(reference) is None
+
+def parse_reference(reference):
+    matches = VALID_REFERENCE.match(reference)
+    if not matches:
+        return None, None
+    return matches.group(1), matches.group(2).substring(1) if not matches.group(2) is None else None
 
 _runtime_protocols = {}
 
 def load_trackers(directories, root=os.getcwd()):
 
     trackers = dict()
-
-    logger = logging.getLogger("vot")
-
     registries = []
 
     for directory in directories:
@@ -107,7 +116,7 @@ def collect_envvars(**kwargs):
             envvars[name[4:].upper()] = os.path.expandvars(value)
         else:
             other[name] = value
-    
+
     return envvars, other
 
 def collect_arguments(**kwargs):
@@ -124,19 +133,23 @@ def collect_arguments(**kwargs):
             arguments[name[4:].lower()] = value
         else:
             other[name] = value
-    
+
     return arguments, other
 
 class Tracker(object):
 
-    def __init__(self, _identifier, _registry, command, protocol=None, label=None, **kwargs):
+    def __init__(self, _identifier, _registry, command, protocol=None, label=None, version=None, **kwargs):
         self._identifier = _identifier
         self._registry = _registry
         self._command = command
         self._protocol = protocol
         self._label = label
+        self._version = to_string(version) if not version is None else None
         self._envvars, args = collect_envvars(**kwargs)
         self._arguments, self._args = collect_arguments(**args)
+
+        if not self._version is None and not self._version.isalnum():
+            raise TrackerException("Illegal version format", tracker=self)
 
     def runtime(self, log=False) -> "TrackerRuntime":
         if not self._protocol:
@@ -158,6 +171,17 @@ class Tracker(object):
     @property
     def label(self):
         return self._label
+
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def reference(self):
+        if self._version is None:
+            return self._identifier
+        else:
+            return self._identifier + "@" + self._version
 
     @property
     def protocol(self):
@@ -287,7 +311,7 @@ class PropertyInjectorTrackerRuntime(TrackerRuntime):
         self._runtime.restart()
 
     def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
-        
+
         if not properties is None:
             tproperties = dict(properties)
         else:

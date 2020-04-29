@@ -107,7 +107,7 @@ class LocalStorage(ABC):
         return self._root
 
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
-        root = os.path.join(self._results, os.path.join(tracker.identifier, os.path.join(experiment.identifier, sequence.name)))
+        root = os.path.join(self._results, tracker.reference, experiment.identifier, sequence.name)
         return Results(root)
 
     def list_results(self):
