@@ -8,7 +8,7 @@ import yaml
 from datetime import datetime
 import colorama
 
-from vot import check_updates
+from vot import check_updates, __version__
 from vot.tracker import load_trackers, TrackerException
 from vot.stack import resolve_stack, list_integrated_stacks
 from vot.workspace import Workspace
@@ -274,8 +274,8 @@ def do_pack(config, logger):
     progress = Progress(desc="Compressing", total=len(all_files))
 
     manifest = dict(identifier=tracker.identifier, configuration=tracker.configuration(),
-        timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform, python=sys.version)
-
+        timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform,
+        python=sys.version, toolkit=__version__)
 
     with zipfile.ZipFile(archive_name, 'w') as archive:
         for f in all_files:
