@@ -40,19 +40,7 @@ def class_fullname(o):
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
     return (size[1], size[0])
 
-def is_notebook():
-    try:
-        from IPython import get_ipython
-        if get_ipython() is None:
-            raise ImportError("console")
-        if 'IPKernelApp' not in get_ipython().config:  # pragma: no cover
-            raise ImportError("console")
-        if 'VSCODE_PID' in os.environ:  # pragma: no cover
-            raise ImportError("vscode")
-    except ImportError:
-        return False
-    else:
-        return True
+from vot.utilities.notebook import is_notebook
 
 if is_notebook():
     try:
