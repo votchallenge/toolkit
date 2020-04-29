@@ -28,34 +28,43 @@ class VOTSequence(BaseSequence):
         if name is None:
             name = os.path.basename(base)
         super().__init__(name, dataset)
-        self._metadata["fps"] = 30
-        self._metadata["format"] = "default"
-        self._metadata["channel.default"] = "color"
-        self._scan(base)
 
-    def _scan(self, base):
+    def _read_metadata(self):
+        metadata = dict(fps=30, format="default")
+        metadata["channel.default"] = "color"
 
-        metadata_file = os.path.join(base, 'sequence')
-        data = read_properties(metadata_file)
+        metadata_file = os.path.join(self._base, 'sequence')
+        metadata.update(read_properties(metadata_file))
+
+        return metadata
+
+    def _read(self):
+
+        channels = {}
+        tags = {}
+        values = {}
+        groundtruth = []
+
         for c in ["color", "depth", "ir"]:
-            if "channels.%s" % c in data:
-                self._channels[c] = load_channel(os.path.join(self._base, localize_path(data["channels.%s" % c])))
+            channel_path = self.metadata("channels.%s" % c, None)
+            if not channel_path is None:
+                channels[c] = load_channel(os.path.join(self._base, localize_path(channel_path)))
 
         # Load default channel if no explicit channel data available
-        if len(self._channels) == 0:
-            self._channels["color"] = load_channel(os.path.join(self._base, "color", "%08d.jpg"))
+        if len(channels) == 0:
+            channels["color"] = load_channel(os.path.join(self._base, "color", "%08d.jpg"))
         else:
-            self._metadata["channel.default"] = next(iter(self._channels.keys()))
+            self._metadata["channel.default"] = next(iter(channels.keys()))
 
-        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(self._channels)).size
+        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
 
-        groundtruth_file = os.path.join(self._base, data.get("groundtruth", "groundtruth.txt"))
+        groundtruth_file = os.path.join(self._base, self.metadata("groundtruth", "groundtruth.txt"))
 
-        with open(groundtruth_file, 'r') as groundtruth:
-            for region in groundtruth.readlines():
-                self._groundtruth.append(parse(region))
+        with open(groundtruth_file, 'r') as filehandle:
+            for region in filehandle.readlines():
+                groundtruth.append(parse(region))
 
-        self._metadata["length"] = len(self._groundtruth)
+        self._metadata["length"] = len(groundtruth)
 
         tagfiles = glob.glob(os.path.join(self._base, '*.tag')) + glob.glob(os.path.join(self._base, '*.label'))
 
@@ -63,33 +72,35 @@ class VOTSequence(BaseSequence):
             with open(tagfile, 'r') as filehandle:
                 tagname = os.path.splitext(os.path.basename(tagfile))[0]
                 tag = [line.strip() == "1" for line in filehandle.readlines()]
-                while not len(tag) >= len(self._groundtruth):
+                while not len(tag) >= len(groundtruth):
                     tag.append(False)
-                self._tags[tagname] = tag
-            
+                tags[tagname] = tag
+
         valuefiles = glob.glob(os.path.join(self._base, '*.value'))
 
         for valuefile in valuefiles:
             with open(valuefile, 'r') as filehandle:
                 valuename = os.path.splitext(os.path.basename(valuefile))[0]
                 value = [float(line.strip()) for line in filehandle.readlines()]
-                while not len(value) >= len(self._groundtruth):
+                while not len(value) >= len(groundtruth):
                     value.append(0.0)
-                self._values[valuename] = value
+                values[valuename] = value
 
-        for name, channel in self._channels.items():
-            if not channel.length == len(self._groundtruth):
+        for name, channel in channels.items():
+            if not channel.length == len(groundtruth):
                 raise DatasetException("Length mismatch for channel %s" % name)
 
-        for name, tags in self._tags.items():
-            if not len(tags) == len(self._groundtruth):
-                tag_tmp = len(self._groundtruth) * [False]
+        for name, tags in tags.items():
+            if not len(tags) == len(groundtruth):
+                tag_tmp = len(groundtruth) * [False]
                 tag_tmp[:len(tags)] = tags
                 tags = tag_tmp
 
-        for name, values in self._values.items():
-            if not len(values) == len(self._groundtruth):
+        for name, values in values.items():
+            if not len(values) == len(groundtruth):
                 raise DatasetException("Length mismatch for value %s" % name)
+
+        return channels, groundtruth, tags, values
 
 class VOTDataset(Dataset):
 

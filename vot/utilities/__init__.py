@@ -1,5 +1,7 @@
-import os, sys
+import os
+import sys
 import csv
+import re
 import hashlib
 import errno
 
@@ -98,10 +100,15 @@ def read_properties(filename, delimiter='='):
     if not os.path.exists(filename):
         return {}
     open_kwargs = {'mode': 'r', 'newline': ''} if six.PY3 else {'mode': 'rb'}
-    with open(filename, **open_kwargs) as csvfile:
-        reader = csv.reader(csvfile, delimiter=delimiter, escapechar='\\',
-                            quoting=csv.QUOTE_NONE)
-        return {row[0]: row[1] for row in reader}
+    matcher = re.compile("^([a-zA-Z0-9_\\-]+) *{} *(.*)$".format(delimiter))
+    with open(filename, **open_kwargs) as pfile:
+        properties = dict()
+        for line in pfile.readlines():
+            groups = matcher.match(line.strip())
+            if not groups:
+                continue
+            properties[groups.group(1)] = groups.group(2)
+        return properties
 
 def write_properties(filename, dictionary, delimiter='='):
     ''' Writes the provided dictionary in key sorted order to a properties

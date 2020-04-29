@@ -220,11 +220,11 @@ class FrameList(ABC):
         return SequenceIterator(self)
 
     @abstractmethod
-    def __len__(self):
+    def __len__(self) -> int:
         pass
 
     @abstractmethod
-    def frame(self, index):
+    def frame(self, index) -> Frame:
         pass
 
 class Sequence(FrameList):
@@ -233,11 +233,15 @@ class Sequence(FrameList):
         self._name = name
         self._dataset = dataset
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.length
 
     @property
-    def name(self):
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def identifier(self) -> str:
         return self._name
 
     @property
@@ -315,40 +319,54 @@ class BaseSequence(Sequence):
 
     def __init__(self, name, dataset=None):
         super().__init__(name, dataset)
-        self._metadata = {}
-        self._channels = {}
-        self._tags = {}
-        self._values = {}
-        self._groundtruth = []
-    
+        self._metadata = self._read_metadata()
+        self._data = None
+
+    @abstractmethod
+    def _read_metadata(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def _read(self):
+        raise NotImplementedError
+
+    def __preload(self):
+        if self._data is None:
+            self._data = self._read()
+
     def metadata(self, name, default=None):
         return self._metadata.get(name, default)
 
     def channels(self):
-        return self._channels
+        self.__preload()
+        return self._data[0]
 
     def channel(self, channel=None):
+        self.__preload()
         if channel is None:
             channel = self.metadata("channel.default")
-        return self._channels.get(channel, None)
+        return self._data[0].get(channel, None)
 
     def frame(self, index):
         return Frame(self, index)
 
     def groundtruth(self, index=None):
+        self.__preload()
         if index is None:
-            return self._groundtruth
-        return self._groundtruth[index]
+            return self._data[1]
+        return self._data[1][index]
 
     def tags(self, index=None):
+        self.__preload()
         if index is None:
-            return self._tags.keys()
-        return [t for t, sq in self._tags.items() if sq[index]]
+            return self._data[2].keys()
+        return [t for t, sq in self._data[2].items() if sq[index]]
 
     def values(self, index=None):
+        self.__preload()
         if index is None:
-            return self._values.keys()
-        return {v: sq[index] for v, sq in self._values.items()}
+            return self._data[3].keys()
+        return {v: sq[index] for v, sq in self._data[3].items()}
 
     @property
     def size(self):
@@ -356,13 +374,23 @@ class BaseSequence(Sequence):
 
     @property
     def length(self):
-        return len(self._groundtruth)
+        self.__preload()
+        return len(self._data[1])
 
 class InMemorySequence(BaseSequence):
 
     def __init__(self, name, channels):
         super().__init__(name, None)
         self._channels = {c: InMemoryChannel() for c in channels}
+        self._tags = {}
+        self._values = {}
+        self._groundtruth = []
+
+    def _read_metadata(self):
+        return dict()
+
+    def _read(self):
+        return self._channels, self._groundtruth, self._tags, self._values
 
     def append(self, images: dict, region: "Region", tags: list = None, values: dict = None):
 
