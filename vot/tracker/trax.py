@@ -10,7 +10,7 @@ import socket as socketio
 import tempfile
 import logging
 from typing import Tuple
-from threading import Thread
+from threading import Thread, Lock
 
 import colorama
 
@@ -25,7 +25,7 @@ from trax.region import Rectangle as TraxRectangle
 from vot.dataset import Frame, DatasetException
 from vot.region import Region, Polygon, Rectangle, Mask
 from vot.tracker import Tracker, TrackerRuntime, TrackerException
-from vot.utilities import to_logical, normalize_path
+from vot.utilities import to_logical, to_number, normalize_path
 
 PORT_POOL_MIN = 9090
 PORT_POOL_MAX = 65535
@@ -159,6 +159,7 @@ class TrackerProcess(object):
         self._timeout = timeout
         self._client = None
 
+        self._watchdog_lock = Lock()
         self._watchdog_counter = 0
         self._watchdog = Thread(target=self._watchdog_loop)
         self._watchdog.start()
@@ -181,6 +182,9 @@ class TrackerProcess(object):
         self._has_vot_wrapper = not self._client.get("vot") is None
 
     def _watchdog_reset(self, enable=True):
+        if self._watchdog_counter == 0:
+            return
+
         if enable:
             self._watchdog_counter = self._timeout * 10
         else:
@@ -194,8 +198,10 @@ class TrackerProcess(object):
                 continue
             self._watchdog_counter = self._watchdog_counter - 1
             if not self._watchdog_counter:
+                logger.warning("Timeout reached, terminating tracker")
                 self.terminate()
                 break
+        print("Terminate")
 
     @property
     def has_vot_wrapper(self):
@@ -208,6 +214,10 @@ class TrackerProcess(object):
     @property
     def workdir(self):
         return self._workdir
+
+    @property
+    def interrupted(self):
+        return self._watchdog_counter == 0
 
     @property
     def alive(self):
@@ -252,34 +262,36 @@ class TrackerProcess(object):
         return convert_traxregion(region), properties.dict(), elapsed
 
     def terminate(self):
-        if not self.alive:
-            return
+        with self._watchdog_lock:
 
-        if not self._client is None:
-            self._client.quit()
-            self._client = None
+            if not self.alive:
+                return
 
-        try:
-            self._process.wait(3)
-        except subprocess.TimeoutExpired:
-            pass
+            if not self._client is None:
+                self._client.quit()
 
-        if self._process.returncode is None:
-            self._process.terminate()
             try:
                 self._process.wait(3)
             except subprocess.TimeoutExpired:
                 pass
 
             if self._process.returncode is None:
-                self._process.kill()
+                self._process.terminate()
+                try:
+                    self._process.wait(3)
+                except subprocess.TimeoutExpired:
+                    pass
 
-        if not self._socket is None:
-            self._socket.close()
+                if self._process.returncode is None:
+                    self._process.kill()
 
-        self._returncode = self._process.returncode
+            if not self._socket is None:
+                self._socket.close()
 
-        self._process = None
+            self._returncode = self._process.returncode
+
+            self._client = None
+            self._process = None
 
     def __del__(self):
         if hasattr(self, "_workdir"):
@@ -287,7 +299,7 @@ class TrackerProcess(object):
 
 class TraxTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, tracker: Tracker, command: str, log: bool = False, linkpaths=None, envvars=None, arguments=None, socket=False, restart=False, onerror=None):
+    def __init__(self, tracker: Tracker, command: str, log: bool = False, timeout: int = 30, linkpaths=None, envvars=None, arguments=None, socket=False, restart=False, onerror=None):
         super().__init__(tracker)
         self._command = command
         self._process = None
@@ -303,8 +315,10 @@ class TraxTrackerRuntime(TrackerRuntime):
             self._output = LogAggregator()
         else:
             self._output = None
+        self._timeout = to_number(timeout, min_n=1)
         self._arguments = arguments
         self._onerror = onerror
+        self._workdir = None
 
         if sys.platform.startswith("win"):
             pathvar = "PATH"
@@ -316,6 +330,7 @@ class TraxTrackerRuntime(TrackerRuntime):
 
         self._envvars = envvars
 
+    @property
     def tracker(self) -> Tracker:
         return self._tracker
 
@@ -325,18 +340,20 @@ class TraxTrackerRuntime(TrackerRuntime):
                 log = self._output
             else:
                 log = ColorizedOutput()
-            self._process = TrackerProcess(self._command, self._envvars, log=log, socket=self._socket)
+            self._process = TrackerProcess(self._command, self._envvars, log=log, socket=self._socket, timeout=self._timeout)
             if self._process.has_vot_wrapper:
                 self._restart = True
 
     def _error(self, exception):
         workdir = None
+        timeout = False
         if not self._output is None:
             if not self._process is None:
                 if not self._process.alive:
                     self._output("Process exited with code ({})".format(self._process.returncode))
                 else:
                     self._output("Process did not finish yet")
+                timeout = self._process.interrupted
                 self._workdir = self._process.workdir
             else:
                 self._output("Process not alive anymore, unable to retrieve return code")
@@ -350,6 +367,10 @@ class TraxTrackerRuntime(TrackerRuntime):
 
         except Exception as e:
             logger.exception("Error during error handler for runtime of tracker %s", self._tracker.identifier, exc_info=e)
+
+        if timeout:
+            raise TrackerException("Tracker interrupted, it did not reply in {} seconds".format(self._timeout), tracker=self._tracker, \
+                tracker_log=log if not self._output is None else None)
 
         raise TrackerException(exception, tracker=self._tracker, \
             tracker_log=log if not self._output is None else None)
@@ -400,7 +421,7 @@ def escape_path(path):
     else:
         return path
 
-def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, virtualenv=None, condaenv=None, socket=False, restart=False, **kwargs):
+def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, virtualenv=None, condaenv=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -449,9 +470,9 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     envvars["PYTHONUNBUFFERED"] = "1"
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket, restart)
+    return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
 
-def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
+def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -485,9 +506,9 @@ def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} {} -r "{}"'.format(matlab_executable, " ".join(matlab_flags), matlab_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket, restart)
+    return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
 
-def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
+def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -520,5 +541,4 @@ def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, lin
 
     command = '{} {} --eval "{}"'.format(octave_executable, " ".join(octave_flags), octave_script)
 
-    return TraxTrackerRuntime(tracker, command, log, linkpaths, envvars, arguments, socket, restart)
-
+    return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
