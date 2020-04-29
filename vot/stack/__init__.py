@@ -39,18 +39,18 @@ class Stack(object):
 
             analyses = []
             if "measures" in experiment_metadata:
-                measures_metadata = experiment_metadata["measures"]
+                analyses_metadata = experiment_metadata["measures"]
                 del experiment_metadata["measures"]
 
-                for measure_metadata in measures_metadata:
-                    analysis_class = import_class(measure_metadata["type"], hints=["vot.analysis.measures"])
+                for analysis_metadata in analyses_metadata:
+                    analysis_class = import_class(analysis_metadata["type"], hints=["vot.analysis.measures"])
                     assert issubclass(analysis_class, Analysis)
-                    del measure_metadata["type"]
-                    analyses.append(analysis_class(**measure_metadata))
+                    del analysis_metadata["type"]
+                    analyses.append(analysis_class(**analysis_metadata))
             experiment = experiment_class(_identifier=identifier, _storage=workspace._storage,
                     _transformers=transformers, **experiment_metadata)
             self._experiments[identifier] = experiment
-            self._analyses[experiment] = analyses
+            self._analyses[experiment] = [analysis for analysis in analyses if analysis.compatible(experiment)]
             self._transformers[experiment] = transformers
 
     @property

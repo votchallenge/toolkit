@@ -5,18 +5,18 @@ experiments:
   baseline:
     type: vot.experiment.MultiStartExperiment
     measures:
-      - type: vot.analysis.measures.AccuracyRobustnessMultiStart
+      - type: AccuracyRobustnessMultiStart
       - type: EAOMultiStart
   unsupervised:
     type: vot.experiment.UnsupervisedExperiment
     repetitions: 1
     measures:
-      - type: vot.analysis.measures.AverageAccuracy
+      - type: AverageAccuracy
         burnin: 1
   realtime:
     type: vot.experiment.MultiStartExperiment
     realtime:
       grace: 3
     measures:
-      - type: vot.analysis.measures.AccuracyRobustnessMultiStart
+      - type: AccuracyRobustnessMultiStart
       - type: EAOMultiStart
