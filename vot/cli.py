@@ -12,7 +12,7 @@ from vot import check_updates
 from vot.tracker import load_trackers, TrackerException
 from vot.stack import resolve_stack, list_integrated_stacks
 from vot.workspace import Workspace
-from vot.utilities import Progress
+from vot.utilities import Progress, normalize_path
 
 class EnvDefault(argparse.Action):
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
@@ -34,6 +34,7 @@ class EnvDefault(argparse.Action):
 
 def do_test(config, logger):
     from vot.dataset.dummy import DummySequence
+    from vot.dataset.vot import VOTSequence
     trackers = load_trackers(config.registry)
 
     if not config.tracker:
@@ -51,7 +52,10 @@ def do_test(config, logger):
 
     logger.info("Generating dummy sequence")
 
-    sequence = DummySequence(50)
+    if config.sequence is None:
+        sequence = DummySequence(50)
+    else:
+        sequence = VOTSequence(normalize_path(config.sequence))
 
     logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
@@ -301,6 +305,7 @@ def main():
     test_parser = subparsers.add_parser('test', help='Test a tracker integration on a synthetic sequence')
     test_parser.add_argument("tracker", help='Tracker identifier', nargs="?")
     test_parser.add_argument("--visualize", "-g", default=False, required=False, help='Visualize results of the test session', action='store_true')
+    test_parser.add_argument("--sequence", "-s", required=False, help='Path to sequence to use instead of dummy')
 
     workspace_parser = subparsers.add_parser('workspace', help='Setup a new workspace and download data')
     workspace_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')

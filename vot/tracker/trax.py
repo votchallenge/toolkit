@@ -468,6 +468,8 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, tim
 
     command = '{} -c "{}import sys;{} {}"'.format(interpreter, virtualenv_launch, pathimport, command)
 
+    envvars["PYTHONUNBUFFERED"] = "1"
+
     return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
 
 def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
