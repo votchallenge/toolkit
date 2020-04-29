@@ -1,5 +1,5 @@
 
-from vot.cli import main
+from vot.utilities.cli import main
 
 if __name__ == '__main__':
     main()
