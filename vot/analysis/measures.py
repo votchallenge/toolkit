@@ -155,8 +155,8 @@ class PrecisionRecall(DependentAnalysis):
         # get optimal F-score and Pr and Re at this threshold
         f_score = max(results[1][0])
         best_i = results[1][0].index(f_score)
-        pr_score = results[0][0][best_i]
-        re_score = results[0][1][best_i]
+        pr_score = results[0][0][best_i][0]
+        re_score = results[0][0][best_i][1]
 
         return pr_score, re_score, f_score
 

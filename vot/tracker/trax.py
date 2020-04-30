@@ -201,7 +201,6 @@ class TrackerProcess(object):
                 logger.warning("Timeout reached, terminating tracker")
                 self.terminate()
                 break
-        print("Terminate")
 
     @property
     def has_vot_wrapper(self):
