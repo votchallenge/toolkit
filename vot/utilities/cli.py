@@ -11,7 +11,7 @@ from vot import check_updates, __version__
 from vot.tracker import load_trackers, TrackerException
 from vot.stack import resolve_stack, list_integrated_stacks
 from vot.workspace import Workspace
-from vot.utilities import Progress, normalize_path
+from vot.utilities import Progress, normalize_path, ColoredFormatter
 
 class EnvDefault(argparse.Action):
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
@@ -295,7 +295,9 @@ def do_pack(config, logger):
 
 def main():
     logger = logging.getLogger("vot")
-    logger.addHandler(logging.StreamHandler())
+    stream = logging.StreamHandler()
+    stream.setFormatter(ColoredFormatter())
+    logger.addHandler(stream)
 
     parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Utility', prog="vot")
     parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')
@@ -337,8 +339,7 @@ def main():
 
         update, version = check_updates()
         if update:
-            colorama.init()
-            print(colorama.Fore.GREEN + "A newer version of VOT toolkit is available: {}".format(version) + colorama.Fore.RESET)
+            logger.warning("A newer version of VOT toolkit is available (%s), please update.", version)
 
         if args.action == "test":
             do_test(args, logger)
@@ -353,7 +354,11 @@ def main():
         else:
             parser.print_help()
 
-    except argparse.ArgumentError:
-        traceback.print_exc()
+    except argparse.ArgumentError as e:
+        logger.error(e)
+        exit(-1)
+    except Exception as e:
+        logger.exception(e)
+        exit(1)
 
     exit(0)

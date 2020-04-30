@@ -4,11 +4,13 @@ import csv
 import re
 import hashlib
 import errno
+from logging import Formatter, LogRecord
 
 from numbers import Number
 from typing import Tuple
 
 import six
+import colorama
 
 def import_class(classpath, hints=None):
     delimiter = classpath.rfind(".")
@@ -23,6 +25,8 @@ def import_class(classpath, hints=None):
             except ImportError:
                 pass
             except TypeError:
+                pass
+            except AttributeError:
                 pass
         raise ImportError("Class {} not found in any of paths {}".format(classpath, hints))
     else:
@@ -197,3 +201,36 @@ def to_logical(val):
         return n
     except ValueError:
         raise RuntimeError("Logical value conversion error")
+
+class Empty(object):
+    """An empty class used to copy :class:`~logging.LogRecord` objects without reinitializing them."""
+
+class ColoredFormatter(Formatter):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        colorama.init()
+
+
+        self._styles = dict(
+            debug=colorama.Fore.GREEN,
+            verbose=colorama.Fore.BLACK,
+            info="",
+            notice=colorama.Fore.MAGENTA,
+            warning=colorama.Fore.YELLOW,
+            error=colorama.Fore.RED,
+            critical=colorama.Fore.RED + colorama.Style.BRIGHT,
+        )
+
+
+    def format(self, record: LogRecord):
+        style = self._styles[record.levelname.lower()]
+
+        copy = Empty()
+        copy.__class__ = record.__class__
+        copy.__dict__.update(record.__dict__)
+        msg = record.msg if isinstance(record.msg, str) else str(record.msg)
+        copy.msg = style + msg + colorama.Style.RESET_ALL
+        record = copy
+        # Delegate the remaining formatting to the base formatter.
+        return Formatter.format(self, record)
