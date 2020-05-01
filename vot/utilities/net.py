@@ -2,13 +2,10 @@
 import os
 import re
 import shutil
-import sys
 import tempfile
+from urllib.parse import urlparse, urljoin
 
 import requests
-import six
-
-from urllib.parse import urlparse, urljoin
 
 from vot import VOTException
 
@@ -90,15 +87,14 @@ def download(url, output, callback=None, chunk_size=1024*32):
         else:
             output = os.path.basename(url)
 
-    output_is_path = isinstance(output, six.string_types)
-
+    output_is_path = isinstance(output, str)
 
     if output_is_path:
         tmp_file = tempfile.mktemp()
-        f = open(tmp_file, 'wb')
+        filehandle = open(tmp_file, 'wb')
     else:
         tmp_file = None
-        f = output
+        filehandle = output
 
     try:
         total = res.headers.get('Content-Length')
@@ -107,11 +103,11 @@ def download(url, output, callback=None, chunk_size=1024*32):
             total = int(total)
 
         for chunk in res.iter_content(chunk_size=chunk_size):
-            f.write(chunk)
+            filehandle.write(chunk)
             if callback:
                 callback(len(chunk), total)
         if tmp_file:
-            f.close()
+            filehandle.close()
             shutil.copy(tmp_file, output)
     except IOError:
         raise NetworkException("Error when downloading file")

@@ -1,8 +1,12 @@
 
-import os, yaml, glob
+import os
+import glob
 import logging
+from typing import List, Optional, Dict
 from abc import ABC, abstractmethod
 from datetime import datetime
+
+import yaml
 
 from vot import VOTException
 
@@ -34,54 +38,6 @@ def initialize_workspace(directory, config=dict()):
     if not os.path.isfile(os.path.join(directory, "trackers.ini")):
         open(os.path.join(directory, "trackers.ini"), 'w').close()
 
-def migrate_workspace(directory):
-    import re
-    from numpy import genfromtxt, reshape, savetxt, all
-
-    config_file = os.path.join(directory, "config.yaml")
-    if os.path.isfile(config_file):
-        raise WorkspaceException("Workspace already initialized")
-
-    old_config_file = os.path.join(directory, "configuration.m")
-    if not os.path.isfile(old_config_file):
-        raise WorkspaceException("Old workspace config not detected")
-
-    with open(old_config_file, "r") as fp:
-        content = fp.read()
-        matches = re.findall("set\\_global\\_variable\\('stack', '([A-Za-z0-9]+)'\\)", content)
-        if not len(matches) == 1:
-            raise WorkspaceException("Experiment stack could not be retrieved")
-        stack = matches[0]
-
-    for tracker_dir in [x for x in os.scandir(os.path.join(directory, "results")) if x.is_dir()]:
-        for experiment_dir in [x for x in os.scandir(tracker_dir.path) if x.is_dir()]:
-            for sequence_dir in [x for x in os.scandir(experiment_dir.path) if x.is_dir()]:
-                timing_file = os.path.join(sequence_dir.path, "{}_time.txt".format(sequence_dir.name))
-                if os.path.isfile(timing_file):
-                    logger.info("Migrating %s", timing_file)
-                    times = genfromtxt(timing_file, delimiter=",")
-                    if len(times.shape) == 1:
-                        times = reshape(times, (times.shape[0], 1))
-                    for k in range(times.shape[1]):
-                        if all(times[:, k] == 0):
-                            break
-                        savetxt(os.path.join(sequence_dir.path, \
-                             "%s_%03d_time.value" % (sequence_dir.name, k+1)), \
-                             times[:, k] / 1000, fmt='%.6e')
-                    os.unlink(timing_file)
-
-    try:
-        resolve_stack(stack)
-    except:
-        logging.warning("Stack %s not found, you will have to manually edit and correct config file.", stack)
-
-    with open(config_file, 'w') as fp:
-        yaml.dump(dict(stack=stack, registry=["."]), fp)
-
-    os.unlink(old_config_file)
-
-    logging.info("Workspace %s migrated", directory)
-
 class Storage(ABC):
 
     @abstractmethod
@@ -89,11 +45,19 @@ class Storage(ABC):
         pass
 
     @abstractmethod
-    def list_results(self):
+    def list_results(self, registry: "Registry"):
         pass
 
     @abstractmethod
     def open_log(self, identifier):
+        pass
+
+    @abstractmethod
+    def write(self, path, binary=False):
+        pass
+
+    @abstractmethod
+    def substorage(self, name):
         pass
 
 class LocalStorage(ABC):
@@ -110,8 +74,9 @@ class LocalStorage(ABC):
         root = os.path.join(self._results, tracker.reference, experiment.identifier, sequence.name)
         return Results(root)
 
-    def list_results(self):
-        return [os.path.basename(x) for x in glob.glob(os.path.join(self._results, "*")) if os.path.isdir(x)]
+    def list_results(self, registry: "Registry"):
+        references = [os.path.basename(x) for x in glob.glob(os.path.join(self._results, "*")) if os.path.isdir(x)]
+        return registry.resolve(*references)
 
     def open_log(self, identifier):
 
@@ -119,6 +84,19 @@ class LocalStorage(ABC):
         os.makedirs(logdir, exist_ok=True)
 
         return open(os.path.join(logdir, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now())), "w")
+
+    def write(self, path, binary=False):
+        if os.path.isabs(path):
+            raise IOError("Only relative paths allowed")
+
+        full = os.path.join(self.base, path)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+
+        mode = "wb" if binary else "w"
+        return open(full, mode=mode, newline="")
+
+    def substorage(self, name):
+        return LocalStorage(os.path.join(self.base, name))
 
 class Cache(object):
 
@@ -187,10 +165,6 @@ class Workspace(object):
             download_dataset(self._stack.dataset, dataset_directory)
 
             logger.info("Download completed")
-
-    @property
-    def directory(self):
-        return self._root
 
     @property
     def registry(self):

@@ -8,7 +8,7 @@ from datetime import datetime
 import colorama
 
 from vot import check_updates, __version__
-from vot.tracker import load_trackers, TrackerException
+from vot.tracker import Registry, TrackerException
 from vot.stack import resolve_stack, list_integrated_stacks
 from vot.workspace import Workspace
 from vot.utilities import Progress, normalize_path, ColoredFormatter
@@ -34,12 +34,12 @@ class EnvDefault(argparse.Action):
 def do_test(config, logger):
     from vot.dataset.dummy import DummySequence
     from vot.dataset.vot import VOTSequence
-    trackers = load_trackers(config.registry)
+    trackers = Registry(config.registry)
 
     if not config.tracker:
         logger.error("Unable to continue without a tracker")
-        logger.error("List of available found trackers: ")
-        for k, _ in trackers.items():
+        logger.error("List of found trackers: ")
+        for k in trackers.identifiers():
             logger.error(" * %s", k)
         return
 
@@ -115,10 +115,11 @@ def do_test(config, logger):
 
 def do_workspace(config, logger):
 
-    from vot.workspace import initialize_workspace, migrate_workspace, WorkspaceException
+    from vot.workspace import initialize_workspace, WorkspaceException
 
     if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
-        migrate_workspace(config.workspace)
+        from vot.utilities.migration import migrate_matlab_workspace
+        migrate_matlab_workspace(config.workspace)
         return
     elif config.stack is None:
         stacks = list_integrated_stacks()
@@ -137,7 +138,6 @@ def do_workspace(config, logger):
 
     default_config = dict(stack=config.stack, registry=["./trackers.ini"])
 
-
     try:
         initialize_workspace(config.workspace, default_config)
         logger.info("Initialized workspace in '%s'", config.workspace)
@@ -154,20 +154,16 @@ def do_evaluate(config, logger):
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
-    registry = load_trackers(workspace.registry + global_registry, root=config.workspace)
+    registry = Registry(workspace.registry + global_registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
-    try:
-        trackers = [registry[t.strip()] for t in config.trackers]
-    except KeyError as ke:
-        logger.error("Tracker not found: %s", str(ke))
-        return
+    trackers = registry.resolve(*config.trackers, skip_unknown=False)
 
     if len(trackers) == 0:
         logger.error("Unable to continue without at least on tracker")
         logger.error("List of available found trackers: ")
-        for k, _ in trackers.items():
+        for k in registry.identifiers():
             logger.error(" * %s", k)
         return
 
@@ -186,7 +182,7 @@ def do_evaluate(config, logger):
 
 def do_analysis(config, logger):
 
-    from vot.analysis import process_measures
+    from vot.analysis import process_analyses
     from vot.analysis.document import generate_json_document, generate_latex_document, generate_html_document
 
     workspace = Workspace(config.workspace)
@@ -195,34 +191,38 @@ def do_analysis(config, logger):
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
-    registry = load_trackers(workspace.registry + global_registry, root=config.workspace)
+    registry = Registry(workspace.registry + global_registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
-    if not hasattr(config, 'trackers'):
-        trackers = workspace.storage.list_results()
+    if not config.trackers:
+        trackers = workspace.storage.list_results(registry)
     else:
-        trackers = config.trackers
+        trackers = registry.resolve(*config.trackers, skip_unknown=False)
 
-    try:
-        trackers = [registry[tracker] for tracker in trackers]
-    except KeyError as ke:
-        logger.error("Tracker not found %s", str(ke))
+    if not trackers:
+        logger.warning("No trackers resolved, stopping.")
         return
 
-    results = process_measures(workspace, trackers)
+    logger.debug("Running analysis for %d trackers", len(trackers))
 
-    if config.output == "latex":
-        output = os.path.join(workspace.directory, "analysis", "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now()))
-        generate_latex_document(results, output)
-    elif config.output == "html":
-        output = os.path.join(workspace.directory, "analysis", "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now()))
-        generate_html_document(results, output)
-    elif config.output == "json":
-        output = os.path.join(workspace.directory, "analysis_{:%Y-%m-%dT%H-%M-%S.%f%z}.json".format(datetime.now()))
-        generate_json_document(results, output)
+    results = process_analyses(workspace, trackers)
 
-    logger.info("Analysis successful, results available in %s", output)
+    if config.name is None:
+        name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
+    else:
+        name = config.name
+
+    storage = workspace.storage.substorage("analysis").substorage(name)
+
+    if config.format == "latex":
+        generate_latex_document(results, storage)
+    elif config.format == "html":
+        generate_html_document(results, storage)
+    elif config.format == "json":
+        generate_json_document(results, storage)
+
+    logger.info("Analysis successful, report available as %s", name)
 
 
 def do_pack(config, logger):
@@ -234,15 +234,11 @@ def do_pack(config, logger):
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
-    registry = load_trackers(workspace.registry + config.registry, root=config.workspace)
+    registry = Registry(workspace.registry + config.registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
-    try:
-        tracker = registry[config.tracker]
-    except KeyError as ke:
-        logger.error("Tracker not found %s", str(ke))
-        return
+    tracker = registry[config.tracker]
 
     logger.info("Packaging results for tracker %s", tracker.identifier)
 
@@ -271,7 +267,7 @@ def do_pack(config, logger):
 
     timestamp = datetime.now()
 
-    archive_name = os.path.join(workspace.directory, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.zip".format(tracker.identifier, timestamp))
+    archive_name = "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.zip".format(tracker.identifier, timestamp)
 
     progress = Progress(desc="Compressing", total=len(all_files))
 
@@ -279,7 +275,7 @@ def do_pack(config, logger):
         timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform,
         python=sys.version, toolkit=__version__)
 
-    with zipfile.ZipFile(archive_name, 'w') as archive:
+    with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True)) as archive:
         for f in all_files:
             info = zipfile.ZipInfo(filename=os.path.join(f[1], f[2], f[0]), date_time=timestamp.timetuple())
             with io.TextIOWrapper(archive.open(info, mode="w")) as fout, f[3].read(f[0]) as fin:
@@ -324,7 +320,9 @@ def main():
     analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
-    analysis_parser.add_argument("--output", choices=("latex", "html", "json"), default="json", help='Analysis output format')
+    analysis_parser.add_argument("--format", choices=("latex", "html", "json"), default="json", help='Analysis output format')
+    analysis_parser.add_argument("--name", required=None, help='Analysis output name')
+
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
@@ -333,6 +331,8 @@ def main():
     try:
 
         args = parser.parse_args()
+
+        logger.setLevel(logging.INFO)
 
         if args.debug:
             logger.setLevel(logging.DEBUG)

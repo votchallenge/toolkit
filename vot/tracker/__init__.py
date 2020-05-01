@@ -3,8 +3,9 @@ import os
 import re
 import configparser
 import logging
+import copy
 from typing import Tuple
-
+from collections import OrderedDict
 from abc import abstractmethod, ABC
 
 import yaml
@@ -51,56 +52,98 @@ def parse_reference(reference):
 
 _runtime_protocols = {}
 
-def load_trackers(directories, root=os.getcwd()):
+class Registry(object):
 
-    trackers = dict()
-    registries = []
+    def __init__(self, directories, root=os.getcwd()):
+        trackers = dict()
+        registries = []
 
-    for directory in directories:
-        if not os.path.isabs(directory):
-            directory = os.path.normpath(os.path.abspath(os.path.join(root, directory)))
+        for directory in directories:
+            if not os.path.isabs(directory):
+                directory = os.path.normpath(os.path.abspath(os.path.join(root, directory)))
 
-        if os.path.isdir(directory):
-            registries.append(os.path.join(directory, "trackers.yaml"))
-            registries.append(os.path.join(directory, "trackers.ini"))
+            if os.path.isdir(directory):
+                registries.append(os.path.join(directory, "trackers.yaml"))
+                registries.append(os.path.join(directory, "trackers.ini"))
 
-        if os.path.isfile(directory):
-            registries.append(directory)
+            if os.path.isfile(directory):
+                registries.append(directory)
 
-    for registry in list(dict.fromkeys(registries)):
-        if not os.path.isfile(registry):
-            continue
+        for registry in list(dict.fromkeys(registries)):
+            if not os.path.isfile(registry):
+                continue
 
-        logger.info("Scanning registry %s", registry)
+            logger.info("Scanning registry %s", registry)
 
-        extension = os.path.splitext(registry)[1].lower()
+            extension = os.path.splitext(registry)[1].lower()
 
-        if extension == ".yaml":
-            with open(registry, 'r') as fp:
-                metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-            for k, v in metadata.items():
-                if not is_valid_identifier(k):
-                    logger.warning("Invalid tracker identifier %s in %s", k, registry)
+            if extension == ".yaml":
+                with open(registry, 'r') as fp:
+                    metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+                for k, v in metadata.items():
+                    if not is_valid_identifier(k):
+                        logger.warning("Invalid tracker identifier %s in %s", k, registry)
+                        continue
+                    if k in trackers:
+                        logger.warning("Duplicate tracker identifier %s in %s", k, registry)
+                        continue
+
+                    trackers[k] = Tracker(_identifier=k, _source=registry, **v)
+
+            if extension == ".ini":
+                config = configparser.ConfigParser()
+                config.read(registry)
+                for section in config.sections():
+                    if not is_valid_identifier(section):
+                        logger.warning("Invalid identifier %s in %s", section, registry)
+                        continue
+                    if section in trackers:
+                        logger.warning("Duplicate tracker identifier %s in %s", section, registry)
+                        continue
+
+                    trackers[section] = Tracker(_identifier=section, _source=registry, **config[section])
+ 
+            self._trackers = OrderedDict(sorted(trackers.items(), key=lambda t: t[0]))
+
+    def __getitem__(self, reference):
+        return self.resolve(reference, skip_unknown=False)[0]
+
+    def __hasitem__(self, reference):
+        identifier, _ = parse_reference(reference)
+        return identifier in self._trackers
+
+    def __iter__(self):
+        return iter(self._trackers.values())
+
+    def __len__(self):
+        return len(self._trackers)
+
+    def resolve(self, *references, skip_unknown=True):
+
+        trackers = []
+
+        for reference in references:
+
+            identifier, version = parse_reference(reference)
+
+            if not identifier in self._trackers:
+                if not skip_unknown:
+                    raise VOTException("Unable to resolve tracker reference: {}".format(reference))
+                else:
                     continue
-                if k in trackers:
-                    logger.warning("Duplicate tracker identifier %s in %s", k, registry)
-                    continue
 
-                trackers[k] = Tracker(_identifier=k, _registry=registry, **v)
+            base = self._trackers[identifier]
+            
+            trackers.append(base.reversion(version))
 
-        if extension == ".ini":
-            config = configparser.ConfigParser()
-            config.read(registry)
-            for section in config.sections():
-                if not is_valid_identifier(section):
-                    logger.warning("Invalid identifier %s in %s", section, registry)
-                    continue
-                if section in trackers:
-                    logger.warning("Duplicate tracker identifier %s in %s", section, registry)
-                    continue
+        return trackers
 
-                trackers[section] = Tracker(_identifier=section, _registry=registry, **config[section])
-    return trackers
+    def references(self):
+        return [t.reference for t in self._trackers.values()]
+
+    def identifiers(self):
+        return [t.identifier for t in self._trackers.values()]
+
 
 def collect_envvars(**kwargs):
     envvars = dict()
@@ -138,9 +181,9 @@ def collect_arguments(**kwargs):
 
 class Tracker(object):
 
-    def __init__(self, _identifier, _registry, command, protocol=None, label=None, version=None, **kwargs):
+    def __init__(self, _identifier, _source, command, protocol=None, label=None, version=None, **kwargs):
         self._identifier = _identifier
-        self._registry = _registry
+        self._source = _source
         self._command = command
         self._protocol = protocol
         self._label = label
@@ -151,6 +194,21 @@ class Tracker(object):
         if not self._version is None and not self._version.isalnum():
             raise TrackerException("Illegal version format", tracker=self)
 
+    def reversion(self, version=None) -> "Tracker":
+        """Creates a new tracker instance for specified version
+
+        Keyword Arguments:
+            version {[type]} -- New version (default: {None})
+
+        Returns:
+            Tracker -- [description]
+        """
+        if self.version == version or version is None:
+            return self
+        tracker = copy.copy(self)
+        tracker._version = version
+        return tracker
+
     def runtime(self, log=False) -> "TrackerRuntime":
         if not self._protocol:
             raise TrackerException("Tracker does not have an attached executable", tracker=self)
@@ -160,9 +218,15 @@ class Tracker(object):
 
         return _runtime_protocols[self._protocol](self, self._command, log=log, envvars=self._envvars, arguments=self._arguments, **self._args)
 
+    def __eq__(self, other):
+        if other is None or not isinstance(other, Tracker):
+            return False
+
+        return self.reference == other.identifier
+
     @property
-    def registry(self):
-        return self._registry
+    def source(self):
+        return self._source
 
     @property
     def identifier(self):
