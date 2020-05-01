@@ -4,8 +4,7 @@ from typing import List, Dict, Any
 
 from vot.tracker import Tracker
 from vot.dataset import Sequence
-from vot.region.utils import calculate_overlaps
-from vot.region import Region, RegionType
+from vot.region import Region, RegionType, calculate_overlaps
 from vot.experiment import Experiment
 from vot.experiment.multirun import UnsupervisedExperiment
 from vot.analysis import Analysis, DependentAnalysis, MissingResultsException, Curve

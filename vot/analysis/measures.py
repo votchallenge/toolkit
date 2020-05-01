@@ -9,9 +9,8 @@ from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import MultiRunExperiment, SupervisedExperiment, UnsupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
-from vot.region.utils import calculate_overlaps
-from vot.region import Region, Special
-from vot.analysis import Analysis, SeparatableAnalysis, DependentAnalysis, \
+from vot.region import Region, Special, calculate_overlaps
+from vot.analysis import SeparatableAnalysis, DependentAnalysis, \
     MissingResultsException, Measure, Point, is_special
 from vot.analysis.curves import PrecisionRecallCurve, FScoreCurve
 from vot.utilities import to_number, to_logical
@@ -164,10 +163,10 @@ class AccuracyRobustness(SeparatableAnalysis):
 
     def __init__(self, sensitivity: int = 30, burnin: int = 10, ignore_unknown: bool = True, bounded: bool = True):
         super().__init__()
-        self._sensitivity = sensitivity
-        self._burnin = burnin
-        self._ignore_unknown = ignore_unknown
-        self._bounded = bounded
+        self._sensitivity = to_number(sensitivity, min_n=1)
+        self._burnin = to_number(burnin, min_n=0)
+        self._ignore_unknown = to_logical(ignore_unknown)
+        self._bounded = to_logical(bounded)
 
     @property
     def name(self):
@@ -195,7 +194,7 @@ class AccuracyRobustness(SeparatableAnalysis):
             accuracy += a * w
             weight_total += w
 
-        ar = (accuracy / weight_total, math.exp(- (failures / weight_total) * self._sensitivity))
+        ar = (accuracy / weight_total, math.exp(- (failures / weight_total) * float(self._sensitivity)))
 
         return accuracy / weight_total, failures / weight_total, ar, weight_total
 
@@ -210,8 +209,8 @@ class AccuracyRobustness(SeparatableAnalysis):
         for trajectory in trajectories:
             failures += count_failures(trajectory.regions())[0]
             accuracy += compute_accuracy(trajectory.regions(), sequence, self._burnin, self._ignore_unknown, self._bounded)[0]
-
-        ar = (accuracy / len(trajectories), math.exp(- (failures / len(trajectories)) * self._sensitivity))
+        print(sequence.name)
+        ar = (accuracy / len(trajectories), math.exp(- (float(failures) / len(trajectories)) * float(self._sensitivity)))
 
         return accuracy / len(trajectories), failures / len(trajectories), ar, len(trajectories[0])
 
@@ -304,15 +303,15 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
         return accuracy / total, robustness / total, ar, len(sequence)
 
 class EAOScore(DependentAnalysis):
-    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, interval_low: int = 99, interval_high: int = 355):
+    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, low: int = 99, high: int = 355):
         from vot.analysis.plots import EAOCurve
 
         super().__init__()
         self._burnin = to_number(burnin, min_n=0)
         self._grace = to_number(grace, min_n=0)
         self._bounded = to_logical(bounded)
-        self._interval_low = to_number(interval_low, min_n=0)
-        self._interval_high = to_number(interval_high, min_n=self._interval_low+1)
+        self._low = to_number(low, min_n=0)
+        self._high = to_number(high, min_n=self._low+1)
         self._eaocurve = EAOCurve(burnin, grace, bounded)
 
     @property
@@ -320,7 +319,7 @@ class EAOScore(DependentAnalysis):
         return "EAO analysis"
 
     def parameters(self) -> Dict[str, Any]:
-        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded, interval_low=self._interval_low, interval_high=self._interval_high)
+        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded, low=self._low, high=self._high)
 
     def describe(self):
         return Measure("EAO", 0, 1, Measure.DESCENDING),
@@ -332,10 +331,10 @@ class EAOScore(DependentAnalysis):
         return self._eaocurve,
 
     def join(self, results: List[tuple]):
-        return float(np.mean(results[0][0][self._interval_low:self._interval_high + 1])),
+        return float(np.mean(results[0][0][self._low:self._high + 1])),
 
 class EAOScoreMultiStart(DependentAnalysis):
-    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, threshold: float = 0.1, interval_low: int = 115, interval_high: int = 755):
+    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, threshold: float = 0.1, low: int = 115, high: int = 755):
         from vot.analysis.plots import EAOCurveMultiStart
         super().__init__()
         self._burnin = to_number(burnin, min_n=0)
@@ -343,8 +342,8 @@ class EAOScoreMultiStart(DependentAnalysis):
         self._bounded = to_logical(bounded)
         self._threshold = to_number(threshold, min_n=0, max_n=1, conversion=float)
 
-        self._interval_low = to_number(interval_low, min_n=0)
-        self._interval_high = to_number(interval_high, min_n=self._interval_low+1)
+        self._low = to_number(low, min_n=0)
+        self._high = to_number(high, min_n=self._low+1)
         self._eaocurve = EAOCurveMultiStart(burnin, grace, bounded, threshold)
 
     @property
@@ -352,7 +351,7 @@ class EAOScoreMultiStart(DependentAnalysis):
         return "EAO analysis"
 
     def parameters(self) -> Dict[str, Any]:
-        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded, threshold=self._threshold, interval_low=self._interval_low, interval_high=self._interval_high)
+        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded, threshold=self._threshold, low=self._low, high=self._high)
 
     def describe(self):
         return Measure("EAO", 0, 1, Measure.DESCENDING),
@@ -364,4 +363,4 @@ class EAOScoreMultiStart(DependentAnalysis):
         return self._eaocurve,
 
     def join(self, results: List[tuple]):
-        return float(np.mean(results[0][0][self._interval_low:self._interval_high + 1])),
+        return float(np.mean(results[0][0][self._low:self._high + 1])),

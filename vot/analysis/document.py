@@ -8,6 +8,7 @@ from pylatex.utils import italic, NoEscape
 
 from vot.tracker import Tracker
 from vot.experiment import Experiment
+from vot.workspace import Storage
 from vot.analysis import Analysis, Measure, Curve
 
 def extract_measures_table(results):
@@ -82,23 +83,27 @@ def merge_repeats(objects):
 
     return repeats
 
-def generate_json_document(results, filename):
+def generate_json_document(results, storage: Storage):
 
-    class StringifyEncoder(json.JSONEncoder):
-        def default(self, obj: Any):  # pylint: disable=E0202
-            if isinstance(obj, Analysis):
-                return obj.name
-            if isinstance(obj, Tracker):
-                return obj.label
-            if isinstance(obj, Experiment):
-                return obj.identifier
-            return json.JSONEncoder.default(self, obj)
+    def transform_key(key):
+        if isinstance(key, Analysis):
+            return key.name
+        if isinstance(key, Tracker):
+            return key.label
+        if isinstance(key, Experiment):
+            return key.identifier
+        return key
 
-    with open(filename, "w") as fp:
-        json.dump(results, fp, indent=2, cls=StringifyEncoder)
+    def transform_value(value):
+        if isinstance(value, dict):
+            return {transform_key(k): transform_value(v) for k, v in value.items()}
+        return value
+
+    with storage.write("results.json") as handle:
+        json.dump(transform_value(results), handle, indent=2)
 
 
-def generate_latex_document(results, path, compile=False):
+def generate_latex_document(results, storage: Storage, compile=False):
 
     table_header, table_data = extract_measures_table(results)
 
@@ -128,5 +133,5 @@ def generate_latex_document(results, path, compile=False):
     doc.generate_pdf("longtable", clean_tex=False)
 
 
-def generate_html_document(results, path):
+def generate_html_document(results, storage: Storage):
     raise NotImplementedError

@@ -2,10 +2,11 @@ import sys
 
 from copy import copy
 from functools import reduce
-from typing import Tuple
+from typing import Tuple, List
 from abc import ABC, abstractmethod
 
 import numpy as np
+from numba import jit
 import cv2
 
 from vot.region import Region, ConversionException, RegionType, RegionException
@@ -14,15 +15,23 @@ from vot.utilities.draw import DrawHandle
 class Shape(Region, ABC):
 
     @abstractmethod
-    def draw(self, handle: DrawHandle):
+    def draw(self, handle: DrawHandle) -> None:
         pass
 
     @abstractmethod
-    def resize(self, factor=1):
+    def resize(self, factor=1) -> "Shape":
         pass
 
     @abstractmethod
-    def move(self, dx=0, dy=0):
+    def move(self, dx=0, dy=0) -> "Shape":
+        pass
+
+    @abstractmethod
+    def rasterize(self, bounds: Tuple[int, int, int, int]) -> np.ndarray:
+        pass
+
+    @abstractmethod
+    def bounds(self) -> Tuple[int, int, int, int]:
         pass
 
 class Rectangle(Shape):
@@ -109,7 +118,14 @@ class Rectangle(Shape):
     def move(self, dx=0, dy=0):
         return Rectangle(self.x + dx, self.y + dy, self.width, self.height)
 
-class Polygon(Region):
+    def rasterize(self, bounds):
+        from vot.region.raster import rasterize_rectangle
+        return rasterize_rectangle(self.x, self.y, self.width, self.height, bounds)
+
+    def bounds(self):
+        return int(round(self.x)), int(round(self.y)), int(round(self.width + self.x)), int(round(self.height + self.y))
+
+class Polygon(Shape):
     """
     Polygon region
 
@@ -123,20 +139,25 @@ class Polygon(Region):
         :param list points: List of points as tuples [(x1,y1), (x2,y2),...,(xN,yN)]
         """
         super().__init__()
-        assert isinstance(points, list)
-        # do not allow empty list
-        assert points
-        assert reduce(lambda x, y: x and y, [isinstance(p, tuple) for p in points])
-        self.count = len(points)
-        self.points = points
+        assert(points)
+        self._points = np.array(points)
+        assert(self._points.shape[0] > 3 and self._points.shape[1] == 2)  # pylint: disable=E1136
+
 
     def __str__(self):
         """ Create string from class """
-        return ','.join(['{},{}'.format(p[0], p[1]) for p in self.points])
+        return ','.join(['{},{}'.format(p[0], p[1]) for p in self._points])
 
     @property
     def type(self):
         return RegionType.POLYGON
+
+    @property
+    def size(self):
+        return self._points.shape[0] # pylint: disable=E1136
+
+    def __getitem__(self, i):
+        return tuple(self._points[i, 0], self._points[i, 1])
 
     def copy(self):
         return copy(self)
@@ -145,54 +166,49 @@ class Polygon(Region):
         if rtype == RegionType.POLYGON:
             return self.copy()
         elif rtype == RegionType.RECTANGLE:
-            top = sys.float_info.max
-            bottom = -sys.float_info.max
-            left = sys.float_info.max
-            right = -sys.float_info.max
-
-            for point in self.points:
-                top = min(top, point[1])
-                bottom = max(bottom, point[1])
-                left = min(left, point[0])
-                right = max(right, point[0])
+            top = np.min(self._points[:, 1])
+            bottom = np.max(self._points[:, 1])
+            left = np.min(self._points[:, 0])
+            right = np.max(self._points[:, 0])
 
             return Rectangle(left, top, right - left, bottom - top)
         elif rtype == RegionType.MASK:
-            x_ = np.round(np.array([p[0] for p in self.points])).astype(np.int32)
-            y_ = np.round(np.array([p[1] for p in self.points])).astype(np.int32)
-            tl_ = (max(0, np.min(x_)), max(0, np.min(y_)))  # there is no need to consider negative coordinates since fill poly function can work with negative coordinates
-            w_ = np.max(x_) - tl_[0] + 1
-            h_ = np.max(y_) - tl_[1] + 1
-            # normalize points by x_min and y_min (so that the smallest element is 0)
-            points_norm = [(px - tl_[0], py - tl_[1]) for px, py in zip(x_, y_)]
-            m = np.zeros((h_, w_), dtype=np.uint8)
-            cv2.fillConvexPoly(m, np.round(np.array(points_norm)).astype(np.int32), 1)
-
-            return Mask(m, offset=tl_)
+            bounds = self.bounds()
+            mask = self.rasterize(bounds)
+            return Mask(mask, offset=(bounds[0], bounds[1]))
         else:
             raise ConversionException("Unable to convert polygon region to {}".format(rtype), source=self)
 
-    def is_empty(self):
-        x_ = np.array([p[0] for p in self.points])
-        y_ = np.array([p[1] for p in self.points])
-        if (np.max(x_) - np.min(x_)) > 0 and (np.max(y_) - np.min(y_)) > 0:
-            return False
-        else:
-            return True
-
-    def draw(self, handle: DrawHandle=1):
-        handle.polygon(self.points)
+    def draw(self, handle: DrawHandle):
+        handle.polygon(self._points.tolist())
 
     def resize(self, factor=1):
-        return Polygon([(p[0] * factor, p[1] * factor) for p in self.points])
+        return Polygon([(p[0] * factor, p[1] * factor) for p in self._points])
 
     def move(self, dx=0, dy=0):
-        return Polygon([(p[0] + dx, p[1] + dy) for p in self.points])
+        return Polygon([(p[0] + dx, p[1] + dy) for p in self._points])
 
+    def is_empty(self):
+        top = np.min(self._points[:, 1])
+        bottom = np.max(self._points[:, 1])
+        left = np.min(self._points[:, 0])
+        right = np.max(self._points[:, 0])
+        return top == bottom or left == right
 
-from vot.region.utils import mask2bbox, mask_to_rle
+    def rasterize(self, bounds: Tuple[int, int, int, int]):
+        from vot.region.raster import rasterize_polygon
+        return rasterize_polygon(self._points, bounds)
 
-class Mask(Region):
+    def bounds(self):
+        top = np.min(self._points[:, 1])
+        bottom = np.max(self._points[:, 1])
+        left = np.min(self._points[:, 0])
+        right = np.max(self._points[:, 0])
+        return int(round(left)), int(round(top)), int(round(right)), int(round(bottom))
+
+from vot.region.io import mask2bbox, mask_to_rle
+
+class Mask(Shape):
     """Mask region
     """
 
@@ -240,16 +256,16 @@ class Mask(Region):
             return self.copy()
         elif rtype == RegionType.RECTANGLE:
             bounds = mask2bbox(self.mask)
-            if None in bounds: return Rectangle(0, 0, 0, 0)
             return Rectangle(bounds[0] + self.offset[0], bounds[1] + self.offset[1],
                             bounds[2] - bounds[0], bounds[3] - bounds[1])
         elif rtype == RegionType.POLYGON:
             bounds = mask2bbox(self.mask)
-            if None in bounds: return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)])
+            if None in bounds:
+                return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)])
             return Polygon([
-                (bounds[0] + self.offset[0], bounds[1] + self.offset[1]), 
-                (bounds[2] + self.offset[0], bounds[1] + self.offset[1]), 
-                (bounds[2] + self.offset[0], bounds[3] + self.offset[1]), 
+                (bounds[0] + self.offset[0], bounds[1] + self.offset[1]),
+                (bounds[2] + self.offset[0], bounds[1] + self.offset[1]),
+                (bounds[2] + self.offset[0], bounds[3] + self.offset[1]),
                 (bounds[0] + self.offset[0], bounds[3] + self.offset[1])])
         else:
             raise ConversionException("Unable to convert mask region to {}".format(rtype), source=self)
@@ -257,50 +273,9 @@ class Mask(Region):
     def draw(self, handle: DrawHandle):
         handle.mask(self._mask, self.offset)
 
-    def get_array(self, output_sz=None):
-        """
-        return an array of 2-D binary mask
-        output_sz is in the format: [width, height]
-        """
-        tl_x, tl_y = self.offset[0], self.offset[1]
-        region_w, region_h = self.mask.shape[1], self.mask.shape[0]
-        mask_ = np.zeros((region_h + tl_y, region_w + tl_x), dtype=np.uint8)
-        # mask bounds - needed if mask is outside of image
-        # TODO: this part of code needs to be tested more with edge cases
-        src_x0, src_y0 = 0, 0
-        src_x1, src_y1 = self.mask.shape[1], self.mask.shape[0]
-        dst_x0, dst_y0 = tl_x, tl_y
-        dst_x1, dst_y1 = tl_x + region_w, tl_y + region_h
-        if dst_x1 > 0 and dst_y1 > 0 and dst_x0 < mask_.shape[1] and dst_y0 < mask_.shape[0]:
-            if dst_x0 < 0:
-                src_x0 = -dst_x0
-                dst_x0 = 0
-            if dst_y0 < 0:
-                src_y0 = -dst_y0
-                dst_y0 = 0
-            if dst_x1 > mask_.shape[1]:
-                src_x1 -= dst_x1 - mask_.shape[1]# + 1
-                dst_x1 = mask_.shape[1]
-            if dst_y1 > mask_.shape[0]:
-                src_y1 -= dst_y1 - mask_.shape[0]# + 1
-                dst_y1 = mask_.shape[0]
-            mask_[dst_y0:dst_y1, dst_x0:dst_x1] = self.mask[src_y0:src_y1, src_x0:src_x1]
-
-        # pad with zeros right and down if output size is larger than current mask
-        if output_sz is not None:
-            pad_x = output_sz[0] - mask_.shape[1]
-            if pad_x < 0:
-                mask_ = mask_[:, :mask_.shape[1] + pad_x]
-                # padding has to be set to zero, otherwise pad function fails
-                pad_x = 0
-            pad_y = output_sz[1] - mask_.shape[0]
-            if pad_y < 0:
-                mask_ = mask_[:mask_.shape[0] + pad_y, :]
-                # padding has to be set to zero, otherwise pad function fails
-                pad_y = 0
-            mask_ = np.pad(mask_, ((0, pad_y), (0, pad_x)), 'constant', constant_values=0)
-
-        return mask_
+    def rasterize(self, bounds):
+        from vot.region.raster import copy_mask
+        return copy_mask(self._mask, self._offset, bounds)
 
     def is_empty(self):
         if self.mask.shape[1] > 0 and self.mask.shape[0] > 0:
@@ -323,3 +298,8 @@ class Mask(Region):
 
     def move(self, dx=0, dy=0):
         return Mask(self._mask, (self.offset[0] + dx, self.offset[1] + dy))
+
+    @jit(nopython=True)
+    def bounds(self):
+        bounds = mask2bbox(self.mask)
+        return bounds[0] + self.offset[0], bounds[1] + self.offset[1], bounds[2] + self.offset[0], bounds[3] + self.offset[1]
