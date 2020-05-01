@@ -1,5 +1,7 @@
+import logging
 from typing import List, Optional, Tuple, Dict, Any
 from abc import ABC, abstractmethod
+
 
 from vot.tracker import Tracker
 from vot.dataset import Sequence
@@ -219,11 +221,15 @@ _ANALYSES = list()
 def register_analysis(analysis: Analysis):
     _ANALYSES.append(analysis)
 
-def process_measures(workspace: "Workspace", trackers: List[Tracker]):
+def process_analyses(workspace: "Workspace", trackers: List[Tracker]):
+
+    logger = logging.getLogger("vot")
 
     results = dict()
 
     for experiment in workspace.stack:
+
+        logger.debug("Processing experiment %s", experiment.identifier)
 
         results[experiment] = dict()
 
@@ -232,12 +238,16 @@ def process_measures(workspace: "Workspace", trackers: List[Tracker]):
             if not analysis.compatible(experiment):
                 continue
 
+
+            logger.debug("Processing analysis %s", analysis)
+
             analysis_results = dict()
 
             for tracker in trackers:
                 try:
                     analysis_results[tracker] = analysis.compute(tracker, experiment, workspace.dataset)
                 except MissingResultsException:
+                    logger.debug("Results missing for tracker %s", tracker.identifier)
                     analysis_results[tracker] = None
 
             results[experiment][analysis] = analysis_results
