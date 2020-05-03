@@ -74,6 +74,8 @@ class Result(ABC):
         self._name = name
         if abbreviation is None:
             self._abbreviation = name
+        else:
+            self._abbreviation = abbreviation
 
     @property
     def name(self):
@@ -258,7 +260,7 @@ def process_analyses(workspace: "Workspace", trackers: List[Tracker], executor: 
             if not analysis.compatible(experiment):
                 continue
 
-            logger.debug("Traversing analysis %s", analysis)
+            logger.debug("Traversing analysis %s", analysis.name)
 
             analysis_results = dict()
 
@@ -278,14 +280,15 @@ def process_analyses(workspace: "Workspace", trackers: List[Tracker], executor: 
 
         while True:
             with state["condition"]:
-                progress.update(state["complete"])
+                progress.update_absolute(state["complete"])
 
                 if state["total"] == state["complete"]:
                     break
 
-                state["condition"].wait()
+                state["condition"].wait(1)
 
     except KeyboardInterrupt:
+        progress.close()
         logger.info("Analysis interrupted by user, aborting.")
         return None
 

@@ -4,6 +4,7 @@ import glob
 import tempfile
 import six
 import logging
+from collections import OrderedDict
 
 import cv2
 
@@ -112,7 +113,15 @@ class VOTDataset(Dataset):
 
         with open(os.path.join(path, "list.txt"), 'r') as fd:
             names = fd.readlines()
-        self._sequences = {name.strip() : VOTSequence(os.path.join(path, name.strip()), dataset=self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
+
+        self._sequences = OrderedDict()
+
+        progress = Progress(desc="Loading dataset", unit="sequences", total=len(names))
+
+        for name in names:
+            self._sequences[name.strip()] = VOTSequence(os.path.join(path, name.strip()), dataset=self)
+            progress.update_relative(1)
+        progress.close()
 
     @property
     def path(self):

@@ -61,6 +61,10 @@ class Storage(ABC):
     def substorage(self, name):
         pass
 
+    @abstractmethod
+    def copy(self, localfile, destination):
+        pass
+
 class LocalStorage(ABC):
 
     def __init__(self, root: str):
@@ -99,10 +103,15 @@ class LocalStorage(ABC):
     def substorage(self, name):
         return LocalStorage(os.path.join(self.base, name))
 
+    def copy(self, localfile, destination):
+        import shutil
+        shutil.copy(localfile, os.path.join(self.base, destination))
+        #with open(localfile, "rb") as fin:
+
 class Cache(cachetools.Cache):
 
     def __init__(self, root: str):
-        super().__init__(1000)
+        super().__init__(10000)
         self._root = root
         os.makedirs(self._root, exist_ok=True)
 
@@ -163,12 +172,6 @@ class Cache(cachetools.Cache):
                 return pickle.dump(value, filehandle)
         except pickle.PickleError:
             pass
-
-    def __delitem__(self, key):
-        filename = self._filename(key)
-        if os.path.isfile(filename):
-            os.unlink(filename)
-        super().__delitem__(key)
 
     def __contains__(self, key):
         filename = self._filename(key)

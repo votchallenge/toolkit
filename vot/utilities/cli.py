@@ -207,8 +207,9 @@ def do_analysis(config, logger):
     logger.debug("Running analysis for %d trackers", len(trackers))
 
     if config.workers == 1:
-        from concurrent.futures import ThreadPoolExecutor
+        from vot.utilities import ThreadPoolExecutor
         executor = ThreadPoolExecutor(1)
+
     else:
         from concurrent.futures import ProcessPoolExecutor
         executor = ProcessPoolExecutor(config.workers)
@@ -221,7 +222,7 @@ def do_analysis(config, logger):
 
     results = process_analyses(workspace, trackers, executor, cache)
 
-    executor.shutdown(wait=False)
+    executor.shutdown(wait=True)
 
     if results is None:
         return
@@ -234,7 +235,9 @@ def do_analysis(config, logger):
     storage = workspace.storage.substorage("analysis").substorage(name)
 
     if config.format == "latex":
-        generate_latex_document(results, storage)
+        generate_latex_document(results, storage, False)
+    if config.format == "pdf":
+        generate_latex_document(results, storage, True)
     elif config.format == "html":
         generate_html_document(results, storage)
     elif config.format == "json":
@@ -338,9 +341,9 @@ def main():
     analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
-    analysis_parser.add_argument("--format", choices=("latex", "html", "json"), default="json", help='Analysis output format')
+    analysis_parser.add_argument("--format", choices=("latex", "pdf", "html", "json"), default="json", help='Analysis output format')
     analysis_parser.add_argument("--name", required=False, help='Analysis output name')
-    analysis_parser.add_argument("--workers", default=1, required=False, help='Number of parallel workers')
+    analysis_parser.add_argument("--workers", default=1, required=False, help='Number of parallel workers', type=int)
     analysis_parser.add_argument("--nocache", default=False, required=False, help="Do not cache data to disk", action='store_true')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')

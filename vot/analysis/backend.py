@@ -53,9 +53,12 @@ class AnalysisAggregator(object):
         self._results = [None] * count
         self._callback = callback
         self._tasks = []
+        self._cancelled = False
 
     def __call__(self, i, result):
         with self._lock:
+            if self._cancelled:
+                return
             if isinstance(result, Exception):
                 self.cancel()
                 self._callback(result)
@@ -70,8 +73,10 @@ class AnalysisAggregator(object):
         self._tasks.append(promise)
 
     def cancel(self):
-        for promise in self._tasks:
-            promise.cancel()
+        with self._lock:
+            for promise in self._tasks:
+                promise.cancel()
+            self._cancelled = True
 
 class AnalysisProcessor(object):
 
@@ -158,6 +163,9 @@ class AnalysisProcessor(object):
         return False
 
     def _future_done(self, future: Future):
+
+        if future.cancelled():
+            return
 
         bundle = future.result()
         key = bundle["key"]

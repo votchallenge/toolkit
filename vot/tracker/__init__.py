@@ -227,6 +227,9 @@ class Tracker(object):
     def __hash__(self):
         return hash(self.reference)
 
+    def __repr__(self):
+        return self.reference
+
     @property
     def source(self):
         return self._source

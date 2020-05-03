@@ -195,7 +195,7 @@ def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], o: Optional
     elif not o is None:
         return copy_mask(a, o, bounds)
 
-@numba.njit(inline='always')
+@numba.njit(inline='always', cache=True)
 def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int]] = None,
         bo: Optional[Tuple[int, int]] = None, bounds: Optional[Tuple[int, int]] = None):
 
@@ -229,18 +229,6 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int
                 intersection += 1
 
     return float(intersection) / float(union) if union > 0 else float(0)
-
-@numba.njit
-def _calculate_overlaps(la, lb, lao, lbo, bounds):
-
-    overlaps = np.zeros((len(la, )), dtype=np.float32)
-    i = 0
-
-    for a, b, ao, bo in zip(la, lb, lao, lbo):
-        overlaps[i] = _calculate_overlap(a, b, ao, bo, bounds)
-        i += 1
-
-    return overlaps
 
 from vot.region import Region
 from vot.region.shapes import Shape, Rectangle, Polygon, Mask
@@ -283,7 +271,5 @@ def calculate_overlaps(first: List[Region], second: List[Region], bounds: Option
     bounds is in the format [width, height]
     output: list of per-frame overlaps (floats)
     """
-    assert(len(first) == len(second))
-
+    assert len(first) == len(second)
     return [calculate_overlap(pairs[0], pairs[1], bounds=bounds) for i, pairs in enumerate(zip(first, second))]
-

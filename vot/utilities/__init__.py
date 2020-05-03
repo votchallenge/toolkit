@@ -4,6 +4,7 @@ import csv
 import re
 import hashlib
 import errno
+import concurrent.futures as futures
 from logging import Formatter, LogRecord
 
 from numbers import Number
@@ -234,3 +235,24 @@ class ColoredFormatter(Formatter):
         record = copy
         # Delegate the remaining formatting to the base formatter.
         return Formatter.format(self, record)
+
+
+class ThreadPoolExecutor(futures.ThreadPoolExecutor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        #self._work_queue = Queue.Queue(maxsize=maxsize)
+
+    def shutdown(self, wait=True):
+        import queue
+        with self._shutdown_lock:
+            self._shutdown = True
+            try:
+                while True:
+                    item = self._work_queue.get_nowait()
+                    item.future.cancel()
+            except  queue.Empty:
+                pass
+            self._work_queue.put(None)
+        if wait:
+            for t in self._threads:
+                t.join()
