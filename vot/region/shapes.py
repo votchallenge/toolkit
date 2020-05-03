@@ -52,27 +52,27 @@ class Rectangle(Shape):
             :param float h: height of the rectangle region
         """
         super().__init__()
-        self._x, self._y, self._width, self._height = x, y, width, height
+        self._data = np.array([[x], [y], [width], [height]], dtype=np.float32)
 
     def __str__(self):
         """ Create string from class """
-        return '{},{},{},{}'.format(self._x, self._y, self._width, self._height)
+        return '{},{},{},{}'.format(self.x, self.y, self.width, self.height)
 
     @property
     def x(self):
-        return self._x
+        return self._data[0, 0]
 
     @property
     def y(self):
-        return self._y
+        return self._data[0, 1]
 
     @property
     def width(self):
-        return self._width
+        return self._data[0, 2]
 
     @property
     def height(self):
-        return self._height
+        return self._data[0, 3]
 
     @property
     def type(self):
@@ -97,7 +97,7 @@ class Rectangle(Shape):
             raise ConversionException("Unable to convert rectangle region to {}".format(rtype), source=self)
 
     def is_empty(self):
-        if self._width > 0 and self._height > 0:
+        if self.width > 0 and self.height > 0:
             return False
         else:
             return True
@@ -120,7 +120,7 @@ class Rectangle(Shape):
 
     def rasterize(self, bounds):
         from vot.region.raster import rasterize_rectangle
-        return rasterize_rectangle(self.x, self.y, self.width, self.height, bounds)
+        return rasterize_rectangle(self._data, bounds)
 
     def bounds(self):
         return int(round(self.x)), int(round(self.y)), int(round(self.width + self.x)), int(round(self.height + self.y))
@@ -140,8 +140,8 @@ class Polygon(Shape):
         """
         super().__init__()
         assert(points)
-        self._points = np.array(points)
-        assert(self._points.shape[0] > 3 and self._points.shape[1] == 2)  # pylint: disable=E1136
+        self._points = np.array(points, dtype=np.float32)
+        assert(self._points.shape[0] >= 3 and self._points.shape[1] == 2)  # pylint: disable=E1136
 
 
     def __str__(self):
@@ -206,7 +206,8 @@ class Polygon(Shape):
         right = np.max(self._points[:, 0])
         return int(round(left)), int(round(top)), int(round(right)), int(round(bottom))
 
-from vot.region.io import mask2bbox, mask_to_rle
+from vot.region.raster import mask_bounds
+from vot.region.io import mask_to_rle
 
 class Mask(Shape):
     """Mask region
@@ -227,7 +228,7 @@ class Mask(Shape):
         return 'm%s,%s,%s' % (offset_str, region_sz_str, rle_str)
 
     def _optimize(self):
-        bounds = mask2bbox(self.mask)
+        bounds = mask_bounds(self.mask)
         if bounds[0] is None:
             # mask is empty
             self._mask = np.zeros((0, 0), dtype=np.uint8)
@@ -255,11 +256,11 @@ class Mask(Shape):
         if rtype == RegionType.MASK:
             return self.copy()
         elif rtype == RegionType.RECTANGLE:
-            bounds = mask2bbox(self.mask)
+            bounds = mask_bounds(self.mask)
             return Rectangle(bounds[0] + self.offset[0], bounds[1] + self.offset[1],
                             bounds[2] - bounds[0], bounds[3] - bounds[1])
         elif rtype == RegionType.POLYGON:
-            bounds = mask2bbox(self.mask)
+            bounds = mask_bounds(self.mask)
             if None in bounds:
                 return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)])
             return Polygon([
@@ -301,5 +302,5 @@ class Mask(Shape):
 
     @jit(nopython=True)
     def bounds(self):
-        bounds = mask2bbox(self.mask)
+        bounds = mask_bounds(self.mask)
         return bounds[0] + self.offset[0], bounds[1] + self.offset[1], bounds[2] + self.offset[0], bounds[3] + self.offset[1]

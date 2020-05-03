@@ -84,23 +84,7 @@ def create_mask_from_string(mask_encoding):
 
     return mask, (tl_x, tl_y)
 
-@jit(nopython=True)
-def mask2bbox(mask: np.ndarray):
-    """
-    mask: 2-D array with a binary mask
-    output: coordinates of the top-left and bottom-right corners of the minimal axis-aligned region containing all positive pixels
-    """
-    rows = np.any(mask, axis=1)
-    cols = np.any(mask, axis=0)
-    rows_i = np.where(rows)[0]
-    cols_i = np.where(cols)[0]
-    if len(rows_i) > 0 and len(cols_i) > 0:
-        rmin, rmax = rows_i[[0, -1]]
-        cmin, cmax = cols_i[[0, -1]]
-        return (cmin, rmin, cmax, rmax)
-    else:
-        # mask is empty
-        return (0, 0, 0, 0)
+from vot.region.raster import mask_bounds
 
 def encode_mask(mask):
     """
@@ -111,7 +95,7 @@ def encode_mask(mask):
     output position and size of the region, dimensions of the full mask and RLE encoding
     """
     # calculate coordinates of the top-left corner and region width and height (minimal region containing all 1s)
-    x_min, y_min, x_max, y_max = mask2bbox(mask)
+    x_min, y_min, x_max, y_max = mask_bounds(mask)
 
     # handle the case when the mask empty
     if x_min is None:
