@@ -2,11 +2,12 @@
 import os
 import glob
 import logging
-from typing import List, Optional, Dict
 from abc import ABC, abstractmethod
 from datetime import datetime
+import pickle
 
 import yaml
+import cachetools
 
 from vot import VOTException
 
@@ -98,10 +99,12 @@ class LocalStorage(ABC):
     def substorage(self, name):
         return LocalStorage(os.path.join(self.base, name))
 
-class Cache(object):
+class Cache(cachetools.Cache):
 
     def __init__(self, root: str):
+        super().__init__(1000)
         self._root = root
+        os.makedirs(self._root, exist_ok=True)
 
     @property
     def base(self):
@@ -124,6 +127,53 @@ class Cache(object):
 
         return path
 
+    def _filename(self, key):
+        if isinstance(key, tuple):
+            filename = key[-1]
+            if len(key) > 1:
+                directory = self.directory(*key[:-1])
+            else:
+                directory = self.base
+        else:
+            filename = str(key)
+            directory = self.base
+        return os.path.join(directory, filename)
+
+    def __getitem__(self, key):
+        try:
+            return super().__getitem__(key)
+        except KeyError as e:
+            filename = self._filename(key)
+            if not os.path.isfile(filename):
+                raise e
+            try:
+                with open(filename, mode="rb") as filehandle:
+                    data = pickle.load(filehandle)
+                    super().__setitem__(key, data)
+                    return data
+            except pickle.PickleError:
+                raise e
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+
+        filename = self._filename(key)
+        try:
+            with open(filename, mode="wb") as filehandle:
+                return pickle.dump(value, filehandle)
+        except pickle.PickleError:
+            pass
+
+    def __delitem__(self, key):
+        filename = self._filename(key)
+        if os.path.isfile(filename):
+            os.unlink(filename)
+        super().__delitem__(key)
+
+    def __contains__(self, key):
+        filename = self._filename(key)
+        return os.path.isfile(filename)
+
 class Workspace(object):
 
     def __init__(self, directory):
@@ -144,7 +194,6 @@ class Workspace(object):
             raise WorkspaceException("Experiment stack does not exist")
 
         self._storage = LocalStorage(directory)
-        self._cache = Cache(os.path.join(directory, "cache"))
 
         with open(stack_file, 'r') as fp:
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
@@ -182,6 +231,8 @@ class Workspace(object):
     def storage(self) -> Storage:
         return self._storage
 
-    @property
-    def cache(self) -> Cache:
-        return self._cache
+    def cache(self, identifier) -> Cache:
+        if not isinstance(identifier, str):
+            identifier = class_fullname(identifier)
+
+        return Cache(os.path.join(self._root, "cache", identifier))

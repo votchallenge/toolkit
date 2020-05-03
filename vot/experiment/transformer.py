@@ -29,7 +29,7 @@ class Redetection(Transformer):
 
     def __call__(self, sequence: Sequence) -> Sequence:
 
-        chache_dir = self._cache.directory(self, arg_hash(sequence.name, self._length, self._initialization, self._padding, self._scaling))
+        chache_dir = self._cache.directory(arg_hash(sequence.name, self._length, self._initialization, self._padding, self._scaling))
 
         if not os.path.isfile(os.path.join(chache_dir, "sequence")):
             generated = InMemorySequence(sequence.name, sequence.channels())
