@@ -206,7 +206,25 @@ def do_analysis(config, logger):
 
     logger.debug("Running analysis for %d trackers", len(trackers))
 
-    results = process_analyses(workspace, trackers)
+    if config.workers == 1:
+        from concurrent.futures import ThreadPoolExecutor
+        executor = ThreadPoolExecutor(1)
+    else:
+        from concurrent.futures import ProcessPoolExecutor
+        executor = ProcessPoolExecutor(config.workers)
+
+    if config.nocache:
+        from cachetools import LRUCache
+        cache = LRUCache(1000)
+    else:
+        cache = workspace.cache("analysis")
+
+    results = process_analyses(workspace, trackers, executor, cache)
+
+    executor.shutdown(wait=False)
+
+    if results is None:
+        return
 
     if config.name is None:
         name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
@@ -321,8 +339,9 @@ def main():
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     analysis_parser.add_argument("--format", choices=("latex", "html", "json"), default="json", help='Analysis output format')
-    analysis_parser.add_argument("--name", required=None, help='Analysis output name')
-
+    analysis_parser.add_argument("--name", required=False, help='Analysis output name')
+    analysis_parser.add_argument("--workers", default=1, required=False, help='Number of parallel workers')
+    analysis_parser.add_argument("--nocache", default=False, required=False, help="Do not cache data to disk", action='store_true')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')

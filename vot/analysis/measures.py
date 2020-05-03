@@ -189,7 +189,7 @@ class AccuracyRobustness(SeparatableAnalysis):
         accuracy = 0
         weight_total = 0
 
-        for a, f, w in results:
+        for a, f, _, w in results:
             failures += f * w
             accuracy += a * w
             weight_total += w
@@ -209,7 +209,7 @@ class AccuracyRobustness(SeparatableAnalysis):
         for trajectory in trajectories:
             failures += count_failures(trajectory.regions())[0]
             accuracy += compute_accuracy(trajectory.regions(), sequence, self._burnin, self._ignore_unknown, self._bounded)[0]
-        print(sequence.name)
+
         ar = (accuracy / len(trajectories), math.exp(- (float(failures) / len(trajectories)) * float(self._sensitivity)))
 
         return accuracy / len(trajectories), failures / len(trajectories), ar, len(trajectories[0])

@@ -224,6 +224,9 @@ class Tracker(object):
 
         return self.reference == other.identifier
 
+    def __hash__(self):
+        return hash(self.reference)
+
     @property
     def source(self):
         return self._source

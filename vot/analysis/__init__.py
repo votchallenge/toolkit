@@ -1,7 +1,9 @@
 import logging
 from typing import List, Optional, Tuple, Dict, Any
 from abc import ABC, abstractmethod
+from concurrent.futures import Executor
 
+from cachetools import Cache
 
 from vot.tracker import Tracker
 from vot.dataset import Sequence
@@ -221,15 +223,33 @@ _ANALYSES = list()
 def register_analysis(analysis: Analysis):
     _ANALYSES.append(analysis)
 
-def process_analyses(workspace: "Workspace", trackers: List[Tracker]):
+def process_analyses(workspace: "Workspace", trackers: List[Tracker], executor: Executor, cache: Cache):
+
+    from vot.analysis.backend import AnalysisProcessor
+    from vot.utilities import Progress
+    from threading import Condition
+
+    processor = AnalysisProcessor(executor, cache)
 
     logger = logging.getLogger("vot")
 
     results = dict()
+    state = dict(condition=Condition(), total=0, complete=0)
+
+    def insert_result(container: dict, key):
+        def insert(x):
+            if isinstance(x, Exception):
+                logger.exception(x)
+            else:
+                container[key] = x
+            with state["condition"]:
+                state["complete"] += 1
+                state["condition"].notify()
+        return insert
 
     for experiment in workspace.stack:
 
-        logger.debug("Processing experiment %s", experiment.identifier)
+        logger.debug("Traversing experiment %s", experiment.identifier)
 
         results[experiment] = dict()
 
@@ -238,19 +258,38 @@ def process_analyses(workspace: "Workspace", trackers: List[Tracker]):
             if not analysis.compatible(experiment):
                 continue
 
-
-            logger.debug("Processing analysis %s", analysis)
+            logger.debug("Traversing analysis %s", analysis)
 
             analysis_results = dict()
 
             for tracker in trackers:
-                try:
-                    analysis_results[tracker] = analysis.compute(tracker, experiment, workspace.dataset)
-                except MissingResultsException:
-                    logger.debug("Results missing for tracker %s", tracker.identifier)
+                with state["condition"]:
                     analysis_results[tracker] = None
+                    state["total"] += 1
+                processor.submit(analysis, tracker, experiment, workspace.dataset, insert_result(analysis_results, tracker))
 
             results[experiment][analysis] = analysis_results
+
+    logger.debug("Waiting for %d analysis tasks to finish", state["total"])
+
+    progress = Progress(desc="Analysis", total=state["total"], unit="tasks")
+
+    try:
+
+        while True:
+            with state["condition"]:
+                progress.update(state["complete"])
+
+                if state["total"] == state["complete"]:
+                    break
+
+                state["condition"].wait()
+
+    except KeyboardInterrupt:
+        logger.info("Analysis interrupted by user, aborting.")
+        return None
+
+    progress.close()
 
     return results
 
