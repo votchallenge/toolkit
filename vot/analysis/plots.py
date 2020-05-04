@@ -61,7 +61,7 @@ class EAOCurve(Analysis):
         return isinstance(experiment, SupervisedExperiment)
 
     def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
-        from vot.region.utils import calculate_overlaps
+        from vot.region import calculate_overlaps
 
         overlaps_all = []
         weights_all = []
@@ -124,7 +124,7 @@ class EAOCurveMultiStart(Analysis):
 
     def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
 
-        from vot.region.utils import calculate_overlaps
+        from vot.region import calculate_overlaps
 
         overlaps_all = []
         weights_all = []

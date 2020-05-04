@@ -134,18 +134,16 @@ def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int,
     gx = tx - offset[0]
     gy = ty - offset[1]
 
-    tw = min(bounds[0] + bounds[2], offset[0] + mask.shape[1]) - tx
-    th = min(bounds[1] + bounds[3], offset[1] + mask.shape[0]) - ty
+    tw = min(bounds[2] + 1, offset[0] + mask.shape[1]) - tx
+    th = min(bounds[3] + 1, offset[1] + mask.shape[0]) - ty
 
-    copy = np.zeros((bounds[3], bounds[2]), dtype=np.uint8)
-
-    #copy[]
+    copy = np.zeros((bounds[3] - bounds[1] + 1, bounds[2] - bounds[0] + 1), dtype=np.uint8)
 
     for i in range(th):
         for j in range(tw):
             copy[i + oy, j + ox] = mask[i + gy, j + gx]
 
-    return mask
+    return copy
 
 #@numba.njit(inline='always')
 #def _region_bounds(a: np.ndarray, o: Optional[Tuple[int, int]] = None):
@@ -205,30 +203,29 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int
     union = (min(bounds1[0], bounds2[0]), min(bounds1[1], bounds2[1]), max(bounds1[2], bounds2[2]), max(bounds1[3], bounds2[3]))
 
     if not bounds is None:
-        raster_bounds = (min(0, union[0]), min(0, union[1]), max(bounds[0], union[2]), max(bounds[1], union[3]))
+        raster_bounds = (max(0, union[0]), max(0, union[1]), min(bounds[0] - 1, union[2]), min(bounds[1] - 1, union[3]))
     else:
         raster_bounds = union
 
     if raster_bounds[0] >= raster_bounds[2] or raster_bounds[1] >= raster_bounds[3]:
         return float(0)
 
-    # convert both regions to mask
     m1 = _region_raster(a, raster_bounds, ao)
     m2 = _region_raster(b, raster_bounds, bo)
-
+    
     a1 = m1.ravel()
     a2 = m2.ravel()
 
     intersection = 0
-    union = 0
+    union_ = 0
 
     for i in range(a1.size):
         if a1[i] != 0 or a2[i] != 0:
-            union += 1
+            union_ += 1
             if a1[i] != 0 and a2[i] != 0:
                 intersection += 1
 
-    return float(intersection) / float(union) if union > 0 else float(0)
+    return float(intersection) / float(union_) if union_ > 0 else float(0)
 
 from vot.region import Region
 from vot.region.shapes import Shape, Rectangle, Polygon, Mask
