@@ -35,6 +35,26 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
     else:
         return 0, 0
 
+def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
+    phi = curve_length * [float(0)]
+    active = curve_length * [float(0)]
+
+    for i, (o, success) in enumerate(zip(overlaps, success)):
+
+        o_array = np.array(o)
+
+        for j in range(1, curve_length):
+
+            if j < len(o):
+                phi[j] += np.mean(o_array[1:j+1])
+                active[j] += 1
+            elif not success:
+                phi[j] += np.sum(o_array[1:len(o)]) / (j - 1)
+                active[j] += 1
+
+    phi = [p / a if a > 0 else 0 for p, a in zip(phi, active)]
+    return phi, active
+
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
@@ -234,7 +254,7 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Measure.DESCENDING), \
              Measure("Robustness", "R", minimal=0, direction=Measure.DESCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR", minimal=(0, 0), maximal=(1, 1)), \
-             None
+             None, None
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
@@ -242,20 +262,22 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
     def join(self, results: List[tuple]):
         total_accuracy = 0
         total_robustness = 0
-        total = 0
+        weight_accuracy = 0
+        weight_robustness = 0
 
-        for accuracy, robustness, weight in results:
-            total_accuracy += accuracy * weight
-            total_robustness += robustness * weight
-            total += weight
+        for accuracy, robustness, ar_, accuracy_w, robustness_w in results:
+            total_accuracy += accuracy * accuracy_w
+            total_robustness += robustness * robustness_w
+            weight_accuracy += accuracy_w
+            weight_robustness += robustness_w
 
-        ar = (total_accuracy / total, total_robustness / total)
+        ar = (total_accuracy / weight_accuracy, total_robustness / weight_robustness)
 
-        return total_accuracy / total, total_robustness / total, ar, total
+        return total_accuracy / weight_accuracy, total_robustness / weight_robustness, ar, weight_accuracy, weight_robustness
 
     def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
 
-        from vot.region.utils import calculate_overlaps
+        #from vot.region.utils import calculate_overlaps
 
         results = experiment.results(tracker, sequence)
 
@@ -280,7 +302,7 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
 
             trajectory = Trajectory.read(results, name)
 
-            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self._burnin else None)
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), (proxy.size) if self._burnin else None)
 
             grace = self._grace
             progress = len(proxy)
@@ -295,12 +317,12 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
                     grace = self._grace
 
             robustness += progress  # simplified original equation: len(proxy) * (progress / len(proxy))
-            accuracy += len(proxy) * (sum(overlaps[0:progress]) / (progress - 1)) if progress > 1 else 0
+            accuracy += sum(overlaps[0:progress])
             total += len(proxy)
 
-        ar = (accuracy / total, robustness / total)
+        ar = (accuracy / robustness, robustness / total)
 
-        return accuracy / total, robustness / total, ar, len(sequence)
+        return accuracy / robustness, robustness / total, ar, robustness, len(sequence)
 
 class EAOScore(DependentAnalysis):
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, low: int = 99, high: int = 355):
@@ -333,7 +355,7 @@ class EAOScore(DependentAnalysis):
     def join(self, results: List[tuple]):
         return float(np.mean(results[0][0][self._low:self._high + 1])),
 
-class EAOScoreMultiStart(DependentAnalysis):
+class EAOScoreMultiStart(SeparatableAnalysis):
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, threshold: float = 0.1, low: int = 115, high: int = 755):
         from vot.analysis.plots import EAOCurveMultiStart
         super().__init__()
@@ -344,7 +366,6 @@ class EAOScoreMultiStart(DependentAnalysis):
 
         self._low = to_number(low, min_n=0)
         self._high = to_number(high, min_n=self._low+1)
-        self._eaocurve = EAOCurveMultiStart(burnin, grace, bounded, threshold)
 
     @property
     def name(self):
@@ -357,10 +378,70 @@ class EAOScoreMultiStart(DependentAnalysis):
         return Measure("EAO", 0, 1, Measure.DESCENDING),
 
     def compatible(self, experiment: Experiment):
-        return isinstance(experiment, SupervisedExperiment)
+        return isinstance(experiment, MultiStartExperiment)
 
     def dependencies(self):
         return self._eaocurve,
 
     def join(self, results: List[tuple]):
-        return float(np.mean(results[0][0][self._low:self._high + 1])),
+        eao_curve = self._high * [float(0)]
+        eao_weights = self._high * [float(0)]
+
+        for (seq_eao_curve, eao_active), seq_w in results:
+            for i, (eao_, active_) in enumerate(zip(seq_eao_curve, eao_active)):
+                eao_curve[i] += eao_ * active_ * seq_w
+                eao_weights[i] += active_ * seq_w
+
+        eao_curve_final = np.array([eao_ / w_ if w_ > 0 else 0 for eao_, w_ in zip(eao_curve, eao_weights)])
+        return np.mean(eao_curve_final[self._low:self._high+1])
+
+    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+
+        results = experiment.results(tracker, sequence)
+
+        forward, backward = find_anchors(sequence, experiment.anchor)
+
+        if len(forward) == 0 and len(backward) == 0:
+            raise RuntimeError("Sequence does not contain any anchors")
+
+        overlaps_all = []
+        success_all = []
+
+        for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
+            name = "%s_%08d" % (sequence.name, i)
+
+            if not Trajectory.exists(results, name):
+                raise MissingResultsException()
+
+            if reverse:
+                proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
+            else:
+                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+
+            trajectory = Trajectory.read(results, name)
+
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self._burnin else None)
+
+            grace = self._grace
+            progress = len(proxy)
+
+            for j, overlap in enumerate(overlaps):
+                if overlap <= self._threshold and not proxy.groundtruth(j).is_empty():
+                    grace = grace - 1
+                    if grace == 0:
+                        progress = j + 1 - self._grace  # subtract since we need actual point of the failure
+                        break
+                else:
+                    grace = self._grace
+
+            success = True
+            if progress < len(overlaps):
+                # tracker has failed during this run
+                overlaps[progress:] = (len(overlaps) - progress) * [float(0)]
+                success = False
+
+            overlaps_all.append(overlaps)
+            success_all.append(success)
+
+        return compute_eao_partial(overlaps_all, success_all, self._high), 1
+
