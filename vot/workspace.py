@@ -105,7 +105,13 @@ class LocalStorage(ABC):
 
     def copy(self, localfile, destination):
         import shutil
-        shutil.copy(localfile, os.path.join(self.base, destination))
+        if os.path.isabs(destination):
+            raise IOError("Only relative paths allowed")
+
+        full = os.path.join(self.base, destination)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+
+        shutil.move(localfile, os.path.join(self.base, full))
         #with open(localfile, "rb") as fin:
 
 class Cache(cachetools.Cache):

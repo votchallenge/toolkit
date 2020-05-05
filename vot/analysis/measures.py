@@ -137,7 +137,7 @@ class FailureCount(SeparatableAnalysis):
 
         failures = 0
         for trajectory in trajectories:
-            failures = failures + count_failures(trajectory.regions())
+            failures = failures + count_failures(trajectory.regions())[0]
 
         return failures / len(trajectories), len(trajectories[0])
 
@@ -276,8 +276,6 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
         return total_accuracy / weight_accuracy, total_robustness / weight_robustness, ar, weight_accuracy, weight_robustness
 
     def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
-
-        #from vot.region.utils import calculate_overlaps
 
         results = experiment.results(tracker, sequence)
 

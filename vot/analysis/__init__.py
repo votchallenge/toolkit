@@ -5,13 +5,14 @@ from concurrent.futures import Executor
 
 from cachetools import Cache
 
+from vot import VOTException
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.region import Region, RegionType
 from vot.utilities import class_fullname, arg_hash
 
-class MissingResultsException(Exception):
+class MissingResultsException(VOTException):
     pass
 
 def is_special(region: Region, code = None) -> bool:
@@ -236,7 +237,7 @@ def process_analyses(workspace: "Workspace", trackers: List[Tracker], executor: 
     logger = logging.getLogger("vot")
 
     results = dict()
-    state = dict(condition=Condition(), total=0, complete=0)
+    condition = Condition()
 
     def insert_result(container: dict, key):
         def insert(x):
@@ -244,9 +245,8 @@ def process_analyses(workspace: "Workspace", trackers: List[Tracker], executor: 
                 logger.exception(x)
             else:
                 container[key] = x
-            with state["condition"]:
-                state["complete"] += 1
-                state["condition"].notify()
+            with condition:
+                condition.notify()
         return insert
 
     for experiment in workspace.stack:
@@ -265,29 +265,29 @@ def process_analyses(workspace: "Workspace", trackers: List[Tracker], executor: 
             analysis_results = dict()
 
             for tracker in trackers:
-                with state["condition"]:
+                with condition:
                     analysis_results[tracker] = None
-                    state["total"] += 1
                 processor.submit(analysis, tracker, experiment, workspace.dataset, insert_result(analysis_results, tracker))
 
             results[experiment][analysis] = analysis_results
 
-    logger.debug("Waiting for %d analysis tasks to finish", state["total"])
+    logger.debug("Waiting for %d analysis tasks to finish", processor.total)
 
-    progress = Progress(desc="Analysis", total=state["total"], unit="tasks")
+    progress = Progress(desc="Analysis", total=processor.total, unit="tasks")
 
     try:
 
         while True:
-            with state["condition"]:
-                progress.update_absolute(state["complete"])
+            with condition:
+                progress.update_absolute(processor.total - processor.pending)
 
-                if state["total"] == state["complete"]:
+                if processor.pending == 0:
                     break
 
-                state["condition"].wait(1)
+                condition.wait(1)
 
     except KeyboardInterrupt:
+        processor.cancel_all()
         progress.close()
         logger.info("Analysis interrupted by user, aborting.")
         return None

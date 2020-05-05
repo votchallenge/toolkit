@@ -1,4 +1,5 @@
 
+import sys
 import traceback
 from typing import List, Union
 from concurrent.futures import Executor, Future
@@ -6,6 +7,7 @@ from threading import RLock
 
 from cachetools import Cache
 
+from vot import VOTException
 from vot.dataset import Sequence
 from vot.tracker import Tracker
 from vot.experiment import Experiment
@@ -18,6 +20,18 @@ def hashkey(analysis, tracker, experiment, sequences):
     else:
         sequence_hash = arg_hash(*[s.name for s in sequences])
     return (analysis.identifier, tracker.reference, experiment.identifier, sequence_hash)
+
+class AnalysisError(VOTException):
+    def __init__(self, *args, task):
+        super().__init__(*args)
+        self._task = task
+ 
+    @property
+    def task(self):
+        return self._task
+
+    def __repr__(self):
+        return "Error during analysis {}".format("-".join(self._task))
 
 class AnalysisTask(object):
 
@@ -34,10 +48,10 @@ class AnalysisTask(object):
                 result = self._analysis.compute_partial(self._tracker, self._experiment, self._sequences)
             else:
                 result = self._analysis.compute(self._tracker, self._experiment, self._sequences)
-            return dict(key=self._key, result=result)
+            return self._key, result
 
-        except Exception as e:
-            return dict(key=self._key, result=None, exception=e)
+        except BaseException as e:
+            raise AnalysisError(e, task=self._key)
 
     @property
     def key(self):
@@ -46,28 +60,38 @@ class AnalysisTask(object):
 class AnalysisAggregator(object):
     # TODO: this should be converted into a task
 
-    def __init__(self, analysis: SeparatableAnalysis, count: int, callback):
+    def __init__(self, key, analysis: SeparatableAnalysis, count: int, executor):
         self._lock = RLock()
         self._analysis = analysis
         self._count = count
         self._results = [None] * count
-        self._callback = callback
+        self._executor = executor
         self._tasks = []
         self._cancelled = False
+        self._key = key
 
-    def __call__(self, i, result):
+    def _result(self, i, result):
         with self._lock:
             if self._cancelled:
                 return
             if isinstance(result, Exception):
                 self.cancel()
-                self._callback(result)
                 return
             self._results[i] = result
             self._count = self._count - 1
             if self._count == 0:
-                result = self._analysis.join(self._results)
-                self._callback(result)
+                self._executor.submit(self)
+
+    def __call__(self):
+        try:
+            result = self._analysis.join(self._results)
+            return self._key, result
+
+        except BaseException as e:
+            raise AnalysisError(e, task=self._key)
+
+    def callback(self, i):
+        return lambda result: self._result(i, result)
 
     def append(self, promise):
         self._tasks.append(promise)
@@ -86,6 +110,7 @@ class AnalysisProcessor(object):
         self._pending = dict()
         self._callbacks = dict()
         self._lock = RLock()
+        self._total = 0
 
     def submit(self, analysis: Analysis, tracker: Tracker, experiment: Experiment, sequences, callback):
 
@@ -96,18 +121,15 @@ class AnalysisProcessor(object):
             if self._exists(key, callback):
                 return True
 
-            def enumerated_callback(aggregator, i):
-                return lambda result: aggregator(i, result)
-
             if isinstance(analysis, SeparatableAnalysis):
 
-                aggregator = AnalysisAggregator(analysis, len(sequences), lambda x: self._done(key, x))
+                aggregator = AnalysisAggregator(key, analysis, len(sequences), self._executor)
 
                 for i, sequence in enumerate(sequences):
 
                     partkey = hashkey(analysis, tracker, experiment, sequence)
 
-                    sequence_callback = enumerated_callback(aggregator, i)
+                    sequence_callback = aggregator.callback(i)
 
                     if self._exists(partkey, sequence_callback):
                         continue
@@ -115,25 +137,34 @@ class AnalysisProcessor(object):
                     task = AnalysisTask(analysis, tracker, experiment, sequence)
                     promise = self._executor.submit(task)
                     self._callbacks[partkey] = [sequence_callback]
+                    self._pending[partkey] = promise
+                    self._total += 1
                     promise.add_done_callback(self._future_done)
                     
                 self._callbacks[key] = [callback]
                 self._pending[key] = aggregator
+                self._total += 1
 
             if isinstance(analysis, DependentAnalysis):
 
                 dependencies = analysis.dependencies()
-                aggregator = AnalysisAggregator(analysis, len(dependencies), lambda x: self._done(key, x))
+                aggregator = AnalysisAggregator(key, analysis, len(dependencies), self._executor)
 
                 for i, sub in enumerate(dependencies):
-                    self.submit(sub, tracker, experiment, sequences, enumerated_callback(aggregator, i))
+                    self.submit(sub, tracker, experiment, sequences, aggregator.callback(i))
+
+                self._callbacks[key] = [callback]
+                self._pending[key] = aggregator
+                self._total += 1
 
             else:
                 task = AnalysisTask(analysis, tracker, experiment, sequences)
                 promise = self._executor.submit(task)
                 self._callbacks[key] = [callback]
                 self._pending[key] = promise
+                self._total += 1
                 promise.add_done_callback(self._future_done)
+                
 
             return False
 
@@ -166,15 +197,11 @@ class AnalysisProcessor(object):
 
         if future.cancelled():
             return
-
-        bundle = future.result()
-        key = bundle["key"]
-
-        if not "exception" in bundle:
-            result = bundle["result"]
+        try:
+            key, result = future.result()
             self._done(key, result)
-        else:
-            self._done(key, bundle["exception"], False)
+        except AnalysisError as e:
+            self._done(e.task, e, False)
 
     def _done(self, key, result, cache=True):
 
@@ -190,5 +217,19 @@ class AnalysisProcessor(object):
                 callback(result)
 
             del self._callbacks[key]
-            if key in self._pending:
-                del self._pending[key]
+            del self._pending[key]
+
+    @property
+    def pending(self):
+        with self._lock:
+            return len(self._pending)
+
+    @property
+    def total(self):
+        with self._lock:
+            return self._total
+
+    def cancel_all(self):
+        with self._lock:
+            for _, future in self._pending.items():
+                future.cancel()
