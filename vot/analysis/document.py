@@ -4,15 +4,13 @@ from abc import ABC, abstractmethod
 import json
 import logging
 import tempfile
+import datetime
 import collections
 
 from matplotlib import pyplot as plt
 from matplotlib.cm import get_cmap
 
-from pylatex import Document, Section, Subsection, Command, LongTable, MultiColumn
-from pylatex import Figure as TeXFigure
-from pylatex.utils import italic, NoEscape
-
+from vot import __version__ as version
 from vot.tracker import Tracker
 from vot.experiment import Experiment
 from vot.workspace import Storage
@@ -212,13 +210,16 @@ def generate_json_document(results, storage: Storage):
 
 def generate_latex_document(results, storage: Storage, build=False):
 
+    from pylatex import Document, Section, Subsection, Command, LongTable, MultiColumn, Figure
+    from pylatex.utils import italic, NoEscape
+
     logger = logging.getLogger("vot")
 
     doc = Document(page_numbers=True)
 
-    doc.preamble.append(Command('title', 'VOT toolkit report'))
-    doc.preamble.append(Command('author', 'Anonymous author'))
-    doc.preamble.append(Command('date', NoEscape(r'\today')))
+    doc.preamble.append(Command('title', 'VOT report'))
+    doc.preamble.append(Command('author', 'Toolkit version ' + version))
+    doc.preamble.append(Command('date', datetime.datetime.now().isoformat()))
     doc.append(NoEscape(r'\maketitle'))
 
     table_header, table_data = _extract_measures_table(results)
@@ -233,7 +234,7 @@ def generate_latex_document(results, storage: Storage, build=False):
             data_table.add_hline()
             data_table.add_row([" "] + [MultiColumn(c[1], data=c[0].name) for c in _merge_repeats(table_header[1])])
             data_table.add_hline()
-            data_table.add_row([" "] + [c.abbreviation for c in table_header[2] ])
+            data_table.add_row(["Trackers"] + [c.abbreviation for c in table_header[2] ])
             data_table.add_hline()
             data_table.end_table_header()
             data_table.add_hline()
@@ -251,7 +252,7 @@ def generate_latex_document(results, storage: Storage, build=False):
 
         for title, graph in experiment_graphs:
 
-            with graph, doc.create(TeXFigure(position='htbp')) as plot:
+            with graph, doc.create(Figure(position='htbp')) as plot:
                 plot.add_plot()
                 plot.add_caption(title)
                 
@@ -267,4 +268,64 @@ def generate_latex_document(results, storage: Storage, build=False):
         storage.copy(temp + ".tex", "report.tex")
 
 def generate_html_document(results, storage: Storage):
-    raise NotImplementedError
+
+    import io
+    import dominate
+    from dominate.tags import h1, h2, table, thead, tbody, tr, th, td, div, p, li, ol
+    from dominate.util import raw
+
+    logger = logging.getLogger("vot")
+
+    table_header, table_data = _extract_measures_table(results)
+
+    doc = dominate.document(title='VOT report')
+
+    with doc:
+
+        h1("VOT report")
+
+        with ol(cls="metadata"):
+            li('Toolkit version: ' + version)
+            li('Created: ' + datetime.datetime.now().isoformat())
+
+        if len(table_header[2]) == 0:
+            logger.debug("No measures found, skipping table")
+        else:
+            with table(cls="measures"):
+                with thead():
+                    with tr():
+                        th()
+                        [th(c[0].identifier, colspan=c[1]) for c in _merge_repeats(table_header[0])]
+                    with tr():
+                        th()
+                        [th(c[0].name, colspan=c[1]) for c in _merge_repeats(table_header[1])]
+                    with tr():
+                        th("Trackers")
+                        [th(c.abbreviation) for c in table_header[2]]
+                with tbody():
+                    for tracker, data in table_data.items():
+                        with tr():
+                            td(tracker.label)
+                            for cell in data:
+                                td(cell)
+
+        graphs = _extract_graphs(results)
+
+        for experiment, experiment_graphs in graphs.items():
+            if len(experiment_graphs) == 0:
+                continue
+
+            h2("Experiment {}".format(experiment.identifier), cls="experiment")
+
+            with div(cls="graphs"):
+
+                for title, graph in experiment_graphs:
+                    with graph, div(cls="graph"):
+                        buffer = io.StringIO()
+                        plt.savefig(buffer, format="SVG")
+                        raw(buffer.getvalue())
+                        p(title)
+                        
+
+    with storage.write("report.html") as filehandle:
+        filehandle.write(doc.render())
