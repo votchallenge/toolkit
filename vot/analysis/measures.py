@@ -113,7 +113,7 @@ class FailureCount(SeparatableAnalysis):
 
     @property
     def name(self):
-        return "Nuber of failures"
+        return "Number of failures"
 
     def describe(self):
         return Measure("Failures", "F", 0, None, Measure.ASCENDING), \
@@ -265,7 +265,7 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
         weight_accuracy = 0
         weight_robustness = 0
 
-        for accuracy, robustness, ar_, accuracy_w, robustness_w in results:
+        for accuracy, robustness, _, accuracy_w, robustness_w in results:
             total_accuracy += accuracy * accuracy_w
             total_robustness += robustness * robustness_w
             weight_accuracy += accuracy_w
@@ -377,9 +377,6 @@ class EAOScoreMultiStart(SeparatableAnalysis):
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
-
-    def dependencies(self):
-        return self._eaocurve,
 
     def join(self, results: List[tuple]):
         eao_curve = self._high * [float(0)]
