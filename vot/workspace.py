@@ -23,22 +23,6 @@ logger = logging.getLogger("vot")
 class WorkspaceException(VOTException):
     pass
 
-def initialize_workspace(directory, config=dict()):
-    config_file = os.path.join(directory, "config.yaml")
-    if os.path.isfile(config_file):
-        raise WorkspaceException("Workspace already initialized")
-
-    os.makedirs(directory, exist_ok=True)
-
-    with open(config_file, 'w') as fp:
-        yaml.dump(config, fp)
-
-    os.makedirs(os.path.join(directory, "sequences"), exist_ok=True)
-    os.makedirs(os.path.join(directory, "results"), exist_ok=True)
-
-    if not os.path.isfile(os.path.join(directory, "trackers.ini")):
-        open(os.path.join(directory, "trackers.ini"), 'w').close()
-
 class Storage(ABC):
 
     @abstractmethod
@@ -185,6 +169,47 @@ class Cache(cachetools.Cache):
 
 class Workspace(object):
 
+    @staticmethod
+    def initialize(directory, config=dict(), download=True):
+        config_file = os.path.join(directory, "config.yaml")
+        if os.path.isfile(config_file):
+            raise WorkspaceException("Workspace already initialized")
+
+        os.makedirs(directory, exist_ok=True)
+
+        with open(config_file, 'w') as fp:
+            yaml.dump(config, fp)
+
+        os.makedirs(os.path.join(directory, "sequences"), exist_ok=True)
+        os.makedirs(os.path.join(directory, "results"), exist_ok=True)
+
+        if not os.path.isfile(os.path.join(directory, "trackers.ini")):
+            open(os.path.join(directory, "trackers.ini"), 'w').close()
+
+
+        if download:
+            # Try do retrieve dataset from stack and download it
+            stack_file = resolve_stack(config["stack"], directory)
+            dataset_directory = dataset_directory = normalize_path(config.get("sequences", "sequences"), directory)
+            if stack_file is None:
+                return
+            dataset = None
+            with open(stack_file, 'r') as fp:
+                stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+                dataset = stack_metadata["dataset"]
+            if dataset:
+                Workspace.download_dataset(dataset, dataset_directory)
+
+    @staticmethod
+    def download_dataset(dataset, directory):
+        if os.path.exists(os.path.join(directory, "list.txt")):
+            return False
+
+        from vot.dataset import download_dataset
+        download_dataset(dataset, directory)
+
+        logger.info("Download completed")
+
     def __init__(self, directory):
         directory = normalize_path(directory)
         config_file = os.path.join(directory, "config.yaml")
@@ -210,19 +235,12 @@ class Workspace(object):
 
         dataset_directory = normalize_path(self._config.get("sequences", "sequences"), directory)
 
-        self._download(dataset_directory)
+        if not self._stack.dataset is None:
+            Workspace.download_dataset(self._stack.dataset, dataset_directory)
+
         self._dataset = VOTDataset(dataset_directory)
         self._root = directory
         self._registry = [normalize_path(r, directory) for r in self._config.get("registry", [])]
-
-    def _download(self, dataset_directory):
-        if not os.path.exists(os.path.join(dataset_directory, "list.txt")) and not self._stack.dataset is None:
-            logger.info("Stack has a dataset attached, downloading bundle '%s'", self._stack.dataset)
-
-            from vot.dataset import download_dataset
-            download_dataset(self._stack.dataset, dataset_directory)
-
-            logger.info("Download completed")
 
     @property
     def registry(self):

@@ -119,3 +119,15 @@ def download(url, output, callback=None, chunk_size=1024*32):
             pass
 
     return output
+
+def download_uncompress(url, path):
+    from vot.utilities import extract_files
+    _, ext = os.path.splitext(urlparse(url).path)
+    tmp_file = tempfile.mktemp(suffix=ext)
+    try:
+        download(url, tmp_file)
+        extract_files(tmp_file, path)
+    finally:
+        if os.path.exists(tmp_file):
+            os.unlink(tmp_file)
+        

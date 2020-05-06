@@ -145,17 +145,7 @@ class VOTDataset(Dataset):
 
     @classmethod
     def download(self, url, path="."):
-        from vot.utilities import write_properties
-        from vot.utilities.net import download, download_json, get_base_url, join_url, NetworkException
-
-        def download_uncompress(url, path):
-            tmp_file = tempfile.mktemp() + ".zip"
-            with Progress(unit='B', desc="Downloading", leave=False) as pbar:
-                download(url, tmp_file, pbar.update_absolute)
-            with Progress(unit='files', desc="Extracting", leave=True) as pbar:
-                extract_files(tmp_file, path, pbar.update_relative)
-            os.unlink(tmp_file)
-
+        from vot.utilities.net import download_uncompress, download_json, get_base_url, join_url, NetworkException
 
         if os.path.splitext(url)[1] == '.zip':
             logger.info('Downloading sequence bundle from "%s". This may take a while ...', url)

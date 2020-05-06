@@ -115,7 +115,7 @@ def do_test(config, logger):
 
 def do_workspace(config, logger):
 
-    from vot.workspace import initialize_workspace, WorkspaceException
+    from vot.workspace import WorkspaceException
 
     if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
         from vot.utilities.migration import migrate_matlab_workspace
@@ -139,7 +139,7 @@ def do_workspace(config, logger):
     default_config = dict(stack=config.stack, registry=["./trackers.ini"])
 
     try:
-        initialize_workspace(config.workspace, default_config)
+        Workspace.initialize(config.workspace, default_config, download=not config.nodownload)
         logger.info("Initialized workspace in '%s'", config.workspace)
     except WorkspaceException as we:
         logger.error("Error during workspace initialization: %s", we)
@@ -328,8 +328,9 @@ def main():
     test_parser.add_argument("--visualize", "-g", default=False, required=False, help='Visualize results of the test session', action='store_true')
     test_parser.add_argument("--sequence", "-s", required=False, help='Path to sequence to use instead of dummy')
 
-    workspace_parser = subparsers.add_parser('workspace', help='Setup a new workspace and download data')
+    workspace_parser = subparsers.add_parser('initialize', help='Setup a new workspace and download data')
     workspace_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
+    workspace_parser.add_argument("--nodownload", default=False, required=False, help="Do not download dataset if specified in stack", action='store_true')
     workspace_parser.add_argument("stack", nargs="?", help='Experiment stack')
 
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
@@ -365,7 +366,7 @@ def main():
 
         if args.action == "test":
             do_test(args, logger)
-        elif args.action == "workspace":
+        elif args.action == "initialize":
             do_workspace(args, logger)
         elif args.action == "evaluate":
             do_evaluate(args, logger)
