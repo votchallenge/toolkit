@@ -124,6 +124,15 @@ class Registry(object):
 
         for reference in references:
 
+            if reference.startswith("#"):
+                tag = reference[1:]
+                if not is_valid_identifier(tag):
+                    continue
+                for tracker in self._trackers.values():
+                    if tracker.tagged(tag):
+                        trackers.append(tracker)
+                continue
+
             identifier, version = parse_reference(reference)
 
             if not identifier in self._trackers:
@@ -144,52 +153,79 @@ class Registry(object):
     def identifiers(self):
         return [t.identifier for t in self._trackers.values()]
 
-
-def collect_envvars(**kwargs):
-    envvars = dict()
-    other = dict()
-
-    if "env" in kwargs:
-        if isinstance(kwargs["env"], dict):
-            envvars.update({k: os.path.expandvars(v) for k, v in kwargs["env"].items()})
-        del kwargs["env"]
-
-    for name, value in kwargs.items():
-        if name.startswith("env_") and len(name) > 4:
-            envvars[name[4:].upper()] = os.path.expandvars(value)
-        else:
-            other[name] = value
-
-    return envvars, other
-
-def collect_arguments(**kwargs):
-    arguments = dict()
-    other = dict()
-
-    if "env" in kwargs:
-        if isinstance(kwargs["arguments"], dict):
-            arguments.update(kwargs["arguments"])
-        del kwargs["arguments"]
-
-    for name, value in kwargs.items():
-        if name.startswith("arg_") and len(name) > 4:
-            arguments[name[4:].lower()] = value
-        else:
-            other[name] = value
-
-    return arguments, other
-
 class Tracker(object):
 
-    def __init__(self, _identifier, _source, command, protocol=None, label=None, version=None, **kwargs):
+    @staticmethod
+    def _collect_envvars(**kwargs):
+        envvars = dict()
+        other = dict()
+
+        if "env" in kwargs:
+            if isinstance(kwargs["env"], dict):
+                envvars.update({k: os.path.expandvars(v) for k, v in kwargs["env"].items()})
+            del kwargs["env"]
+
+        for name, value in kwargs.items():
+            if name.startswith("env_") and len(name) > 4:
+                envvars[name[4:].upper()] = os.path.expandvars(value)
+            else:
+                other[name] = value
+
+        return envvars, other
+
+    @staticmethod
+    def _collect_arguments(**kwargs):
+        arguments = dict()
+        other = dict()
+
+        if "arguments" in kwargs:
+            if isinstance(kwargs["arguments"], dict):
+                arguments.update(kwargs["arguments"])
+            del kwargs["arguments"]
+
+        for name, value in kwargs.items():
+            if name.startswith("arg_") and len(name) > 4:
+                arguments[name[4:].lower()] = value
+            else:
+                other[name] = value
+
+        return arguments, other
+
+    @staticmethod
+    def _collect_metadata(**kwargs):
+        metadata = dict()
+        other = dict()
+
+        if "metadata" in kwargs:
+            if isinstance(kwargs["metadata"], dict):
+                metadata.update(kwargs["metadata"])
+            del kwargs["arguments"]
+
+        for name, value in kwargs.items():
+            if name.startswith("meta_") and len(name) > 5:
+                metadata[name[5:].lower()] = value
+            else:
+                other[name] = value
+
+        return metadata, other
+
+    def __init__(self, _identifier, _source, command, protocol=None, label=None, version=None, tags=None, **kwargs):
         self._identifier = _identifier
         self._source = _source
         self._command = command
         self._protocol = protocol
         self._label = label
         self._version = to_string(version) if not version is None else None
-        self._envvars, args = collect_envvars(**kwargs)
-        self._arguments, self._args = collect_arguments(**args)
+        self._envvars, args = Tracker._collect_envvars(**kwargs)
+        self._metadata, args = Tracker._collect_metadata(**args)
+        self._arguments, self._args = Tracker._collect_arguments(**args)
+
+        if tags is None:
+            self._tags = []
+        elif isinstance(tags, str):
+            self._tags = tags.split(",")
+        self._tags = [tag.strip() for tag in self._tags]
+        self._tags = [tag for tag in self._tags if is_valid_identifier(tag)]
 
         if not self._version is None and not self._version.isalnum():
             raise TrackerException("Illegal version format", tracker=self)
@@ -261,6 +297,14 @@ class Tracker(object):
         data = dict(command=self._command, label=self.label, protocol=self.protocol, arguments=self._arguments, env=self._envvars)
         data.update(self._args)
         return data
+
+    def metadata(self, key):
+        if not key in self._metadata:
+            return None
+        return self._metadata[key]
+
+    def tagged(self, tag):
+        return tag in self._tags
 
 class TrackerRuntime(ABC):
 

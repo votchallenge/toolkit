@@ -1,4 +1,6 @@
 
+import logging
+
 from .version import __version__
 
 class VOTException(Exception):
@@ -12,9 +14,13 @@ def check_updates():
 
     version_url = "https://github.com/votchallenge/vot-toolkit-python/raw/master/vot/version.py"
 
+    logger = logging.getLogger("vot")
+
     try:
+        logger.debug("Checking for new version")
         response = requests.get(version_url, timeout=2)
-    except:
+    except Exception as e:
+        logger.debug("Unable to retrieve version information %s", e)
         return False, None
 
     if not response:
