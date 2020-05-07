@@ -73,7 +73,7 @@ class Registry(object):
             if not os.path.isfile(registry):
                 continue
 
-            logger.info("Scanning registry %s", registry)
+            logger.debug("Scanning registry %s", registry)
 
             extension = os.path.splitext(registry)[1].lower()
 
@@ -102,13 +102,14 @@ class Registry(object):
                         continue
 
                     trackers[section] = Tracker(_identifier=section, _source=registry, **config[section])
- 
-            self._trackers = OrderedDict(sorted(trackers.items(), key=lambda t: t[0]))
+
+        self._trackers = OrderedDict(sorted(trackers.items(), key=lambda t: t[0]))
+        logger.debug("Found %d trackers", len(self._trackers))
 
     def __getitem__(self, reference):
-        return self.resolve(reference, skip_unknown=False)[0]
+        return self.resolve(reference, skip_unknown=False, resolve_tags=False)[0]
 
-    def __hasitem__(self, reference):
+    def __contains__(self, reference):
         identifier, _ = parse_reference(reference)
         return identifier in self._trackers
 
@@ -118,13 +119,13 @@ class Registry(object):
     def __len__(self):
         return len(self._trackers)
 
-    def resolve(self, *references, skip_unknown=True):
+    def resolve(self, *references, skip_unknown=True, resolve_tags=True):
 
         trackers = []
 
         for reference in references:
 
-            if reference.startswith("#"):
+            if resolve_tags and reference.startswith("#"):
                 tag = reference[1:]
                 if not is_valid_identifier(tag):
                     continue
@@ -142,7 +143,7 @@ class Registry(object):
                     continue
 
             base = self._trackers[identifier]
-            
+
             trackers.append(base.reversion(version))
 
         return trackers
