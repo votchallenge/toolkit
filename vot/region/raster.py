@@ -36,13 +36,13 @@ def rasterize_rectangle(data: np.ndarray, bounds: Tuple[int, int, int, int]):
 
     mask = np.zeros((height, width), dtype=np.uint8)
 
-    if data[0, 0] > bounds[2] or data[0, 0] + data[0, 2] < bounds[0] or data[0, 1] > bounds[3] or data[0, 1] + data[0, 3] < bounds[1]:
+    if data[0, 0] > bounds[2] or data[0, 0] + data[2, 0] < bounds[0] or data[1, 0] > bounds[3] or data[1, 0] + data[3, 0] < bounds[1]:
         return mask
 
     left = max(0, data[0, 0] - bounds[0])
-    top = max(0, data[0, 1] - bounds[1])
-    right = min(bounds[2] - bounds[0], data[0, 2])
-    bottom = min(bounds[3] - bounds[1], data[0, 3])
+    top = max(0, data[1, 0] - bounds[1])
+    right = min(bounds[2] - bounds[0], data[2, 0])
+    bottom = min(bounds[3] - bounds[1], data[3, 0])
 
     mask[top:bottom, left:right] = 1
 
@@ -151,7 +151,7 @@ def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int,
 
 @numba.njit(inline='always')
 def _bounds_rectangle(a):
-    return (int(round(a[0, 0])), int(round(a[0, 1])), int(round(a[0, 0] + a[0, 2])), int(round(a[0, 1] + a[0, 3])))
+    return (int(round(a[0, 0])), int(round(a[1, 0])), int(round(a[0, 0] + a[2, 0])), int(round(a[1, 0] + a[3, 0])))
 
 @numba.njit(inline='always')
 def _bounds_polygon(a):
