@@ -31,20 +31,20 @@ def mask_bounds(mask: np.ndarray):
 
 @numba.njit(inline='always')
 def rasterize_rectangle(data: np.ndarray, bounds: Tuple[int, int, int, int]):
-    width = bounds[2] - bounds[0]
-    height = bounds[3] - bounds[1]
+    width = bounds[2] - bounds[0] + 1
+    height = bounds[3] - bounds[1] + 1
 
     mask = np.zeros((height, width), dtype=np.uint8)
 
-    if data[0, 0] > bounds[2] or data[0, 0] + data[0, 2] < bounds[0] or data[0, 1] > bounds[3] or data[0, 1] + data[0, 3] < bounds[1]:
+    if data[0, 0] > bounds[2] or data[0, 0] + data[0, 2] - 1 < bounds[0] or data[0, 1] > bounds[3] or data[0, 1] + data[0, 3] - 1 < bounds[1]:
         return mask
 
     left = max(0, data[0, 0] - bounds[0])
     top = max(0, data[0, 1] - bounds[1])
-    right = min(bounds[2] - bounds[0], data[0, 2])
-    bottom = min(bounds[3] - bounds[1], data[0, 3])
+    right = min(bounds[2], data[0, 0] + data[0, 2] - 1 - bounds[0])
+    bottom = min(bounds[3], data[0, 1] + data[0, 3] - 1 - bounds[1])
 
-    mask[top:bottom, left:right] = 1
+    mask[top:bottom+1, left:right+1] = 1
 
     return mask
 
@@ -56,8 +56,8 @@ def rasterize_polygon(data: np.ndarray, bounds: Tuple[int, int, int, int]):
     #region_polygon polygon = polygon_input;
     count = data.shape[0]
 
-    width = bounds[2] - bounds[0]
-    height = bounds[3] - bounds[1]
+    width = bounds[2] - bounds[0] + 1
+    height = bounds[3] - bounds[1] + 1
 
     nodeX = np.zeros((count, ), dtype=np.int64)
     mask = np.zeros((height, width), dtype=np.uint8)
@@ -151,7 +151,7 @@ def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int,
 
 @numba.njit(inline='always')
 def _bounds_rectangle(a):
-    return (int(round(a[0, 0])), int(round(a[0, 1])), int(round(a[0, 0] + a[0, 2])), int(round(a[0, 1] + a[0, 3])))
+    return (int(round(a[0, 0])), int(round(a[0, 1])), int(round(a[0, 0] + a[0, 2] - 1)), int(round(a[0, 1] + a[0, 3] - 1)))
 
 @numba.njit(inline='always')
 def _bounds_polygon(a):
@@ -212,7 +212,7 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int
 
     m1 = _region_raster(a, raster_bounds, ao)
     m2 = _region_raster(b, raster_bounds, bo)
-    
+
     a1 = m1.ravel()
     a2 = m2.ravel()
 
