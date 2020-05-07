@@ -342,7 +342,7 @@ def main():
     analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
-    analysis_parser.add_argument("--format", choices=("latex", "pdf", "html", "json"), default="json", help='Analysis output format')
+    analysis_parser.add_argument("--format", choices=("html", "latex", "pdf", "json"), default="html", help='Analysis output format')
     analysis_parser.add_argument("--name", required=False, help='Analysis output name')
     analysis_parser.add_argument("--workers", default=1, required=False, help='Number of parallel workers', type=int)
     analysis_parser.add_argument("--nocache", default=False, required=False, help="Do not cache data to disk", action='store_true')

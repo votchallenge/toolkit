@@ -211,6 +211,7 @@ class Workspace(object):
         logger.info("Download completed")
 
     def __init__(self, directory):
+        self._root = directory
         directory = normalize_path(directory)
         config_file = os.path.join(directory, "config.yaml")
         if not os.path.isfile(config_file):
@@ -239,7 +240,6 @@ class Workspace(object):
             Workspace.download_dataset(self._stack.dataset, dataset_directory)
 
         self._dataset = VOTDataset(dataset_directory)
-        self._root = directory
         self._registry = [normalize_path(r, directory) for r in self._config.get("registry", [])]
 
     @property
