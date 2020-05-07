@@ -1,0 +1,9 @@
+title: VOT-ST2020 challenge
+dataset: vot:vot-st2020
+url: http://www.votchallenge.net/vot2020/
+experiments:
+  baseline:
+    type: vot.experiment.MultiStartExperiment
+    measures:
+      - type: AttributeDifficultyLevelMultiStart
+        fail_interval: 30
