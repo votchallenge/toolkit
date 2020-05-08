@@ -60,7 +60,7 @@ class Rectangle(Shape):
 
     @property
     def x(self):
-        return self._data[1, 0]
+        return self._data[0, 0]
 
     @property
     def y(self):
