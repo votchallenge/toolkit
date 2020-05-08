@@ -319,9 +319,9 @@ class AccuracyRobustnessMultiStart(SeparatableAnalysis):
             accuracy += sum(overlaps[0:progress])
             total += len(proxy)
 
-        ar = (accuracy / robustness, robustness / total)
+        ar = (accuracy / robustness if robustness > 0 else 0, robustness / total)
 
-        return accuracy / robustness, robustness / total, ar, robustness, len(sequence)
+        return accuracy / robustness if robustness > 0 else 0, robustness / total, ar, robustness, len(sequence)
 
 class EAOScore(DependentAnalysis):
     def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True, low: int = 99, high: int = 355):
@@ -551,3 +551,105 @@ class AttributeMultiStart(SeparatableAnalysis):
                 attribute_counter[t] += 1
 
         return seq_accuracy, seq_robustness, attribute_counter
+
+class AttributeDifficultyLevelMultiStart(SeparatableAnalysis):
+    def __init__(self, fail_interval: int, burnin: int = 10, grace: int = 10, bounded: bool = True):
+        super().__init__()
+        self._burnin = burnin
+        self._grace = grace
+        self._bounded = bounded
+        self._threshold = 0.1
+        self._fail_interval = int(fail_interval)
+
+    @property
+    def name(self):
+        return "Attribute difficulty level analysis"
+
+    def parameters(self) -> Dict[str, Any]:
+        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded)
+
+    def describe(self):
+        return MeasureDescription("Attr. Difficulty Level", 0, 1, MeasureDescription.DESCENDING), \
+            None
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiStartExperiment)
+
+    def join(self, results: List[tuple]):
+        attribute_difficulty = Counter()
+        attribute_counter = Counter()
+        for seq_tags_not_failed, seq_tags_count, seq_attr_count in results:
+            
+            for t in seq_tags_count:
+
+                if t in seq_tags_not_failed:
+                    seq_attr_difficulty = seq_tags_not_failed[t] / seq_tags_count[t]
+                else:
+                    seq_attr_difficulty = 0
+
+                attribute_difficulty[t] += seq_attr_difficulty * seq_attr_count[t]
+                attribute_counter[t] += seq_attr_count[t]
+
+        for t in attribute_difficulty:
+            attribute_difficulty[t] /= attribute_counter[t]
+
+        return attribute_difficulty, attribute_counter
+
+
+    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+
+        results = experiment.results(tracker, sequence)
+
+        forward, backward = find_anchors(sequence, experiment.anchor)
+
+        if len(forward) == 0 and len(backward) == 0:
+            raise RuntimeError("Sequence does not contain any anchors")
+
+        tags_count = Counter()
+        tags_not_failed = Counter()
+        for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
+            name = "%s_%08d" % (sequence.name, i)
+
+            if not Trajectory.exists(results, name):
+                raise MissingResultsException()
+
+            if reverse:
+                proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
+            else:
+                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+
+            trajectory = Trajectory.read(results, name)
+
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self._burnin else None)
+
+            grace = self._grace
+            progress = len(proxy)
+
+            for j, overlap in enumerate(overlaps):
+                if overlap <= self._threshold and not proxy.groundtruth(j).is_empty():
+                    grace = grace - 1
+                    if grace == 0:
+                        progress = j + 1 - self._grace  # subtract since we need actual point of the failure
+                        break
+                else:
+                    grace = self._grace
+            
+            for j in range(progress):
+                tags = proxy.tags(j)
+                if len(tags) == 0:
+                    tags = ['empty']
+
+                for t in tags:
+                    tags_count[t] += 1
+                    if progress == len(proxy) or j < progress - self._fail_interval:
+                        tags_not_failed[t] += 1
+
+        attribute_counter = Counter()
+        for frame_idx in range(len(sequence)):
+            tags = sequence.tags(frame_idx)
+            if len(tags) == 0:
+                tags = ['empty']
+            for t in tags:
+                attribute_counter[t] += 1
+
+        return tags_not_failed, tags_count, attribute_counter
