@@ -227,7 +227,7 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int
 
     return float(intersection) / float(union_) if union_ > 0 else float(0)
 
-from vot.region import Region
+from vot.region import Region, RegionException
 from vot.region.shapes import Shape, Rectangle, Polygon, Mask
 
 def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Tuple[int, int]] = None):
@@ -268,5 +268,6 @@ def calculate_overlaps(first: List[Region], second: List[Region], bounds: Option
     bounds is in the format [width, height]
     output: list of per-frame overlaps (floats)
     """
-    assert len(first) == len(second)
+    if not len(first) == len(second):
+        raise RegionException("List not of the same size {} != {}".format(len(first), len(second)))
     return [calculate_overlap(pairs[0], pairs[1], bounds=bounds) for i, pairs in enumerate(zip(first, second))]

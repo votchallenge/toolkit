@@ -96,7 +96,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
             trajectory.write(results, name)
 
-            if  callback:
+            if callback:
                 callback(i / self._repetitions)
 
 class SupervisedExperiment(MultiRunExperiment):

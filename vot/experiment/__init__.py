@@ -63,20 +63,20 @@ class Experiment(ABC):
 from .multirun import UnsupervisedExperiment, SupervisedExperiment
 from .multistart import MultiStartExperiment
 
-class EvaluationProgress(object):
-
-    def __init__(self, description, total):
-        self.bar = Progress(desc=description, total=total, unit="sequence")
-        self._finished = 0
-
-    def __call__(self, progress):
-        self.bar.update_absolute(self._finished + min(1, max(0, progress)))
-
-    def push(self):
-        self._finished = self._finished + 1
-        self.bar.update_absolute(self._finished)
-
 def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: List["Sequence"], force: bool = False, persist: bool = False):
+
+    class EvaluationProgress(object):
+
+        def __init__(self, description, total):
+            self.bar = Progress(desc=description, total=total, unit="sequence")
+            self._finished = 0
+
+        def __call__(self, progress):
+            self.bar.update_absolute(self._finished + min(1, max(0, progress)))
+
+        def push(self):
+            self._finished = self._finished + 1
+            self.bar.update_absolute(self._finished)
 
     logger = logging.getLogger("vot")
 
