@@ -107,7 +107,7 @@ class Registry(object):
         logger.debug("Found %d trackers", len(self._trackers))
 
     def __getitem__(self, reference):
-        return self.resolve(reference, skip_unknown=False, resolve_tags=False)[0]
+        return self.resolve(reference, skip_unknown=False, resolve_plural=False)[0]
 
     def __contains__(self, reference):
         identifier, _ = parse_reference(reference)
@@ -119,13 +119,13 @@ class Registry(object):
     def __len__(self):
         return len(self._trackers)
 
-    def resolve(self, *references, skip_unknown=True, resolve_tags=True):
+    def resolve(self, *references, skip_unknown=True, resolve_plural=True):
 
         trackers = []
 
         for reference in references:
 
-            if resolve_tags and reference.startswith("#"):
+            if resolve_plural and reference.startswith("#"):
                 tag = reference[1:]
                 if not is_valid_identifier(tag):
                     continue
