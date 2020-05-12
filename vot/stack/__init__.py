@@ -1,13 +1,15 @@
 import os
 import json
 import glob
-import yaml
+import collections
 from typing import List
+
+import yaml
 
 from vot.experiment import Experiment
 from vot.experiment.transformer import Transformer
 from vot.utilities import import_class
-from vot.analysis import Analysis
+from vot.analysis import Analysis, ANALYSIS_PACKAGES
 
 class Stack(object):
 
@@ -17,7 +19,7 @@ class Stack(object):
         self._title = metadata["title"]
         self._dataset = metadata.get("dataset", None)
         self._deprecated = metadata.get("deprecated", False)
-        self._experiments = dict()
+        self._experiments = collections.OrderedDict()
         self._analyses = dict()
         self._transformers = dict()
 
@@ -38,12 +40,12 @@ class Stack(object):
                     transformers.append(transformer_class(workspace.cache(self), **transformer_metadata))
 
             analyses = []
-            if "measures" in experiment_metadata:
-                analyses_metadata = experiment_metadata["measures"]
-                del experiment_metadata["measures"]
+            if "analysies" in experiment_metadata:
+                analyses_metadata = experiment_metadata["analysies"]
+                del experiment_metadata["analysies"]
 
                 for analysis_metadata in analyses_metadata:
-                    analysis_class = import_class(analysis_metadata["type"], hints=["vot.analysis.measures"])
+                    analysis_class = import_class(analysis_metadata["type"], hints=ANALYSIS_PACKAGES)
                     assert issubclass(analysis_class, Analysis)
                     del analysis_metadata["type"]
                     analyses.append(analysis_class(**analysis_metadata))

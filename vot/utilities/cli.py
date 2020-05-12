@@ -7,7 +7,7 @@ import yaml
 from datetime import datetime
 import colorama
 
-from vot import check_updates, __version__
+from vot import check_updates, check_debug, __version__
 from vot.tracker import Registry, TrackerException
 from vot.stack import resolve_stack, list_integrated_stacks
 from vot.workspace import Workspace
@@ -182,7 +182,7 @@ def do_evaluate(config, logger):
 
 def do_analysis(config, logger):
 
-    from vot.analysis import process_analyses
+    from vot.analysis.processor import process_stack_analyses
     from vot.analysis.document import generate_json_document, generate_latex_document, generate_html_document
 
     workspace = Workspace(config.workspace)
@@ -220,7 +220,7 @@ def do_analysis(config, logger):
     else:
         cache = workspace.cache("analysis")
 
-    results = process_analyses(workspace, trackers, executor, cache)
+    results = process_stack_analyses(workspace, trackers, executor, cache)
 
     executor.shutdown(wait=True)
 
@@ -235,11 +235,11 @@ def do_analysis(config, logger):
     storage = workspace.storage.substorage("analysis").substorage(name)
 
     if config.format == "latex":
-        generate_latex_document(results, storage, False)
+        generate_latex_document(trackers, workspace.dataset, results, storage, False)
     if config.format == "pdf":
-        generate_latex_document(results, storage, True)
+        generate_latex_document(trackers, workspace.dataset, results, storage, True)
     elif config.format == "html":
-        generate_html_document(results, storage)
+        generate_html_document(trackers, workspace.dataset, results, storage)
     elif config.format == "json":
         generate_json_document(results, storage)
 
@@ -357,7 +357,7 @@ def main():
 
         logger.setLevel(logging.INFO)
 
-        if args.debug:
+        if args.debug or check_debug:
             logger.setLevel(logging.DEBUG)
 
         update, version = check_updates()

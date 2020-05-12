@@ -1,5 +1,6 @@
 import logging
-from typing import List, Optional, Tuple, Dict, Any
+from enum import Enum, Flag, auto
+from typing import List, Optional, Tuple, Dict, Any, Set
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor
 
@@ -11,58 +12,30 @@ from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.region import Region, RegionType
 from vot.utilities import class_fullname, arg_hash
+from vot.utilities.attributes import Attributee
 
 class MissingResultsException(VOTException):
     pass
 
-def is_special(region: Region, code = None) -> bool:
-    if code is None:
-        return region.type == RegionType.SPECIAL
-    return region.type == RegionType.SPECIAL and region.code == code
+class Sorting(Enum):
+    UNSORTABLE = auto()
+    DESCENDING = auto()
+    ASCENDING = auto()
 
-class Analysis(ABC):
+class Hints(Flag):
+    NONE = 0
+    AXIS_EQUAL = auto()
+    SQUARE = auto()
 
-    def __init__(self):
-        self._identifier_cache = None
-
-    def compatible(self, experiment: Experiment):
-        return False
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        raise NotImplementedError
-
-    @property
-    def identifier(self) -> str:
-        if not self._identifier_cache is None:
-            return self._identifier_cache
-
-        params = self.parameters()
-        confighash = arg_hash(**params)
-
-        self._identifier_cache = class_fullname(self) + "@" + confighash
-
-        return self._identifier_cache
-
-    def parameters(self) -> Dict[str, Any]:
-        return dict()
-
-    @abstractmethod
-    def describe(self) -> Tuple["Result"]:
-        """Returns a tuple of descriptions of results
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
-        raise NotImplementedError
+class Axis(Enum):
+    TRACKERS = auto()
+    SEQUENCES = auto()
 
 class Result(ABC):
     """Abstract result object base. This is the base class for all result descriptions.
     """
 
-    def __init__(self, name: str, abbreviation: Optional[str] = None):
+    def __init__(self, name: str, abbreviation: Optional[str] = None, description: Optional["str"] = ""):
         """Constructor
 
         Arguments:
@@ -78,6 +51,8 @@ class Result(ABC):
         else:
             self._abbreviation = abbreviation
 
+        self._description = description
+
     @property
     def name(self):
         return self._name
@@ -86,21 +61,22 @@ class Result(ABC):
     def abbreviation(self):
         return self._abbreviation
 
+    @property
+    def description(self):
+        return self._description
+
 class Label(Result):
 
-    def __init__(self, name: str, abbreviation: Optional[str] = None):
-        super().__init__(name, abbreviation)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class Measure(Result):
     """Measure describes a single value numerical output of an analysis. Can have minimum and maximum value as well
     as direction of sorting.
     """
 
-    DESCENDING = "descending"
-    ASCENDING = "ascending"
-
     def __init__(self, name: str, abbreviation: Optional[str] = None, minimal: Optional[float] = None, \
-        maximal: Optional[float] = None, direction: Optional[str] = ASCENDING):
+        maximal: Optional[float] = None, direction: Optional[Sorting] = Sorting.UNSORTABLE):
         super().__init__(name, abbreviation)
         self._minimal = minimal
         self._maximal = maximal
@@ -118,17 +94,25 @@ class Measure(Result):
     def direction(self):
         return self._direction
 
-class Point(Result):
-    """Point is a two or more dimensional numerical output that can be visualized in a scatter plot.
-    """
+class Drawable(Result):
 
-    def __init__(self, name: str, dimensions: int, abbreviation: Optional[str] = None, minimal: Optional[Tuple[float]] = None, \
-        maximal: Optional[Tuple[float]] = None):
-        assert(dimensions > 1)
+    def __init__(self, name: str, abbreviation: Optional[str] = None, hints: Optional[Hints] = Hints.NONE):
         super().__init__(name, abbreviation)
+        self._hints = hints
+
+    @property
+    def hints(self):
+        return self._hints
+
+class Multidimensional(Drawable):
+    def __init__(self, name: str, dimensions: int, abbreviation: Optional[str] = None, minimal: Optional[Tuple[float]] = None, \
+        maximal: Optional[Tuple[float]] = None, labels: Optional[Tuple[str]] = None, hints: Optional[Hints] = Hints.NONE):
+        assert(dimensions > 1)
+        super().__init__(name, abbreviation, hints)
         self._dimensions = dimensions
         self._minimal = minimal
         self._maximal = maximal
+        self._labels = labels
 
     @property
     def dimensions(self):
@@ -140,14 +124,21 @@ class Point(Result):
     def maximal(self, i):
         return self._maximal[i]
 
-class Plot(Result):
+    def label(self, i):
+        return self._labels[i]
+
+class Point(Multidimensional):
+    """Point is a two or more dimensional numerical output that can be visualized in a scatter plot.
+    """
+
+class Plot(Drawable):
     """Plot describes a result in form of a list of values with optional minimum and maximum with respect to some unit. The
     results of the same analysis for different trackers should have the same number of measurements (independent variable).
     """
 
     def __init__(self, name: str, abbreviation: Optional[str] = None, wrt: str = "frames", minimal: Optional[float] = None, \
-        maximal: Optional[float] = None):
-        super().__init__(name, abbreviation)
+        maximal: Optional[float] = None, hints: Optional[Hints] = Hints.NONE):
+        super().__init__(name, abbreviation, hints)
         self._wrt = wrt
         self._minimal = minimal
         self._maximal = maximal
@@ -165,135 +156,174 @@ class Plot(Result):
     def wrt(self):
         return self._wrt
 
-class Curve(Result):
-    """Curve is a list of 2 or more dimensional results. The number of elements in a list can vary.
+class Curve(Multidimensional):
+    """Curve is a list of 2+ dimensional results. The number of elements in a list can vary between samples.
     """
 
-    def __init__(self, name: str, dimensions: int, abbreviation: Optional[str] = None, minimal: Optional[Tuple[float]] = None, \
-        maximal: Optional[Tuple[float]] = None):
-        assert(dimensions > 1)
-        super().__init__(name, abbreviation)
-        self._dimensions = dimensions
-        self._minimal = minimal
-        self._maximal = maximal
+class Analysis(Attributee):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._identifier_cache = None
+
+    def compatible(self, experiment: Experiment):
+        raise NotImplementedError
 
     @property
-    def dimensions(self):
-        return self._dimensions
-
-    def minimal(self, i):
-        return self._minimal[i]
-
-    def maximal(self, i):
-        return self._maximal[i]
-
-class SeparatableAnalysis(Analysis):
-
-    @abstractmethod
-    def join(self, results: List[tuple]):
+    def name(self) -> str:
         raise NotImplementedError
 
-    @abstractmethod
-    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+    @property
+    def identifier(self) -> str:
+        if not self._identifier_cache is None:
+            return self._identifier_cache
+
+        params = self.dump()
+        confighash = arg_hash(**params)
+
+        self._identifier_cache = class_fullname(self) + "@" + confighash
+
+        return self._identifier_cache
+
+    def describe(self) -> Tuple["Result"]:
+        """Returns a tuple of descriptions of results
+        """
         raise NotImplementedError
 
-    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
-        partial = []
-        for sequence in sequences:
-            partial.append(self.compute_partial(tracker, experiment, sequence))
+    def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        raise NotImplementedError
 
-        return self.join(partial)
+    def axes(self):
+        """ Returns a tuple of axes of results or None if only a single result tuple is returned """
+        raise NotImplementedError
 
 class DependentAnalysis(Analysis):
 
     @abstractmethod
-    def join(self, results: List[tuple]):
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
         raise NotImplementedError
 
     @abstractmethod
     def dependencies(self) -> List[Analysis]:
         raise NotImplementedError
 
-    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
+    def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
         partial = []
         for dependency in self.dependencies():
-            partial.append(dependency.compute(tracker, experiment, sequences))
+            partial.append(dependency.compute(experiment, trackers, sequences))
 
-        return self.join(partial)
+        return self.join(experiment, trackers, sequences, partial)
+
+class SeparableAnalysis(Analysis):
+    """Base class for all analyses that support separation into multiple sub-tasks.
+    """
+
+    @abstractmethod
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
+        raise NotImplementedError
+
+    @abstractmethod
+    def separate(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        raise NotImplementedError
+
+    def subcompute(self, *args):
+        raise NotImplementedError
+
+    def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        parts = self.separate(experiment, trackers, sequences)
+        results = []
+        for part in parts:
+            results.append(self.subcompute(*part))
+        return self.join(experiment, trackers, sequences, results)
+
+class FullySeparableAnalysis(SeparableAnalysis): # pylint: disable=W0223
+    """Analysis that is separable with respect to trackers and sequences, each tracker-sequence pair
+    can be its own job.
+    """
+
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
+        transformed_results = [[None] * len(sequences) for _ in enumerate(trackers)]
+        k = 0
+        for i, _ in enumerate(trackers):
+            for j, _ in enumerate(sequences):
+                transformed_results[i][j] = results[k]
+                k += 1
+        return transformed_results
+
+    @abstractmethod
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
+        raise NotImplementedError
+
+    def separate(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        parts = []
+        for tracker in trackers:
+            for sequence in sequences:
+                parts.append((experiment, tracker, sequence))
+        return parts
+
+    def axes(self):
+        return Axis.TRACKERS, Axis.SEQUENCES
+
+class SequenceAveragingAnalysis(FullySeparableAnalysis): # pylint: disable=W0223
+
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
+        results = super().join(experiment, trackers, sequences, results)
+        collapsed = list()
+        for tracker, partial in zip(trackers, results):
+            collapsed.append(self.collapse(tracker, sequences, partial))
+        return collapsed
+
+    @abstractmethod
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
+        raise NotImplementedError
+
+    @abstractmethod
+    def collapse(self, tracker: Tracker, sequences: List[Sequence], results: List[tuple]):
+        raise NotImplementedError
+
+    def axes(self):
+        return Axis.TRACKERS,
+
+class TrackerSeparableAnalysis(SeparableAnalysis): # pylint: disable=W0223
+    """Separate analysis into multiple per-tracker tasks, each of them is non-separable.
+    """
+
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
+        return results
+
+    @abstractmethod
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequences: List[Sequence]):
+        raise NotImplementedError
+
+    def separate(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        parts = []
+        for tracker in trackers:
+            parts.append((experiment, tracker, sequences))
+        return parts
+
+    def axes(self):
+        return Axis.TRACKERS,
 
 _ANALYSES = list()
 
-def register_analysis(analysis: Analysis):
-    _ANALYSES.append(analysis)
+def public(name=None):
+    def register(cls):
+        _ANALYSES.append(cls)
+        return cls
+    return register
 
-def process_analyses(workspace: "Workspace", trackers: List[Tracker], executor: Executor, cache: Cache):
+def simplejoin():
+    """Decorator for analyses with join that is simple and can be performed without creating a new task.
+    """
+    def modify(cls):
+        setattr(cls, "simplejoin", True)
+        return cls
+    return modify
 
-    from vot.analysis.backend import AnalysisProcessor
-    from vot.utilities import Progress
-    from threading import Condition
-
-    processor = AnalysisProcessor(executor, cache)
-
-    logger = logging.getLogger("vot")
-
-    results = dict()
-    condition = Condition()
-
-    def insert_result(container: dict, key):
-        def insert(x):
-            if isinstance(x, Exception):
-                logger.exception(x)
-            else:
-                container[key] = x
-            with condition:
-                condition.notify()
-        return insert
-
-    for experiment in workspace.stack:
-
-        logger.debug("Traversing experiment %s", experiment.identifier)
-
-        results[experiment] = dict()
-
-        for analysis in workspace.stack.analyses(experiment):
-
-            if not analysis.compatible(experiment):
-                continue
-
-            logger.debug("Traversing analysis %s", analysis.name)
-
-            analysis_results = dict()
-
-            for tracker in trackers:
-                with condition:
-                    analysis_results[tracker] = None
-                processor.submit(analysis, tracker, experiment, workspace.dataset, insert_result(analysis_results, tracker))
-
-            results[experiment][analysis] = analysis_results
-
-    logger.debug("Waiting for %d analysis tasks to finish", processor.total)
-
-    progress = Progress(desc="Analysis", total=processor.total, unit="tasks")
-
-    try:
-
-        while True:
-            with condition:
-                progress.update_absolute(processor.total - processor.pending)
-
-                if processor.pending == 0:
-                    break
-
-                condition.wait(1)
-
-    except KeyboardInterrupt:
-        processor.cancel_all()
-        progress.close()
-        logger.info("Analysis interrupted by user, aborting.")
-        return None
-
-    progress.close()
-
-    return results
+def is_special(region: Region, code=None) -> bool:
+    if code is None:
+        return region.type == RegionType.SPECIAL
+    return region.type == RegionType.SPECIAL and region.code == code
 
 
+ANALYSIS_PACKAGES = ["vot.analysis.ar", "vot.analysis.eao", "vot.analysis.basic", "vot.analysis.tpr"]

@@ -1,14 +1,15 @@
 import math
 import numpy as np
-from typing import List, Dict, Any
+from typing import List
 
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.region import Region, RegionType, calculate_overlaps
 from vot.experiment import Experiment
 from vot.experiment.multirun import UnsupervisedExperiment
-from vot.analysis import Analysis, DependentAnalysis, MissingResultsException, Curve
-from vot.utilities import to_number, to_logical
+from vot.analysis import TrackerSeparableAnalysis, DependentAnalysis, \
+    MissingResultsException, Measure, Sorting, Curve, Plot, Axis, public
+from vot.utilities.attributes import Float, Integer, Boolean, Include
 
 def determine_thresholds(scores: List[float], resolution: int) -> List[float]:
     scores = [score for score in scores if not math.isnan(score)]
@@ -16,7 +17,7 @@ def determine_thresholds(scores: List[float], resolution: int) -> List[float]:
 
     if len(scores) > resolution - 2:
         delta = math.floor(len(scores) / (resolution - 2))
-        idxs = np.round(np.linspace(delta, len(scores) - delta, num = resolution - 2)).astype(np.int)
+        idxs = np.round(np.linspace(delta, len(scores) - delta, num=resolution - 2)).astype(np.int)
         thresholds = [scores[idx] for idx in idxs]
     else:
         thresholds = scores
@@ -37,9 +38,9 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
     precision = len(thresholds) * [float(0)]
     recall = len(thresholds) * [float(0)]
 
-    for i in range(len(thresholds)):
+    for i, threshold in enumerate(thresholds):
 
-        subset = confidence >= thresholds[i]
+        subset = confidence >= threshold
 
         if np.sum(subset) == 0:
             precision[i] = 1
@@ -50,28 +51,24 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
 
     return precision, recall
 
-class PrecisionRecallCurve(Analysis):
+@public("Tracking Precision/Recall Curve")
+class PrecisionRecallCurve(TrackerSeparableAnalysis):
 
-    def __init__(self, resolution: int = 100, ignore_unknown: bool = True, bounded: bool = True):
-        super().__init__()
-        self._resolution = to_number(resolution, min_n=1)
-        self._ignore_unknown = to_logical(ignore_unknown)
-        self._bounded = to_logical(bounded)
+    resolution = Integer(default=100)
+    ignore_unknown = Boolean(default=True)
+    bounded = Boolean(default=True)
 
     @property
     def name(self):
         return "Tracking precision/recall"
 
-    def parameters(self) -> Dict[str, Any]:
-        return dict(resolution=self._resolution, ignore_unknown=self._ignore_unknown, bounded=self._bounded)
-
     def describe(self):
-        return Curve("Precision Recall curve", dimensions=2, abbreviation="PR", minimal=(0, 0), maximal=(1, 1)),
+        return Curve("Precision Recall curve", dimensions=2, abbreviation="PR", minimal=(0, 0), maximal=(1, 1)), None
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
 
-    def compute(self, tracker: Tracker, experiment: Experiment, sequences: List[Sequence]):
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequences: List[Sequence]):
 
         # calculate thresholds
         total_scores = 0
@@ -91,7 +88,7 @@ class PrecisionRecallCurve(Analysis):
                 scores_all[idx:idx + len(conf_)] = conf_
                 idx += len(conf_)
 
-        thresholds = determine_thresholds(scores_all, self._resolution)
+        thresholds = determine_thresholds(scores_all, self.resolution)
 
         # calculate per-sequence Precision and Recall curves
         pr_curves = []
@@ -108,7 +105,7 @@ class PrecisionRecallCurve(Analysis):
             re = len(thresholds) * [float(0)]
             for trajectory in trajectories:
                 conf_ = [trajectory.properties(i).get('confidence', 0) for i in range(len(trajectory))]
-                pr_, re_ = compute_tpr_curves(trajectory.regions(), conf_, sequence, thresholds, self._ignore_unknown, self._bounded)
+                pr_, re_ = compute_tpr_curves(trajectory.regions(), conf_, sequence, thresholds, self.ignore_unknown, self.bounded)
                 pr = [p1 + p2 for p1, p2 in zip(pr, pr_)]
                 re = [r1 + r2 for r1, r2 in zip(re, re_)]
 
@@ -130,36 +127,78 @@ class PrecisionRecallCurve(Analysis):
 
         curve = [(pr / len(pr_curves), re / len(pr_curves)) for pr, re in zip(pr_curve, re_curve)]
 
-        return curve
+        return curve, thresholds
 
+@public("Tracking F-Score Curve")
 class FScoreCurve(DependentAnalysis):
 
-    def __init__(self, resolution: int = 100, ignore_unknown: bool = True, bounded: bool = True):
-        super().__init__()
-        self._resolution = resolution
-        self._ignore_unknown = ignore_unknown
-        self._bounded = bounded
-        self._prcurve = PrecisionRecallCurve(resolution, ignore_unknown, bounded)
+    beta = Float(default=1)
+    prcurve = Include(PrecisionRecallCurve)
 
     @property
     def name(self):
         return "Tracking precision/recall"
 
-    def parameters(self) -> Dict[str, Any]:
-        return dict(resolution=self._resolution, ignore_unknown=self._ignore_unknown, bounded=self._bounded)
-
     def describe(self):
-        return Curve("F", None),
+        return Plot("Tracking F-score curve", "F", wrt="normalized threshold", minimal=0, maximal=1), None
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
 
     def dependencies(self):
-        return [self._prcurve]
+        return self.prcurve,
 
-    def join(self, results):
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results):
+        processed_results = []
 
-        f_curve = [(2 * pr_ * re_) / (pr_ + re_) for pr_, re_ in results[0][0]]
+        for result in results:
+            beta2 = (self.beta * self.beta)
+            f_curve = [((1 + beta2) * pr_ * re_) / (beta2 * pr_ + re_) for pr_, re_ in result[0][0]]
 
-        return f_curve,
+            processed_results.append((f_curve, results[0][1]))
 
+        return processed_results
+
+    def axes(self):
+        return Axis.TRACKERS
+
+@public("Best Tracking Precision/Recall based on FScore")
+class PrecisionRecall(DependentAnalysis):
+
+    prcurve = Include(PrecisionRecallCurve)
+    fcurve = Include(FScoreCurve)
+
+    @property
+    def name(self):
+        return "Tracking precision/recall"
+
+    def describe(self):
+        return Measure("Precision", "Pr", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
+             Measure("Recall", "Re", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
+             Measure("F", minimal=0, maximal=1, direction=Sorting.DESCENDING)
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, UnsupervisedExperiment)
+
+    def dependencies(self):
+        return self.prcurve, self.fcurve
+
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results):
+
+        f_curves = results[0]
+        pr_curves = results[1]
+
+        joined = []
+
+        for f_curve, pr_curve in zip(f_curves, pr_curves):
+            # get optimal F-score and Pr and Re at this threshold
+            f_score = max(f_curve[0])
+            best_i = f_curve[0].index(f_score)
+            pr_score = pr_curve[0][best_i][0]
+            re_score = pr_curve[0][best_i][1]
+            joined.append((pr_score, re_score, f_score))
+
+        return joined
+
+    def axes(self):
+        return Axis.TRACKERS,

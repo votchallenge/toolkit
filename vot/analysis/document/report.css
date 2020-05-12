@@ -1,0 +1,49 @@
+
+body {
+    padding: 10px;
+}
+
+td span {
+    vertical-align: super;
+}
+
+.first {
+    font-weight: bold;
+    color: red;
+}
+
+.second {
+    font-weight: bold;
+    color: green;
+}
+
+.third {
+    font-weight: bold;
+    color: blue;
+}
+
+
+table.pure-table-striped tbody tr:hover td {
+    background-color: #ebebeb;
+}
+
+table.pure-table-striped tbody tr.selected td {
+    background-color: #dadada;
+}
+
+table.pure-table-striped tbody tr.selected td span {
+    font-weight: bold;
+}
+
+
+g.blurred {
+    opacity: 0.2;
+}
+
+div.graph {
+    display: inline-block;
+}
+
+div.graph p {
+    text-align: center;
+}
