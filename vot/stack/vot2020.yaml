@@ -4,19 +4,47 @@ url: http://www.votchallenge.net/vot2020/
 experiments:
   baseline:
     type: vot.experiment.MultiStartExperiment
-    measures:
+    analysies:
       - type: AccuracyRobustnessMultiStart
       - type: EAOScoreMultiStart
+        low: 115
+        high: 755
+      - type: EAOCurveMultiStart
+        low: 115
+        high: 755
+      - type: EAOScorePlotMultiStart
+        low: 115
+        high: 755
+#      - type: TagDifficulty
+#        low: 108
+#        high: 371
+#        tags:
+#          - camera_motion
+#          - illum_change
+#         - occlusion
+#         - size_change
+#          - motion_change
+#          - empty
   unsupervised:
     type: vot.experiment.UnsupervisedExperiment
     repetitions: 1
-    measures:
+    analysies:
       - type: AverageAccuracy
         burnin: 1
   realtime:
     type: vot.experiment.MultiStartExperiment
     realtime:
       grace: 3
-    measures:
+    analysies:
       - type: AccuracyRobustnessMultiStart
       - type: EAOScoreMultiStart
+        low: 115
+        high: 755
+      - type: EAOCurveMultiStart
+        low: 115
+        high: 755
+      - type: EAOScorePlotMultiStart
+        low: 115
+        high: 755
+analyses:
+  - type: TrackerMetadata
