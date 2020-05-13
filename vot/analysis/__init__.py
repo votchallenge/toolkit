@@ -326,4 +326,4 @@ def is_special(region: Region, code=None) -> bool:
     return region.type == RegionType.SPECIAL and region.code == code
 
 
-ANALYSIS_PACKAGES = ["vot.analysis.ar", "vot.analysis.eao", "vot.analysis.basic", "vot.analysis.tpr"]
+ANALYSIS_PACKAGES = ["vot.analysis.ar", "vot.analysis.eao", "vot.analysis.basic", "vot.analysis.tpr", "vot.analysis.tags"]

@@ -1,28 +1,43 @@
 
-class AttributeMultiStart(SeparatableAnalysis):
-    def __init__(self, burnin: int = 10, grace: int = 10, bounded: bool = True):
-        super().__init__()
-        self._burnin = burnin
-        self._grace = grace
-        self._bounded = bounded
-        self._threshold = 0.1
+import numpy as np
+import typing
+from typing import List, Tuple
+from collections import Counter
+
+from vot.tracker import Tracker, Trajectory
+from vot.dataset import Sequence
+from vot.dataset.proxy import FrameMapSequence
+from vot.region import Region, Special, calculate_overlaps
+from vot.experiment import Experiment
+from vot.experiment.multirun import SupervisedExperiment
+from vot.experiment.multistart import MultiStartExperiment, find_anchors
+from vot.analysis import MissingResultsException, \
+    Plot, Point, is_special, public, Axis, Sorting, Measure, SequenceAveragingAnalysis
+from vot.utilities.attributes import String, Float, Integer, Boolean, List
+
+
+class AttributeMultiStart(SequenceAveragingAnalysis):
+
+    burnin = Integer(default=10, val_min=0)
+    grace = Integer(default=10, val_min=0)
+    bounded = Boolean(default=True)
+    threshold = Float(default=0.1, val_min=0, val_max=1)
+
+    tags = List(String())
 
     @property
     def name(self):
         return "AR per-attribute analysis"
 
-    def parameters(self) -> Dict[str, Any]:
-        return dict(burnin=self._burnin, grace=self._grace, bounded=self._bounded)
-
     def describe(self):
-        return Measure("Accuracy", "A", 0, 1, Sorting.DESCENDING), \
-            Measure("Robustness", "R", 0, 1, Sorting.DESCENDING), \
+        return [Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags], \
+            [Measure("Robustness", "R", minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags], \
             None
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
 
-    def join(self, results: List[tuple]):
+    def collapse(self, tracker: Tracker, sequences: typing.List[Sequence], results: typing.List[tuple]):
         accuracy = Counter()
         robustness = Counter()
         attribute_total = Counter()
@@ -33,13 +48,11 @@ class AttributeMultiStart(SeparatableAnalysis):
                 robustness[t] += seq_rob * seq_attr_count[t]
                 attribute_total[t] += seq_attr_count[t]
 
-        for t in attribute_total:
-            accuracy[t] /= attribute_total[t]
-            robustness[t] /= attribute_total[t]
+        return [accuracy[t] / attribute_total[t] for t in self.tags], \
+            [robustness[t] / attribute_total[t] for t in self.tags], \
+            [attribute_total[t] for t in self.tags]
 
-        return accuracy, robustness, attribute_total
-
-    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
 
         results = experiment.results(tracker, sequence)
 
@@ -65,19 +78,19 @@ class AttributeMultiStart(SeparatableAnalysis):
 
             trajectory = Trajectory.read(results, name)
 
-            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self._burnin else None)
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self.burnin else None)
 
-            grace = self._grace
+            grace = self.grace
             progress = len(proxy)
 
             for j, overlap in enumerate(overlaps):
-                if overlap <= self._threshold and not proxy.groundtruth(j).is_empty():
+                if overlap <= self.threshold and not proxy.groundtruth(j).is_empty():
                     grace = grace - 1
                     if grace == 0:
-                        progress = j + 1 - self._grace  # subtract since we need actual point of the failure
+                        progress = j + 1 - self.grace  # subtract since we need actual point of the failure
                         break
                 else:
-                    grace = self._grace
+                    grace = self.grace
 
             for j in range(progress):
                 overlap = overlaps[j]
@@ -110,27 +123,28 @@ class AttributeMultiStart(SeparatableAnalysis):
 
         return seq_accuracy, seq_robustness, attribute_counter
 
-class AttributeDifficultyLevelMultiStart(SeparatableAnalysis):
-    def __init__(self, fail_interval: int, burnin: int = 10, grace: int = 10, bounded: bool = True):
-        super().__init__()
-        self._burnin = burnin
-        self._grace = grace
-        self._bounded = bounded
-        self._threshold = 0.1
-        self._fail_interval = int(fail_interval)
+class AttributeDifficultyLevelMultiStart(SequenceAveragingAnalysis):
+
+    burnin = Integer(default=10, val_min=0)
+    grace = Integer(default=10, val_min=0)
+    bounded = Boolean(default=True)
+    threshold = Float(default=0.1, val_min=0, val_max=1)
+
+    fail_interval = Integer()
+    tags = List(String())
 
     @property
     def name(self):
         return "Attribute difficulty"
 
     def describe(self):
-        return Measure("Difficulty", "D", 0, 1, Sorting.DESCENDING), \
+        return [Measure("Difficulty", "D", minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags], \
             None
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
 
-    def join(self, results: List[tuple]):
+    def collapse(self, tracker: Tracker, sequences: typing.List[Sequence], results: typing.List[tuple]):
         attribute_difficulty = Counter()
         attribute_counter = Counter()
         for seq_tags_not_failed, seq_tags_count, seq_attr_count in results:
@@ -145,13 +159,10 @@ class AttributeDifficultyLevelMultiStart(SeparatableAnalysis):
                 attribute_difficulty[t] += seq_attr_difficulty * seq_attr_count[t]
                 attribute_counter[t] += seq_attr_count[t]
 
-        for t in attribute_difficulty:
-            attribute_difficulty[t] /= attribute_counter[t]
-
-        return attribute_difficulty, attribute_counter
+        return [attribute_difficulty[t] / attribute_counter[t] for t in self.tags], [attribute_counter[t] for t in self.tags]
 
 
-    def compute_partial(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
 
         results = experiment.results(tracker, sequence)
 
@@ -175,19 +186,19 @@ class AttributeDifficultyLevelMultiStart(SeparatableAnalysis):
 
             trajectory = Trajectory.read(results, name)
 
-            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self._burnin else None)
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self.burnin else None)
 
-            grace = self._grace
+            grace = self.grace
             progress = len(proxy)
 
             for j, overlap in enumerate(overlaps):
-                if overlap <= self._threshold and not proxy.groundtruth(j).is_empty():
+                if overlap <= self.threshold and not proxy.groundtruth(j).is_empty():
                     grace = grace - 1
                     if grace == 0:
-                        progress = j + 1 - self._grace  # subtract since we need actual point of the failure
+                        progress = j + 1 - self.grace  # subtract since we need actual point of the failure
                         break
                 else:
-                    grace = self._grace
+                    grace = self.grace
             
             for j in range(progress):
                 tags = proxy.tags(j)
@@ -196,7 +207,7 @@ class AttributeDifficultyLevelMultiStart(SeparatableAnalysis):
 
                 for t in tags:
                     tags_count[t] += 1
-                    if progress == len(proxy) or j < progress - self._fail_interval:
+                    if progress == len(proxy) or j < progress - self.fail_interval:
                         tags_not_failed[t] += 1
 
         attribute_counter = Counter()
@@ -208,4 +219,3 @@ class AttributeDifficultyLevelMultiStart(SeparatableAnalysis):
                 attribute_counter[t] += 1
 
         return tags_not_failed, tags_count, attribute_counter
-
