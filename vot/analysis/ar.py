@@ -52,7 +52,7 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR", minimal=(0, 0), \
-                maximal=(1, 1), labels=("Accuracy", "Robustness"), hints=Hints.AXIS_EQUAL), \
+                maximal=(1, 1), labels=("Robustness", "Accuracy"), hints=Hints.AXIS_EQUAL), \
              None
 
     def compatible(self, experiment: Experiment):
@@ -103,7 +103,7 @@ class AccuracyRobustnessMultiStart(SequenceAveragingAnalysis):
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR",
-                minimal=(0, 0), maximal=(1, 1), labels=("Accuracy", "Robustness"), hints=Hints.AXIS_EQUAL), \
+                minimal=(0, 0), maximal=(1, 1), labels=("Robustness", "Accuracy"), hints=Hints.AXIS_EQUAL), \
              None, None
 
     def compatible(self, experiment: Experiment):

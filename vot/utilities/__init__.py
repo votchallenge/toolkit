@@ -197,9 +197,11 @@ def to_number(val, max_n = None, min_n = None, conversion=int):
 
 def to_logical(val):
     try:
-        n = bool(val)
+        if isinstance(val, str):
+            return val.lower() in ['true', '1', 't', 'y', 'yes']
+        else:
+            return bool(val)
 
-        return n
     except ValueError:
         raise RuntimeError("Logical value conversion error")
 

@@ -220,6 +220,7 @@ class EAOScore(DependentAnalysis):
     def axes(self):
         return Axis.TRACKERS,
 
+# TODO: remove low, high
 class EAOCurveMultiStart(SequenceAveragingAnalysis):
 
     burnin = Integer(default=10, val_min=0)
@@ -345,8 +346,8 @@ class EAOScorePlotMultiStart(DependentAnalysis):
 
     def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
         scores = [x[0] for x in results[0]]
-        order = np.argsort(scores)
-        return [((o, s), ) for s, o in zip(scores, order)]
+        indices = [i[0] for i in sorted(enumerate(scores), key=lambda x: x[1])]
+        return [((indices.index(i), v), ) for i, v in enumerate(scores)]
 
     def axes(self):
         return Axis.TRACKERS,

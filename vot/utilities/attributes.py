@@ -1,6 +1,7 @@
 
 import inspect
 from typing import Type
+from collections import Iterable
 
 from vot import VOTException
 from vot.utilities import to_number, to_string, to_logical
@@ -204,3 +205,25 @@ class Boolean(Attribute):
 
     def coerce(self, value):
         return to_logical(value)
+
+class String(Attribute):
+
+    def __init__(self, default=""):
+        super().__init__(default)
+
+    def coerce(self, value):
+        return to_string(value)
+
+class List(Attribute):
+
+    def __init__(self, contains, default=None, separator=","):
+        super().__init__(default)
+        self._separator = separator
+        self._contains = contains
+
+    def coerce(self, value):
+        if isinstance(value, str):
+            value = value.split(self._separator)
+        if not isinstance(value, Iterable):
+            raise AttributeException("Unable to value convert to list")
+        return [self._contains.coerce(x) for x in value]

@@ -1,4 +1,5 @@
 
+import os
 import logging
 
 from .version import __version__
@@ -35,3 +36,8 @@ def check_updates():
 
     else:
         return False, None
+
+def check_debug():
+    var = os.environ.get("VOT_TOOLKIT_DEBUG", "false").lower()
+    return var in ["true", "1"]
+
