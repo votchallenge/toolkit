@@ -116,12 +116,11 @@ class VOTDataset(Dataset):
 
         self._sequences = OrderedDict()
 
-        progress = Progress(desc="Loading dataset", unit="sequences", total=len(names))
+        with Progress("Loading dataset", len(names)) as progress:
 
-        for name in names:
-            self._sequences[name.strip()] = VOTSequence(os.path.join(path, name.strip()), dataset=self)
-            progress.update_relative(1)
-        progress.close()
+            for name in names:
+                self._sequences[name.strip()] = VOTSequence(os.path.join(path, name.strip()), dataset=self)
+                progress.relative(1)
 
     @property
     def path(self):
@@ -165,40 +164,43 @@ class VOTDataset(Dataset):
 
             base_url = get_base_url(url) + "/"
 
-            for sequence in Progress(meta["sequences"]):
-                sequence_directory = os.path.join(path, sequence["name"])
-                os.makedirs(sequence_directory, exist_ok=True)
+            with Progress("Donwloading", len(meta["sequences"])) as progress:
+                for sequence in meta["sequences"]:
+                    sequence_directory = os.path.join(path, sequence["name"])
+                    os.makedirs(sequence_directory, exist_ok=True)
 
-                data = {'name': sequence["name"], 'fps': sequence["fps"], 'format': 'default'}
+                    data = {'name': sequence["name"], 'fps': sequence["fps"], 'format': 'default'}
 
-                annotations_url = join_url(base_url, sequence["annotations"]["url"])
-
-                try:
-                    download_uncompress(annotations_url, sequence_directory)
-                except NetworkException as e:
-                    raise DatasetException("Unable do download annotations bundle")
-                except IOError as e:
-                    raise DatasetException("Unable to extract annotations bundle, is the target directory writable and do you have enough space?")
-
-                for cname, channel in sequence["channels"].items():
-                    channel_directory = os.path.join(sequence_directory, cname)
-                    os.makedirs(channel_directory, exist_ok=True)
-
-                    channel_url = join_url(base_url, channel["url"])
+                    annotations_url = join_url(base_url, sequence["annotations"]["url"])
 
                     try:
-                        download_uncompress(channel_url, channel_directory)
+                        download_uncompress(annotations_url, sequence_directory)
                     except NetworkException as e:
-                        raise DatasetException("Unable do download channel bundle")
+                        raise DatasetException("Unable do download annotations bundle")
                     except IOError as e:
-                        raise DatasetException("Unable to extract channel bundle, is the target directory writable and do you have enough space?")
+                        raise DatasetException("Unable to extract annotations bundle, is the target directory writable and do you have enough space?")
 
-                    if "pattern" in channel:
-                        data["channels." + cname] = cname + os.path.sep + channel["pattern"]
-                    else:
-                        data["channels." + cname] = cname + os.path.sep
+                    for cname, channel in sequence["channels"].items():
+                        channel_directory = os.path.join(sequence_directory, cname)
+                        os.makedirs(channel_directory, exist_ok=True)
 
-                write_properties(os.path.join(sequence_directory, 'sequence'), data)
+                        channel_url = join_url(base_url, channel["url"])
+
+                        try:
+                            download_uncompress(channel_url, channel_directory)
+                        except NetworkException as e:
+                            raise DatasetException("Unable do download channel bundle")
+                        except IOError as e:
+                            raise DatasetException("Unable to extract channel bundle, is the target directory writable and do you have enough space?")
+
+                        if "pattern" in channel:
+                            data["channels." + cname] = cname + os.path.sep + channel["pattern"]
+                        else:
+                            data["channels." + cname] = cname + os.path.sep
+
+                    write_properties(os.path.join(sequence_directory, 'sequence'), data)
+
+                    progress.relative(1)
 
             with open(os.path.join(path, "list.txt"), "w") as fp:
                 for sequence in meta["sequences"]:

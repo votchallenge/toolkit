@@ -1,5 +1,6 @@
 
-import os, glob
+import os
+import glob
 from typing import List
 from copy import copy
 from vot.region import Region, RegionType, Special, write_file, read_file, calculate_overlap
@@ -100,7 +101,7 @@ class Trajectory(object):
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
 
-        return {k : v[frame] for k, v in self._properties.items() }
+        return {k : v[frame] for k, v in self._properties.items() if not v[frame] is None}
 
     def __len__(self):
         return len(self._regions)

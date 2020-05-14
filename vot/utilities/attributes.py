@@ -227,3 +227,7 @@ class List(Attribute):
         if not isinstance(value, Iterable):
             raise AttributeException("Unable to value convert to list")
         return [self._contains.coerce(x) for x in value]
+
+    def __iter__(self):
+        # This is only here to avoid pylint errors for the actual attribute field
+        raise NotImplementedError

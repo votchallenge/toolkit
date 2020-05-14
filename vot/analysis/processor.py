@@ -340,24 +340,21 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], exec
 
     logger.debug("Waiting for %d analysis tasks to finish", processor.total)
 
-    progress = Progress(desc="Analysis", total=processor.total, unit="tasks")
+    with Progress("Running analysis", processor.total) as progress:
+        try:
 
-    try:
+            while True:
+                progress.absolute(processor.total - processor.pending)
+                if processor.pending == 0:
+                    break
 
-        while True:
-            progress.update_absolute(processor.total - processor.pending)
-            if processor.pending == 0:
-                break
+                with condition:
+                    condition.wait(1)
 
-            with condition:
-                condition.wait(1)
-
-    except KeyboardInterrupt:
-        processor.cancel_all()
-        progress.close()
-        logger.info("Analysis interrupted by user, aborting.")
-        return None
-
-    progress.close()
+        except KeyboardInterrupt:
+            processor.cancel_all()
+            progress.close()
+            logger.info("Analysis interrupted by user, aborting.")
+            return None
 
     return results

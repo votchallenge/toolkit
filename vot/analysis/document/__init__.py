@@ -19,6 +19,7 @@ from vot.tracker import Tracker
 from vot.experiment import Experiment
 from vot.workspace import Storage
 from vot.analysis import Analysis, Measure, Point, Plot, Curve, Hints, Sorting, Axis
+from vot.utilities import class_fullname
 
 def _extract_measures_table(trackers, results):
     table_header = [[], [], []]
@@ -129,10 +130,10 @@ class Figure(ABC):
         with self:
             plt.xlabel(xlabel)
             plt.ylabel(ylabel)
-            if not xlimits is None:
+            if not xlimits is None and not any([x is None for x in xlimits]):
                 plt.xlim(xlimits)
                 plt.autoscale(False, axis="x")
-            if not ylimits is None:
+            if not ylimits is None and not any([y is None for y in ylimits]):
                 plt.ylim(ylimits)
                 plt.autoscale(False, axis="y")
 
@@ -219,7 +220,7 @@ def _extract_graphs(trackers, results, legend):
                     graph = ScatterPlot(graph_identifier, legend, xlabel, ylabel, xlim, ylim, description.hints)
                 elif isinstance(description, Plot):
                     ylim = (description.minimal, description.maximal)
-                    graph = LinePlot(graph_identifier, legend, description.name, description.wrt, None, ylim, description.hints)
+                    graph = LinePlot(graph_identifier, legend, description.wrt, description.name, None, ylim, description.hints)
                 elif isinstance(description, Curve) and description.dimensions == 2:
                     xlim = (description.minimal(0), description.maximal(0))
                     ylim = (description.minimal(1), description.maximal(1))
@@ -276,24 +277,26 @@ def _read_resource(name):
     with open(path, "r") as filehandle:
         return filehandle.read()
 
-def generate_json_document(results, storage: Storage):
+def generate_json_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage):
 
-    def transform_key(key):
-        if isinstance(key, Analysis):
-            return key.name
-        if isinstance(key, Tracker):
-            return key.label
-        if isinstance(key, Experiment):
-            return key.identifier
-        return key
+    doc = dict()
+    doc["toolkit"] = version
+    doc["timestamp"] = datetime.datetime.now().isoformat()
+    doc["trackers"] = {t.reference : t.describe() for t in trackers}
+    doc["sequences"] = {s.name : s.describe() for s in sequences}
 
-    def transform_value(value):
-        if isinstance(value, dict):
-            return {transform_key(k): transform_value(v) for k, v in value.items()}
-        return value
+    doc["results"] = dict()
+
+    for experiment, analyses in results.items():
+        exp = dict(parameters=experiment.dump(), type=class_fullname(experiment))
+        exp["analyses"] = dict()
+        for analysis, data in analyses.items():
+            ans = dict(parameters=analysis.dump(), type=class_fullname(analysis))
+            ans["results"] = data
+        doc["results"][experiment.name] = exp
 
     with storage.write("results.json") as handle:
-        json.dump(transform_value(results), handle, indent=2)
+        json.dump(results, handle, indent=2)
 
 
 def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage, build=False):
@@ -321,7 +324,6 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
     doc.preamble.append(Command('author', 'Toolkit version ' + version))
     doc.preamble.append(Command('date', datetime.datetime.now().isoformat()))
     doc.append(NoEscape(r'\maketitle'))
-
 
     if len(table_header[2]) == 0:
         logger.debug("No measures found, skipping table")
@@ -354,7 +356,6 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
                 plot.add_plot()
                 plot.add_caption(title)
                 
-
     temp = tempfile.mktemp()
     logger.debug("Generating to tempourary output %s", temp)
 

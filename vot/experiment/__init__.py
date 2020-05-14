@@ -68,15 +68,15 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: List["
     class EvaluationProgress(object):
 
         def __init__(self, description, total):
-            self.bar = Progress(desc=description, total=total, unit="sequence")
+            self.bar = Progress(description, total)
             self._finished = 0
 
         def __call__(self, progress):
-            self.bar.update_absolute(self._finished + min(1, max(0, progress)))
+            self.bar.absolute(self._finished + min(1, max(0, progress)))
 
         def push(self):
             self._finished = self._finished + 1
-            self.bar.update_absolute(self._finished)
+            self.bar.absolute(self._finished)
 
     logger = logging.getLogger("vot")
 

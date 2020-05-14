@@ -4,6 +4,7 @@ import csv
 import re
 import hashlib
 import errno
+import logging
 import concurrent.futures as futures
 from logging import Formatter, LogRecord
 
@@ -56,20 +57,42 @@ if is_notebook():
 else:
     from tqdm import tqdm
 
-class Progress(tqdm):
+class Progress(object):
 
-  #  def __init__(self, desc=None, total=100):
-  #      super().__init__()
+    class StreamProxy(object):
 
-    def update_absolute(self, current, total = None):
-        if total is not None:
-            self.total = total
-        self.update(current - self.n)  # will also set self.n = b * bsize
+        def write(self, x):
+            # Avoid print() second call (useless \n)
+            if len(x.rstrip()) > 0:
+                tqdm.write(x)
+        def flush(self):
+            #return getattr(self.file, "flush", lambda: None)()
+            pass
 
-    def update_relative(self, n, total = None):
-        if total is not None:
-            self.total = total
-        self.update(n)  # will also set self.n = b * bsize
+    @staticmethod
+    def logstream():
+        return StreamProxy()
+
+
+    def __init__(self, description, total=100):
+        self._tqdm = tqdm(bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
+        self._tqdm.desc = description
+        self._tqdm.total = total
+
+    def absolute(self, value):
+        self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
+
+    def relative(self, n):
+        self._tqdm.update(n)  # will also set self.n = b * bsize 
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def close(self):
+        self._tqdm.close()
 
 def extract_files(archive, destination, callback = None):
     from zipfile import ZipFile

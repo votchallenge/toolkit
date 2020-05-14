@@ -33,7 +33,7 @@ def migrate_matlab_workspace(directory):
 
     with open(old_config_file, "r") as fp:
         content = fp.read()
-        stack = scan_text("set\\_global\\_variable\\('stack', '([A-Za-z0-9]+)'\\)", content)
+        stack = scan_text("set\\_global\\_variable\\('stack', '([A-Za-z0-9-_]+)'\\)", content)
         if stack is None:
             raise WorkspaceException("Experiment stack could not be retrieved")
 
@@ -49,7 +49,7 @@ def migrate_matlab_workspace(directory):
             for sequence_dir in [x for x in os.scandir(experiment_dir.path) if x.is_dir()]:
                 timing_file = os.path.join(sequence_dir.path, "{}_time.txt".format(sequence_dir.name))
                 if os.path.isfile(timing_file):
-                    logger.info("Migrating %s", timing_file)
+                    logger.debug("Migrating %s", timing_file)
                     times = np.genfromtxt(timing_file, delimiter=",")
                     if len(times.shape) == 1:
                         times = np.reshape(times, (times.shape[0], 1))

@@ -12,7 +12,7 @@ from vot.analysis import TrackerSeparableAnalysis, DependentAnalysis, \
 from vot.utilities.attributes import Float, Integer, Boolean, Include
 
 def determine_thresholds(scores: List[float], resolution: int) -> List[float]:
-    scores = [score for score in scores if not math.isnan(score)]
+    scores = [score for score in scores if not math.isnan(score) ] #and not score is None]
     scores = sorted(scores, reverse=True)
 
     if len(scores) > resolution - 2:
@@ -63,7 +63,7 @@ class PrecisionRecallCurve(TrackerSeparableAnalysis):
         return "Tracking precision/recall"
 
     def describe(self):
-        return Curve("Precision Recall curve", dimensions=2, abbreviation="PR", minimal=(0, 0), maximal=(1, 1)), None
+        return Curve("Precision Recall curve", dimensions=2, abbreviation="PR", minimal=(0, 0), maximal=(1, 1), labels=("Recall", "Precision")), None
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
@@ -74,6 +74,10 @@ class PrecisionRecallCurve(TrackerSeparableAnalysis):
         total_scores = 0
         for sequence in sequences:
             trajectories = experiment.gather(tracker, sequence)
+    
+            if len(trajectories) == 0:
+                raise MissingResultsException("Missing results for sequence {}".format(sequence.name))
+
             for trajectory in trajectories:
                 total_scores += len(trajectory)
 
@@ -125,7 +129,7 @@ class PrecisionRecallCurve(TrackerSeparableAnalysis):
                 pr_curve[i] += pr_curves[j][i]
                 re_curve[i] += re_curves[j][i]
 
-        curve = [(pr / len(pr_curves), re / len(pr_curves)) for pr, re in zip(pr_curve, re_curve)]
+        curve = [(re / len(pr_curves), pr / len(pr_curves)) for pr, re in zip(pr_curve, re_curve)]
 
         return curve, thresholds
 
@@ -151,16 +155,16 @@ class FScoreCurve(DependentAnalysis):
     def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results):
         processed_results = []
 
-        for result in results:
+        for result in results[0]:
             beta2 = (self.beta * self.beta)
-            f_curve = [((1 + beta2) * pr_ * re_) / (beta2 * pr_ + re_) for pr_, re_ in result[0][0]]
+            f_curve = [((1 + beta2) * pr_ * re_) / (beta2 * pr_ + re_) for pr_, re_ in result[0]]
 
             processed_results.append((f_curve, results[0][1]))
 
         return processed_results
 
     def axes(self):
-        return Axis.TRACKERS
+        return Axis.TRACKERS,
 
 @public("Best Tracking Precision/Recall based on FScore")
 class PrecisionRecall(DependentAnalysis):
@@ -175,7 +179,7 @@ class PrecisionRecall(DependentAnalysis):
     def describe(self):
         return Measure("Precision", "Pr", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Recall", "Re", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
-             Measure("F", minimal=0, maximal=1, direction=Sorting.DESCENDING)
+             Measure("F Score", "F",  minimal=0, maximal=1, direction=Sorting.DESCENDING)
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)
@@ -185,8 +189,8 @@ class PrecisionRecall(DependentAnalysis):
 
     def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results):
 
-        f_curves = results[0]
-        pr_curves = results[1]
+        f_curves = results[1]
+        pr_curves = results[0]
 
         joined = []
 

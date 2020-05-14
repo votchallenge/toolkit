@@ -277,7 +277,10 @@ class Tracker(object):
 
     @property
     def label(self):
-        return self._label
+        if self._version is None:
+            return self._label
+        else:
+            return self._label + " (" + self._version + ")"
 
     @property
     def version(self):
@@ -294,7 +297,7 @@ class Tracker(object):
     def protocol(self):
         return self._protocol
 
-    def configuration(self):
+    def describe(self):
         data = dict(command=self._command, label=self.label, protocol=self.protocol, arguments=self._arguments, env=self._envvars)
         data.update(self._args)
         return data

@@ -116,7 +116,7 @@ def do_test(config, logger):
 def do_workspace(config, logger):
 
     from vot.workspace import WorkspaceException
-
+    print(os.path.join(config.workspace, "configuration.m"))
     if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
         from vot.utilities.migration import migrate_matlab_workspace
         migrate_matlab_workspace(config.workspace)
@@ -266,19 +266,19 @@ def do_pack(config, logger):
     all_files = []
     can_finish = True
 
-    progress = Progress(desc="Scanning", total=len(workspace.dataset) * len(workspace.stack))
+    with Progress("Scanning", len(workspace.dataset) * len(workspace.stack)) as progress:
 
-    for experiment in workspace.stack:
-        for sequence in workspace.dataset:
-            transformers = workspace.stack.transformers(experiment)
-            for transformer in transformers:
-                sequence = transformer(sequence)
-            complete, files, results = experiment.scan(tracker, sequence)
-            all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
-            if not complete:
-                logger.error("Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name)
-                can_finish = False
-            progress.update_relative(1)
+        for experiment in workspace.stack:
+            for sequence in workspace.dataset:
+                transformers = workspace.stack.transformers(experiment)
+                for transformer in transformers:
+                    sequence = transformer(sequence)
+                complete, files, results = experiment.scan(tracker, sequence)
+                all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
+                if not complete:
+                    logger.error("Results are not complete for experiment %s, sequence %s", experiment.identifier, sequence.name)
+                    can_finish = False
+                progress.relative(1)
 
     if not can_finish:
         logger.error("Unable to continue, experiments not complete")
@@ -290,25 +290,24 @@ def do_pack(config, logger):
 
     archive_name = "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.zip".format(tracker.identifier, timestamp)
 
-    progress = Progress(desc="Compressing", total=len(all_files))
+    with Progress("Compressing", len(all_files)) as progress:
 
-    manifest = dict(identifier=tracker.identifier, configuration=tracker.configuration(),
-        timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform,
-        python=sys.version, toolkit=__version__)
+        manifest = dict(identifier=tracker.identifier, configuration=tracker.configuration(),
+            timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform,
+            python=sys.version, toolkit=__version__)
 
-    with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True)) as archive:
-        for f in all_files:
-            info = zipfile.ZipInfo(filename=os.path.join(f[1], f[2], f[0]), date_time=timestamp.timetuple())
-            with io.TextIOWrapper(archive.open(info, mode="w")) as fout, f[3].read(f[0]) as fin:
-                copyfileobj(fin, fout)
-            progress.update_relative(1)
+        with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True)) as archive:
+            for f in all_files:
+                info = zipfile.ZipInfo(filename=os.path.join(f[1], f[2], f[0]), date_time=timestamp.timetuple())
+                with io.TextIOWrapper(archive.open(info, mode="w")) as fout, f[3].read(f[0]) as fin:
+                    copyfileobj(fin, fout)
+                progress.relative(1)
 
-        info = zipfile.ZipInfo(filename="manifest.yml", date_time=timestamp.timetuple())
-        with io.TextIOWrapper(archive.open(info, mode="w")) as fout:
-            yaml.dump(manifest, fout)
+            info = zipfile.ZipInfo(filename="manifest.yml", date_time=timestamp.timetuple())
+            with io.TextIOWrapper(archive.open(info, mode="w")) as fout:
+                yaml.dump(manifest, fout)
 
     logger.info("Result packaging successful, archive available in %s", archive_name)
-
 
 def main():
     logger = logging.getLogger("vot")

@@ -40,9 +40,9 @@ class Stack(object):
                     transformers.append(transformer_class(workspace.cache(self), **transformer_metadata))
 
             analyses = []
-            if "analysies" in experiment_metadata:
-                analyses_metadata = experiment_metadata["analysies"]
-                del experiment_metadata["analysies"]
+            if "analyses" in experiment_metadata:
+                analyses_metadata = experiment_metadata["analyses"]
+                del experiment_metadata["analyses"]
 
                 for analysis_metadata in analyses_metadata:
                     analysis_class = import_class(analysis_metadata["type"], hints=ANALYSIS_PACKAGES)

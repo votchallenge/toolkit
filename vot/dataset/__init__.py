@@ -282,6 +282,10 @@ class Sequence(FrameList):
     def length(self):
         pass
 
+    def describe(self):
+        data = dict(length=self.length, size=self.size, channels=self.channels())
+        return data
+
 class Dataset(ABC):
 
     def __init__(self, path):
