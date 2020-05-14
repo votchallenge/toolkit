@@ -1,19 +1,19 @@
 
-import numpy as np
 import typing
 from typing import List, Tuple
 from collections import Counter
 
+import numpy as np
+
 from vot.tracker import Tracker, Trajectory
 from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
-from vot.region import Region, Special, calculate_overlaps
+from vot.region import calculate_overlaps
 from vot.experiment import Experiment
-from vot.experiment.multirun import SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.analysis import MissingResultsException, \
     Plot, Point, is_special, public, Axis, Sorting, Measure, SequenceAveragingAnalysis
-from vot.utilities.attributes import String, Float, Integer, Boolean, List
+from vot.utilities.attributes import String, Float, Integer, Boolean
 
 
 class AttributeMultiStart(SequenceAveragingAnalysis):

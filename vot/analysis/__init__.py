@@ -1,4 +1,5 @@
 import logging
+import functools
 from enum import Enum, Flag, auto
 from typing import List, Optional, Tuple, Dict, Any, Set
 from abc import ABC, abstractmethod
@@ -159,6 +160,38 @@ class Plot(Drawable):
 class Curve(Multidimensional):
     """Curve is a list of 2+ dimensional results. The number of elements in a list can vary between samples.
     """
+
+class Table(object):
+
+    def __init__(self, size: tuple):
+        self._size = size
+        self._data = [None] * functools.reduce(lambda x, y: x * y, size)
+
+    def _ravel(self, pos):
+        if not isinstance(pos, tuple):
+            pos = (pos, )
+        assert(len(pos) == len(self._size))
+        raveled = 0
+        row = 1
+        for n, i in zip(reversed(self._size), reversed(pos)):
+            if i < 0 or i >= n:
+                raise IndexError("Index out of bounds")
+            raveled = i * row + raveled
+            row = row * n
+        return raveled
+
+    @property
+    def dimensions(self):
+        return len(self._size)
+
+    def size(self):
+        return tuple(self._size)
+
+    def __getitem__(self, i):
+        return self._data[self._ravel(i)]
+
+    def __setitem__(self, i, data):
+        self._data[self._ravel(i)] = data
 
 class Analysis(Attributee):
 

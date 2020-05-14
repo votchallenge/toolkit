@@ -6,7 +6,8 @@ experiments:
     type: vot.experiment.UnsupervisedExperiment
     repetitions: 1
     measures:
-      - type: vot.analysis.measures.PrecisionRecall
+      - type: PrecisionRecall
+      - type: PrecisionRecallCurve
   redetection:
     type: UnsupervisedExperiment
     transformers:
