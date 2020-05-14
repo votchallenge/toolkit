@@ -241,7 +241,7 @@ def do_analysis(config, logger):
     elif config.format == "html":
         generate_html_document(trackers, workspace.dataset, results, storage)
     elif config.format == "json":
-        generate_json_document(results, storage)
+        generate_json_document(trackers, workspace.dataset, results, storage)
 
     logger.info("Analysis successful, report available as %s", name)
 
