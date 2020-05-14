@@ -159,7 +159,7 @@ class FScoreCurve(DependentAnalysis):
             beta2 = (self.beta * self.beta)
             f_curve = [((1 + beta2) * pr_ * re_) / (beta2 * pr_ + re_) for pr_, re_ in result[0]]
 
-            processed_results.append((f_curve, results[0][1]))
+            processed_results.append((f_curve, result[0][1]))
 
         return processed_results
 

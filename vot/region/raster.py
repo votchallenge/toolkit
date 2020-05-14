@@ -241,20 +241,20 @@ def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Tuple[int, int]
         return float(0)
 
     if isinstance(reg1, Rectangle):
-        data1 = reg1._data
+        data1 = np.round(reg1._data)
         offset1 = None
     elif isinstance(reg1, Polygon):
-        data1 = reg1._points
+        data1 = np.round(reg1._points)
         offset1 = None
     elif isinstance(reg1, Mask):
         data1 = reg1.mask
         offset1 = reg1.offset
 
     if isinstance(reg2, Rectangle):
-        data2 = reg2._data
+        data2 = np.round(reg2._data)
         offset2 = None
     elif isinstance(reg2, Polygon):
-        data2 = reg2._points
+        data2 = np.round(reg2._points)
         offset2 = None
     elif isinstance(reg2, Mask):
         data2 = reg2.mask
