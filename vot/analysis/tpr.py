@@ -198,8 +198,8 @@ class PrecisionRecall(DependentAnalysis):
             # get optimal F-score and Pr and Re at this threshold
             f_score = max(f_curve[0])
             best_i = f_curve[0].index(f_score)
-            pr_score = pr_curve[0][best_i][0]
-            re_score = pr_curve[0][best_i][1]
+            re_score = pr_curve[0][best_i][0]
+            pr_score = pr_curve[0][best_i][1]
             joined.append((pr_score, re_score, f_score))
 
         return joined

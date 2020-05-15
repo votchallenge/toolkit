@@ -7,6 +7,7 @@ from vot.region import Special
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
+from vot.utilities.attributes import String
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
     forward = []
@@ -22,13 +23,7 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
 
 class MultiStartExperiment(Experiment):
 
-    def __init__(self, anchor: str = "anchor", **kwargs):
-        super().__init__(**kwargs)
-        self._anchor = str(anchor)
-
-    @property
-    def anchor(self):
-        return self._anchor
+    anchor = String(default="anchor")
 
     def scan(self, tracker: Tracker, sequence: Sequence):
     
@@ -37,7 +32,7 @@ class MultiStartExperiment(Experiment):
 
         results = self.results(tracker, sequence)
 
-        forward, backward = find_anchors(sequence, self._anchor)
+        forward, backward = find_anchors(sequence, self.anchor)
 
         if len(forward) == 0 and len(backward) == 0:
             raise RuntimeError("Sequence does not contain any anchors")
@@ -55,7 +50,7 @@ class MultiStartExperiment(Experiment):
 
         results = self.results(tracker, sequence)
 
-        forward, backward = find_anchors(sequence, self._anchor)
+        forward, backward = find_anchors(sequence, self.anchor)
 
         if len(forward) == 0 and len(backward) == 0:
             raise RuntimeError("Sequence does not contain any anchors")

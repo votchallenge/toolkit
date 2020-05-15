@@ -324,7 +324,7 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], exec
 
         results[experiment] = experiment_results
 
-        for analysis in workspace.stack.analyses(experiment):
+        for analysis in experiment.analyses:
 
             if not analysis.compatible(experiment):
                 continue

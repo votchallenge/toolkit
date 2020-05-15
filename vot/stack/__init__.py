@@ -10,85 +10,48 @@ from vot.experiment import Experiment
 from vot.experiment.transformer import Transformer
 from vot.utilities import import_class
 from vot.analysis import Analysis, ANALYSIS_PACKAGES
+from vot.utilities.attributes import Attributee, String, Boolean, Map, Object
 
-class Stack(object):
+def experiment_resolver(typename, context, **kwargs):
+    experiment_class = import_class(typename, hints=["vot.experiment"])
+    assert issubclass(experiment_class, Experiment)
+    if "key" in context:
+        identifier = context["key"]
+    else:
+        identifier = None
 
-    def __init__(self, workspace: "Workspace", metadata: dict):
+    if "parent" in context:
+        storage = context["parent"].workspace.storage
+    else:
+        storage = None
+
+    return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
+
+class Stack(Attributee):
+
+    title = String()
+    dataset = String(default="")
+    url = String(default="")
+    deprecated = Boolean(default=False)
+    experiments = Map(Object(experiment_resolver))
+
+    def __init__(self, workspace: "Workspace", **kwargs):
         self._workspace = workspace
 
-        self._title = metadata["title"]
-        self._dataset = metadata.get("dataset", None)
-        self._deprecated = metadata.get("deprecated", False)
-        self._experiments = collections.OrderedDict()
-        self._analyses = dict()
-        self._transformers = dict()
-
-        for identifier, experiment_metadata in metadata["experiments"].items():
-            experiment_class = import_class(experiment_metadata["type"], hints=["vot.experiment"])
-            assert issubclass(experiment_class, Experiment)
-            del experiment_metadata["type"]
-
-            transformers = []
-            if "transformers" in experiment_metadata:
-                transformers_metadata = experiment_metadata["transformers"]
-                del experiment_metadata["transformers"]
-
-                for transformer_metadata in transformers_metadata:
-                    transformer_class = import_class(transformer_metadata["type"], hints=["vot.experiment.transformer"])
-                    assert issubclass(transformer_class, Transformer)
-                    del transformer_metadata["type"]
-                    transformers.append(transformer_class(workspace.cache(self), **transformer_metadata))
-
-            analyses = []
-            if "analyses" in experiment_metadata:
-                analyses_metadata = experiment_metadata["analyses"]
-                del experiment_metadata["analyses"]
-
-                for analysis_metadata in analyses_metadata:
-                    analysis_class = import_class(analysis_metadata["type"], hints=ANALYSIS_PACKAGES)
-                    assert issubclass(analysis_class, Analysis)
-                    del analysis_metadata["type"]
-                    analyses.append(analysis_class(**analysis_metadata))
-            experiment = experiment_class(_identifier=identifier, _storage=workspace._storage,
-                    _transformers=transformers, **experiment_metadata)
-            self._experiments[identifier] = experiment
-            self._analyses[experiment] = [analysis for analysis in analyses if analysis.compatible(experiment)]
-            self._transformers[experiment] = transformers
+        super().__init__(**kwargs)
 
     @property
-    def title(self) -> str:
-        return self._title
-
-    @property
-    def dataset(self) -> str:
-        return self._dataset
-
-    @property
-    def deprecated(self) -> bool:
-        return self._deprecated
-
-    @property
-    def workspace(self) -> "Workspace":
+    def workspace(self):
         return self._workspace
 
-    @property
-    def experiments(self) -> List[Experiment]:
-        return self._experiments.values()
-        
-    def analyses(self, experiment: Experiment) -> List["Analysis"]:
-        return self._analyses[experiment]
-
-    def transformers(self, experiment: Experiment) -> List["Transformer"]:
-        return self._transformers[experiment]
-
     def __iter__(self):
-        return iter(self._experiments.values())
+        return iter(self.experiments.values())
 
     def __len__(self):
-        return len(self._experiments)
+        return len(self.experiments)
 
     def __getitem__(self, identifier):
-        return self._experiments[identifier]
+        return self.experiments[identifier]
 
 def resolve_stack(name, *directories):
     if os.path.isabs(name):

@@ -228,10 +228,18 @@ def to_logical(val):
     except ValueError:
         raise RuntimeError("Logical value conversion error")
 
-class Empty(object):
-    """An empty class used to copy :class:`~logging.LogRecord` objects without reinitializing them."""
+def singleton(class_):
+    instances = {}
+    def getinstance(*args, **kwargs):
+        if class_ not in instances:
+            instances[class_] = class_(*args, **kwargs)
+        return instances[class_]
+    return getinstance
 
 class ColoredFormatter(Formatter):
+
+    class Empty(object):
+        """An empty class used to copy :class:`~logging.LogRecord` objects without reinitializing them."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -252,7 +260,7 @@ class ColoredFormatter(Formatter):
     def format(self, record: LogRecord):
         style = self._styles[record.levelname.lower()]
 
-        copy = Empty()
+        copy = ColoredFormatter.Empty()
         copy.__class__ = record.__class__
         copy.__dict__.update(record.__dict__)
         msg = record.msg if isinstance(record.msg, str) else str(record.msg)
@@ -275,7 +283,7 @@ class ThreadPoolExecutor(futures.ThreadPoolExecutor):
                 while True:
                     item = self._work_queue.get_nowait()
                     item.future.cancel()
-            except  queue.Empty:
+            except queue.Empty:
                 pass
             self._work_queue.put(None)
         if wait:

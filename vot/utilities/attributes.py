@@ -1,13 +1,22 @@
 
 import inspect
 from typing import Type
-from collections import Iterable
+from collections import Iterable, Mapping
 
 from vot import VOTException
-from vot.utilities import to_number, to_string, to_logical
+from vot.utilities import to_number, to_string, to_logical, singleton, import_class
 
 class AttributeException(VOTException):
     pass
+
+@singleton
+class Undefined():
+    pass
+
+def is_undefined(a):
+    if a is None:
+        return False
+    return a == Undefined()
 
 def is_instance_or_subclass(val, class_) -> bool:
     """Return True if ``val`` is either a subclass or instance of ``class_``."""
@@ -16,55 +25,26 @@ def is_instance_or_subclass(val, class_) -> bool:
     except TypeError:
         return isinstance(val, class_)
 
-def _get_fields(attrs, field_class, pop=False, ordered=False):
-    """Get fields from a class. If ordered=True, fields will sorted by creation index.
+class ReadonlyMapping(Mapping):
 
-    :param attrs: Mapping of class attributes
-    :param type field_class: Base field class
-    :param bool pop: Remove matching fields
-    """
-    fields = [
-        (field_name, field_value)
-        for field_name, field_value in attrs.items()
-        if is_instance_or_subclass(field_value, field_class)
-    ]
-    if pop:
-        for field_name, _ in fields:
-            del attrs[field_name]
-    if ordered:
-        fields.sort(key=lambda pair: pair[1]._creation_index)
-    return fields
+    def __init__(self, data):
+        self._data = data
 
-# This function allows Schemas to inherit from non-Schema classes and ensures
-#   inheritance according to the MRO
-def _get_fields_by_mro(klass, field_class, ordered=False):
-    """Collect fields from a class, following its method resolution order. The
-    class itself is excluded from the search; only its parents are checked. Get
-    fields from ``_declared_fields`` if available, else use ``__dict__``.
+    def __getitem__(self, key):
+        return self._data[key]
 
-    :param type klass: Class whose fields to retrieve
-    :param type field_class: Base field class
-    """
-    mro = inspect.getmro(klass)
-    # Loop over mro in reverse to maintain correct order of fields
-    return sum(
-        (
-            _get_fields(
-                getattr(base, "_declared_fields", base.__dict__),
-                field_class,
-                ordered=ordered,
-            )
-            for base in mro[:0:-1]
-        ),
-        [],
-    )
+    def __len__(self):
+        return len(self._data)
+
+    def __iter__(self):
+        return iter(self._data)
 
 class Attribute(object):
 
-    def __init__(self, default=None):
-        self._default = None if default is None else self.coerce(default)
+    def __init__(self, default=Undefined()):
+        self._default = default if is_undefined(default) else self.coerce(default, {})
 
-    def coerce(self, value):
+    def coerce(self, value, _):
         return value
 
     def dump(self, value):
@@ -74,32 +54,26 @@ class Attribute(object):
     def default(self):
         return self._default
 
-class AttributeeMeta(type):
-
-    def __new__(mcs, name, bases, attrs):
-
-        cls_attributes = _get_fields(attrs, Attribute, pop=True)
-        klass = super().__new__(mcs, name, bases, attrs)
-        inherited_attributes = _get_fields_by_mro(klass, Attribute)
-
-        #cls_attributes += list(klass.opts.include.items())
-
-        # Assign attributes on class
-        klass._declared_attributes = dict(inherited_attributes + cls_attributes)
-
-        return klass
+    @property
+    def required(self):
+        return is_undefined(self._default)
 
 class Nested(Attribute):
 
     def __init__(self, acls: Type["Attributee"]):
-        super().__init__(None)
-
         if not issubclass(acls, Attributee):
             raise AttributeException("Illegal base class {}".format(acls))
 
         self._acls = acls
+        self._required = False
 
-    def coerce(self, value):
+        for aa, afield in getattr(acls, "_declared_attributes", {}).items():
+            if afield.required:
+                self._required = True
+
+        super().__init__()
+
+    def coerce(self, value, _):
         return self._acls(**value)
 
     def dump(self, value: "Attributee"):
@@ -107,7 +81,62 @@ class Nested(Attribute):
 
     @property
     def default(self):
-        return self._acls()
+        return {}
+
+    @property
+    def required(self):
+        return self._required
+
+class AttributeeMeta(type):
+
+    @staticmethod
+    def _get_fields(attrs: dict, pop=False):
+        """Get fields from a class.
+        :param attrs: Mapping of class attributes
+        """
+        fields = []
+        for field_name, field_value in attrs.items():
+            if is_instance_or_subclass(field_value, Attribute):
+                fields.append((field_name, field_value))
+        if pop:
+            for field_name, _ in fields:
+                del attrs[field_name]
+
+        return fields
+
+    # This function allows Schemas to inherit from non-Schema classes and ensures
+    #   inheritance according to the MRO
+    @staticmethod
+    def _get_fields_by_mro(klass):
+        """Collect fields from a class, following its method resolution order. The
+        class itself is excluded from the search; only its parents are checked. Get
+        fields from ``_declared_attributes`` if available, else use ``__dict__``.
+
+        :param type klass: Class whose fields to retrieve
+        """
+        mro = inspect.getmro(klass)
+        # Loop over mro in reverse to maintain correct order of fields
+        return sum(
+            (
+                AttributeeMeta._get_fields(
+                    getattr(base, "_declared_attributes", base.__dict__)
+                )
+                for base in mro[:0:-1]
+            ),
+            [],
+        )
+
+
+    def __new__(mcs, name, bases, attrs):
+
+        cls_attributes = AttributeeMeta._get_fields(attrs, pop=True)
+        klass = super().__new__(mcs, name, bases, attrs)
+        inherited_attributes = AttributeeMeta._get_fields_by_mro(klass)
+
+        # Assign attributes on class
+        klass._declared_attributes = dict(inherited_attributes + cls_attributes)
+
+        return klass
 
 class Include(Nested):
 
@@ -136,18 +165,18 @@ class Attributee(metaclass=AttributeeMeta):
         for aname, afield in attributes.items():
             if isinstance(afield, Include):
                 iargs = afield.filter(**kwargs)
-                super().__setattr__(aname, afield.coerce(iargs))
+                super().__setattr__(aname, afield.coerce(iargs, {"parent": self}))
                 unconsumed.difference_update(iargs.keys())
                 unspecified.difference_update(iargs.keys())
             else:
                 if not aname in kwargs:
-                    if not afield.default is None:
+                    if not afield.required:
                         avalue = afield.default
                     else:
                         continue
                 else:
                     avalue = kwargs[aname]
-                super().__setattr__(aname, afield.coerce(avalue))
+                super().__setattr__(aname, afield.coerce(avalue, {"parent": self}))
             unconsumed.difference_update([aname])
             unspecified.difference_update([aname])
 
@@ -179,55 +208,107 @@ class Attributee(metaclass=AttributeeMeta):
 
 class Number(Attribute):
 
-    def __init__(self, conversion, default, val_min=None, val_max=None):
+    def __init__(self, conversion, val_min=None, val_max=None, **kwargs):
         self._conversion = conversion
         self._val_min = val_min
         self._val_max = val_max
-        super().__init__(default)
+        super().__init__(**kwargs)
 
-    def coerce(self, value):
+    def coerce(self, value, _=None):
         return to_number(value, max_n=self._val_max, min_n=self._val_min, conversion=self._conversion)
 
 class Integer(Number):
 
-    def __init__(self, val_min=None, val_max=None, default=None):
-        super().__init__(int, default, val_max=val_max, val_min=val_min)
+    def __init__(self, **kwargs):
+        super().__init__(conversion=int, **kwargs)
 
 class Float(Number):
 
-    def __init__(self, val_min=None, val_max=None, default=None):
-        super().__init__(float, default, val_max=val_max, val_min=val_min)
+    def __init__(self, **kwargs):
+        super().__init__(conversion=float, **kwargs)
 
 class Boolean(Attribute):
 
-    def __init__(self, default):
-        super().__init__(default)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-    def coerce(self, value):
+    def coerce(self, value, _):
         return to_logical(value)
 
 class String(Attribute):
 
-    def __init__(self, default=""):
-        super().__init__(default)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-    def coerce(self, value):
+    def coerce(self, value, _):
         return to_string(value)
 
 class List(Attribute):
 
-    def __init__(self, contains, default=None, separator=","):
-        super().__init__(default)
+    def __init__(self, contains, separator=",", **kwargs):
+        super().__init__(**kwargs)
+        assert isinstance(contains, Attribute)
         self._separator = separator
         self._contains = contains
 
-    def coerce(self, value):
+    def coerce(self, value, context=None):
         if isinstance(value, str):
             value = value.split(self._separator)
+        if isinstance(value, dict):
+            value = value.values()
         if not isinstance(value, Iterable):
             raise AttributeException("Unable to value convert to list")
-        return [self._contains.coerce(x) for x in value]
+        if context is None:
+            context = dict()
+        return [self._contains.coerce(x, dict(key=i, **context)) for i, x in enumerate(value)]
 
     def __iter__(self):
         # This is only here to avoid pylint errors for the actual attribute field
         raise NotImplementedError
+
+class Map(Attribute):
+
+    def __init__(self, contains, container=dict, **kwargs):
+        super().__init__(**kwargs)
+        assert isinstance(contains, Attribute)
+        self._contains = contains
+        self._container = container
+
+    def coerce(self, value, context=None):
+        if not isinstance(value, Mapping):
+            raise AttributeException("Unable to value convert to dict")
+        container = self._container()
+        if context is None:
+            context = dict()
+        for name, data in value.items():
+            container[name] = self._contains.coerce(data, dict(key=name, **context))
+        return ReadonlyMapping(container)
+
+    def __iter__(self):
+        # This is only here to avoid pylint errors for the actual attribute field
+        raise NotImplementedError
+
+def default_resolver(typename: str, _, **kwargs) -> Attributee:
+    """Default object resovler
+
+    Arguments:
+        typename {str} -- String representation of a class that can be imported. 
+            Should be a subclass of Attributee as it is constructed from kwargs.
+
+    Returns:
+        Attributee -- An instance of the class
+    """
+    clstype = import_class(typename)
+    assert issubclass(clstype, Attributee)
+    return clstype(**kwargs)
+
+class Object(Attribute):
+
+    def __init__(self, resolver=default_resolver, **kwargs):
+        super().__init__(**kwargs)
+        self._resolver = resolver
+
+    def coerce(self, value, context=None):
+        assert isinstance(value, dict)
+        class_name = value.get("type", None)
+        return self._resolver(class_name, context, **{k: v for k, v in value.items() if not k == "type"})

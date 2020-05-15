@@ -12,7 +12,7 @@ from vot.utilities.attributes import Attributee, Integer, Float
 
 class Transformer(Attributee):
 
-    def __init__(self, cache: "Cache", **kwargs):
+    def __init__(self, cache: "LocalStorage", **kwargs):
         super().__init__(**kwargs)
         self._cache = cache
 
@@ -29,7 +29,7 @@ class Redetection(Transformer):
 
     def __call__(self, sequence: Sequence) -> Sequence:
 
-        chache_dir = self._cache.directory(arg_hash(sequence.name, **self.dump()))
+        chache_dir = self._cache.directory(self, arg_hash(sequence.name, **self.dump()))
 
         if not os.path.isfile(os.path.join(chache_dir, "sequence")):
             generated = InMemorySequence(sequence.name, sequence.channels())

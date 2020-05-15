@@ -10,7 +10,7 @@ import colorama
 from vot import check_updates, check_debug, __version__
 from vot.tracker import Registry, TrackerException
 from vot.stack import resolve_stack, list_integrated_stacks
-from vot.workspace import Workspace
+from vot.workspace import Workspace, Cache
 from vot.utilities import Progress, normalize_path, ColoredFormatter
 
 class EnvDefault(argparse.Action):
@@ -218,7 +218,7 @@ def do_analysis(config, logger):
         from cachetools import LRUCache
         cache = LRUCache(1000)
     else:
-        cache = workspace.cache("analysis")
+        cache = Cache(workspace.cache("analysis"))
 
     results = process_stack_analyses(workspace, trackers, executor, cache)
 
@@ -270,9 +270,7 @@ def do_pack(config, logger):
 
         for experiment in workspace.stack:
             for sequence in workspace.dataset:
-                transformers = workspace.stack.transformers(experiment)
-                for transformer in transformers:
-                    sequence = transformer(sequence)
+                sequence = experiment.transform(sequence)
                 complete, files, results = experiment.scan(tracker, sequence)
                 all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
                 if not complete:

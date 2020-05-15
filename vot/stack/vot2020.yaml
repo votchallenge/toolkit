@@ -15,16 +15,18 @@ experiments:
       - type: EAOScorePlotMultiStart
         low: 115
         high: 755
+      - type: AttributeDifficultyLevelMultiStart
+        tags:
+          - camera_motion
+          - illum_change
+          - occlusion
+          - size_change
+          - motion_change
+          - empty
 #      - type: TagDifficulty
 #        low: 108
 #        high: 371
-#        tags:
-#          - camera_motion
-#          - illum_change
-#         - occlusion
-#         - size_change
-#          - motion_change
-#          - empty
+
   unsupervised:
     type: vot.experiment.UnsupervisedExperiment
     repetitions: 1
@@ -32,7 +34,7 @@ experiments:
       - type: AverageAccuracy
         burnin: 1
   realtime:
-    type: vot.experiment.MultiStartExperiment
+    type: MultiStartExperiment
     realtime:
       grace: 3
     analyses:
@@ -46,5 +48,3 @@ experiments:
       - type: EAOScorePlotMultiStart
         low: 115
         high: 755
-analyses:
-  - type: TrackerMetadata

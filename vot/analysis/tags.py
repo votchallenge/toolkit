@@ -1,6 +1,6 @@
 
 import typing
-from typing import List, Tuple
+from typing import Tuple
 from collections import Counter
 
 import numpy as np
@@ -13,7 +13,7 @@ from vot.experiment import Experiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.analysis import MissingResultsException, \
     Plot, Point, is_special, public, Axis, Sorting, Measure, SequenceAveragingAnalysis
-from vot.utilities.attributes import String, Float, Integer, Boolean
+from vot.utilities.attributes import String, Float, Integer, Boolean, List
 
 
 class AttributeMultiStart(SequenceAveragingAnalysis):
@@ -130,7 +130,7 @@ class AttributeDifficultyLevelMultiStart(SequenceAveragingAnalysis):
     bounded = Boolean(default=True)
     threshold = Float(default=0.1, val_min=0, val_max=1)
 
-    fail_interval = Integer()
+    fail_interval = Integer(default=30, val_min=1)
     tags = List(String())
 
     @property

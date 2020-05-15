@@ -4,37 +4,79 @@ import os
 import json
 import glob
 import logging
-
-from typing import Callable, List
+import typing
 
 from abc import abstractmethod, ABC
 
 from vot.tracker import RealtimeTrackerRuntime, TrackerException
-from vot.utilities import Progress, to_number
+from vot.utilities import Progress, to_number, import_class
+from vot.utilities.attributes import Attributee, Object, Integer, Float, Nested, List
 
-class Experiment(ABC):
+class RealtimeConfig(Attributee):
 
-    def __init__(self, _identifier: str, _storage: "Storage", _transformers: List["Transformer"],
-        realtime: dict = None, noise: dict = None, inject: dict = None, **kwargs):
-        super().__init__()
+    grace = Integer(val_min=0, default=0)
+    fps = Float(val_min=0, default=20)
+
+class NoiseConfig(Attributee):
+    # Not implemented yet
+    pass
+
+class InjectConfig(Attributee):
+    # Not implemented yet
+    pass
+
+def transformer_resolver(typename, context, **kwargs):
+    from vot.experiment.transformer import Transformer
+    transformer_class = import_class(typename, hints=["vot.experiment.transformer"])
+    assert issubclass(transformer_class, Transformer)
+
+    if "parent" in context:
+        storage = context["parent"].storage.substorage("cache").substorage("transformer")
+    else:
+        storage = None
+
+    return transformer_class(cache=storage, **kwargs)
+
+def analysis_resolver(typename, context, **kwargs):
+    from vot.analysis import Analysis, ANALYSIS_PACKAGES
+    analysis_class = import_class(typename, hints=ANALYSIS_PACKAGES)
+    assert issubclass(analysis_class, Analysis)
+
+    analysis = analysis_class(**kwargs)
+
+    if "parent" in context:
+        assert analysis.compatible(context["parent"])
+
+    return analysis
+
+class Experiment(Attributee):
+
+    realtime = Nested(RealtimeConfig)
+    noise = Nested(NoiseConfig)
+    inject = Nested(InjectConfig)
+    transformers = List(Object(transformer_resolver), default=[])
+    analyses = List(Object(analysis_resolver), default=[])
+
+    def __init__(self, _identifier: str, _storage: "LocalStorage", **kwargs):
         self._identifier = _identifier
-        self._transformers = _transformers
         self._storage = _storage
-        self._realtime = realtime
-        self._noise = noise # Not implemented yet
-        self._inject = inject # Not implemented yet
+        super().__init__(**kwargs)
 
     @property
     def identifier(self) -> str:
         return self._identifier
 
+    @property
+    def storage(self) -> "Storage":
+        return self._storage
+
     def _get_initialization(self, sequence: "Sequence", index: int):
         return sequence.groundtruth(index)
 
     def _get_runtime(self, tracker: "Tracker", sequence: "Sequence"):
-        if not self._realtime is None:
-            grace = to_number(self._realtime.get("grace", 0), min_n=0)
-            fps = to_number(self._realtime.get("fps", 20), min_n=0, conversion=float)
+        if not self.realtime is None:
+            grace = to_number(self.realtime.grace, min_n=0)
+            fps = to_number(self.realtime.fps, min_n=0, conversion=float)
             interval = 1 / float(sequence.metadata("fps", fps))
             runtime = RealtimeTrackerRuntime(tracker.runtime(), grace, interval)
         else:
@@ -42,12 +84,12 @@ class Experiment(ABC):
         return runtime
 
     @abstractmethod
-    def execute(self, tracker: "Tracker", sequence: "Sequence", force: bool = False, callback: Callable = None):
-        pass
+    def execute(self, tracker: "Tracker", sequence: "Sequence", force: bool = False, callback: typing.Callable = None):
+        raise NotImplementedError
 
     @abstractmethod
     def scan(self, tracker: "Tracker", sequence: "Sequence"):
-        pass
+        raise NotImplementedError
 
     def results(self, tracker: "Tracker", sequence: "Sequence") -> "Results":
         return self._storage.results(tracker, self, sequence)
@@ -56,14 +98,14 @@ class Experiment(ABC):
         return self._storage.open_log(identifier)
 
     def transform(self, sequence: "Sequence"):
-        for transformer in self._transformers:
+        for transformer in self.transformers:
             sequence = transformer(sequence)
         return sequence
 
 from .multirun import UnsupervisedExperiment, SupervisedExperiment
 from .multistart import MultiStartExperiment
 
-def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: List["Sequence"], force: bool = False, persist: bool = False):
+def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing.List["Sequence"], force: bool = False, persist: bool = False):
 
     class EvaluationProgress(object):
 

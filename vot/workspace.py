@@ -98,17 +98,6 @@ class LocalStorage(ABC):
         shutil.move(localfile, os.path.join(self.base, full))
         #with open(localfile, "rb") as fin:
 
-class Cache(cachetools.Cache):
-
-    def __init__(self, root: str):
-        super().__init__(10000)
-        self._root = root
-        os.makedirs(self._root, exist_ok=True)
-
-    @property
-    def base(self):
-        return self._root
-
     def directory(self, *args):
         segments = []
         for arg in args:
@@ -126,16 +115,22 @@ class Cache(cachetools.Cache):
 
         return path
 
+class Cache(cachetools.Cache):
+
+    def __init__(self, storage: LocalStorage):
+        super().__init__(10000)
+        self._storage = storage
+
     def _filename(self, key):
         if isinstance(key, tuple):
             filename = key[-1]
             if len(key) > 1:
-                directory = self.directory(*key[:-1])
+                directory = self._storage.directory(*key[:-1])
             else:
-                directory = self.base
+                directory = self._storage.base
         else:
             filename = str(key)
-            directory = self.base
+            directory = self._storage.base
         return os.path.join(directory, filename)
 
     def __getitem__(self, key):
@@ -190,7 +185,7 @@ class Workspace(object):
         if download:
             # Try do retrieve dataset from stack and download it
             stack_file = resolve_stack(config["stack"], directory)
-            dataset_directory = dataset_directory = normalize_path(config.get("sequences", "sequences"), directory)
+            dataset_directory = normalize_path(config.get("sequences", "sequences"), directory)
             if stack_file is None:
                 return
             dataset = None
@@ -232,7 +227,7 @@ class Workspace(object):
 
         with open(stack_file, 'r') as fp:
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-            self._stack = Stack(self, stack_metadata)
+            self._stack = Stack(self, **stack_metadata)
 
         dataset_directory = normalize_path(self._config.get("sequences", "sequences"), directory)
 
@@ -255,11 +250,11 @@ class Workspace(object):
         return self._stack
 
     @property
-    def storage(self) -> Storage:
+    def storage(self) -> LocalStorage:
         return self._storage
 
-    def cache(self, identifier) -> Cache:
+    def cache(self, identifier) -> LocalStorage:
         if not isinstance(identifier, str):
             identifier = class_fullname(identifier)
 
-        return Cache(os.path.join(self._root, "cache", identifier))
+        return LocalStorage(os.path.join(self._root, "cache", identifier))
