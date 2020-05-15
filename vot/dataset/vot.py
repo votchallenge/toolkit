@@ -4,11 +4,12 @@ import glob
 import tempfile
 import six
 import logging
+from collections import OrderedDict
 
 import cv2
 
-from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel, Frame
-from vot.region import parse, Region, write_file
+from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel
+from vot.region import parse, write_file
 from vot.utilities import Progress, extract_files, localize_path, read_properties, write_properties
 
 logger = logging.getLogger("vot")
@@ -28,34 +29,43 @@ class VOTSequence(BaseSequence):
         if name is None:
             name = os.path.basename(base)
         super().__init__(name, dataset)
-        self._metadata["fps"] = 30
-        self._metadata["format"] = "default"
-        self._metadata["channel.default"] = "color"
-        self._scan(base)
 
-    def _scan(self, base):
+    def _read_metadata(self):
+        metadata = dict(fps=30, format="default")
+        metadata["channel.default"] = "color"
 
-        metadata_file = os.path.join(base, 'sequence')
-        data = read_properties(metadata_file)
+        metadata_file = os.path.join(self._base, 'sequence')
+        metadata.update(read_properties(metadata_file))
+
+        return metadata
+
+    def _read(self):
+
+        channels = {}
+        tags = {}
+        values = {}
+        groundtruth = []
+
         for c in ["color", "depth", "ir"]:
-            if "channels.%s" % c in data:
-                self._channels[c] = load_channel(os.path.join(self._base, localize_path(data["channels.%s" % c])))
+            channel_path = self.metadata("channels.%s" % c, None)
+            if not channel_path is None:
+                channels[c] = load_channel(os.path.join(self._base, localize_path(channel_path)))
 
         # Load default channel if no explicit channel data available
-        if len(self._channels) == 0:
-            self._channels["color"] = load_channel(os.path.join(self._base, "color", "%08d.jpg"))
+        if len(channels) == 0:
+            channels["color"] = load_channel(os.path.join(self._base, "color", "%08d.jpg"))
         else:
-            self._metadata["channel.default"] = next(iter(self._channels.keys()))
+            self._metadata["channel.default"] = next(iter(channels.keys()))
 
-        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(self._channels)).size
+        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
 
-        groundtruth_file = os.path.join(self._base, data.get("groundtruth", "groundtruth.txt"))
+        groundtruth_file = os.path.join(self._base, self.metadata("groundtruth", "groundtruth.txt"))
 
-        with open(groundtruth_file, 'r') as groundtruth:
-            for region in groundtruth.readlines():
-                self._groundtruth.append(parse(region))
+        with open(groundtruth_file, 'r') as filehandle:
+            for region in filehandle.readlines():
+                groundtruth.append(parse(region))
 
-        self._metadata["length"] = len(self._groundtruth)
+        self._metadata["length"] = len(groundtruth)
 
         tagfiles = glob.glob(os.path.join(self._base, '*.tag')) + glob.glob(os.path.join(self._base, '*.label'))
 
@@ -63,33 +73,35 @@ class VOTSequence(BaseSequence):
             with open(tagfile, 'r') as filehandle:
                 tagname = os.path.splitext(os.path.basename(tagfile))[0]
                 tag = [line.strip() == "1" for line in filehandle.readlines()]
-                while not len(tag) >= len(self._groundtruth):
+                while not len(tag) >= len(groundtruth):
                     tag.append(False)
-                self._tags[tagname] = tag
-            
+                tags[tagname] = tag
+
         valuefiles = glob.glob(os.path.join(self._base, '*.value'))
 
         for valuefile in valuefiles:
             with open(valuefile, 'r') as filehandle:
                 valuename = os.path.splitext(os.path.basename(valuefile))[0]
                 value = [float(line.strip()) for line in filehandle.readlines()]
-                while not len(value) >= len(self._groundtruth):
+                while not len(value) >= len(groundtruth):
                     value.append(0.0)
-                self._values[valuename] = value
+                values[valuename] = value
 
-        for name, channel in self._channels.items():
-            if not channel.length == len(self._groundtruth):
+        for name, channel in channels.items():
+            if not channel.length == len(groundtruth):
                 raise DatasetException("Length mismatch for channel %s" % name)
 
-        for name, tags in self._tags.items():
-            if not len(tags) == len(self._groundtruth):
-                tag_tmp = len(self._groundtruth) * [False]
-                tag_tmp[:len(tags)] = tags
-                tags = tag_tmp
+        for name, tag in tags.items():
+            if not len(tag) == len(groundtruth):
+                tag_tmp = len(groundtruth) * [False]
+                tag_tmp[:len(tag)] = tag
+                tag = tag_tmp
 
-        for name, values in self._values.items():
-            if not len(values) == len(self._groundtruth):
+        for name, value in values.items():
+            if not len(value) == len(groundtruth):
                 raise DatasetException("Length mismatch for value %s" % name)
+
+        return channels, groundtruth, tags, values
 
 class VOTDataset(Dataset):
 
@@ -101,7 +113,14 @@ class VOTDataset(Dataset):
 
         with open(os.path.join(path, "list.txt"), 'r') as fd:
             names = fd.readlines()
-        self._sequences = {name.strip() : VOTSequence(os.path.join(path, name.strip()), dataset=self) for name in Progress(names, desc="Loading dataset", unit="sequences") }
+
+        self._sequences = OrderedDict()
+
+        with Progress("Loading dataset", len(names)) as progress:
+
+            for name in names:
+                self._sequences[name.strip()] = VOTSequence(os.path.join(path, name.strip()), dataset=self)
+                progress.relative(1)
 
     @property
     def path(self):
@@ -125,17 +144,7 @@ class VOTDataset(Dataset):
 
     @classmethod
     def download(self, url, path="."):
-        from vot.utilities import write_properties
-        from vot.utilities.net import download, download_json, get_base_url, join_url, NetworkException
-
-        def download_uncompress(url, path):
-            tmp_file = tempfile.mktemp() + ".zip"
-            with Progress(unit='B', desc="Downloading", leave=False) as pbar:
-                download(url, tmp_file, pbar.update_absolute)
-            with Progress(unit='files', desc="Extracting", leave=True) as pbar:
-                extract_files(tmp_file, path, pbar.update_relative)
-            os.unlink(tmp_file)
-
+        from vot.utilities.net import download_uncompress, download_json, get_base_url, join_url, NetworkException
 
         if os.path.splitext(url)[1] == '.zip':
             logger.info('Downloading sequence bundle from "%s". This may take a while ...', url)
@@ -155,47 +164,50 @@ class VOTDataset(Dataset):
 
             base_url = get_base_url(url) + "/"
 
-            for sequence in Progress(meta["sequences"]):
-                sequence_directory = os.path.join(path, sequence["name"])
-                os.makedirs(sequence_directory, exist_ok=True)
+            with Progress("Donwloading", len(meta["sequences"])) as progress:
+                for sequence in meta["sequences"]:
+                    sequence_directory = os.path.join(path, sequence["name"])
+                    os.makedirs(sequence_directory, exist_ok=True)
 
-                data = {'name': sequence["name"], 'fps': sequence["fps"], 'format': 'default'}
+                    data = {'name': sequence["name"], 'fps': sequence["fps"], 'format': 'default'}
 
-                annotations_url = join_url(base_url, sequence["annotations"]["url"])
-
-                try:
-                    download_uncompress(annotations_url, sequence_directory)
-                except NetworkException as e:
-                    raise DatasetException("Unable do download annotations bundle")
-                except IOError as e:
-                    raise DatasetException("Unable to extract annotations bundle, is the target directory writable and do you have enough space?")
-
-                for cname, channel in sequence["channels"].items():
-                    channel_directory = os.path.join(sequence_directory, cname)
-                    os.makedirs(channel_directory, exist_ok=True)
-
-                    channel_url = join_url(base_url, channel["url"])
+                    annotations_url = join_url(base_url, sequence["annotations"]["url"])
 
                     try:
-                        download_uncompress(channel_url, channel_directory)
+                        download_uncompress(annotations_url, sequence_directory)
                     except NetworkException as e:
-                        raise DatasetException("Unable do download channel bundle")
+                        raise DatasetException("Unable do download annotations bundle")
                     except IOError as e:
-                        raise DatasetException("Unable to extract channel bundle, is the target directory writable and do you have enough space?")
+                        raise DatasetException("Unable to extract annotations bundle, is the target directory writable and do you have enough space?")
 
-                    if "pattern" in channel:
-                        data["channels." + cname] = cname + os.path.sep + channel["pattern"]
-                    else:
-                        data["channels." + cname] = cname + os.path.sep
+                    for cname, channel in sequence["channels"].items():
+                        channel_directory = os.path.join(sequence_directory, cname)
+                        os.makedirs(channel_directory, exist_ok=True)
 
-                write_properties(os.path.join(sequence_directory, 'sequence'), data)
+                        channel_url = join_url(base_url, channel["url"])
+
+                        try:
+                            download_uncompress(channel_url, channel_directory)
+                        except NetworkException as e:
+                            raise DatasetException("Unable do download channel bundle")
+                        except IOError as e:
+                            raise DatasetException("Unable to extract channel bundle, is the target directory writable and do you have enough space?")
+
+                        if "pattern" in channel:
+                            data["channels." + cname] = cname + os.path.sep + channel["pattern"]
+                        else:
+                            data["channels." + cname] = cname + os.path.sep
+
+                    write_properties(os.path.join(sequence_directory, 'sequence'), data)
+
+                    progress.relative(1)
 
             with open(os.path.join(path, "list.txt"), "w") as fp:
                 for sequence in meta["sequences"]:
                     fp.write('{}\n'.format(sequence["name"]))
 
 def write_sequence(directory: str, sequence: Sequence):
-    
+
     channels = sequence.channels()
 
     metadata = dict()

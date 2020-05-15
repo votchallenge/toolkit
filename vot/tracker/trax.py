@@ -114,7 +114,7 @@ def open_local_port(port: int):
         return None
 
 def normalize_paths(paths, tracker):
-    root = os.path.dirname(tracker.registry)
+    root = os.path.dirname(tracker.source)
     return [normalize_path(path, root) for path in paths]
 
 class TrackerProcess(object):

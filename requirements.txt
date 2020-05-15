@@ -11,3 +11,7 @@ Pillow>=7.0
 numba>=0.47
 requests>=2.22
 colorama>=0.4.3
+packaging>=20
+dominate>=2.5
+cachetools>=4.1
+bidict>=0.19

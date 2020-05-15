@@ -3,10 +3,12 @@ dataset: vot:vot-lt2019
 url: http://www.votchallenge.net/vot2020/
 experiments:
   longterm:
-    type: vot.experiment.UnsupervisedExperiment
+    type: UnsupervisedExperiment
     repetitions: 1
-    measures:
-      - type: vot.analysis.measures.PrecisionRecall
+    analyses:
+      - type: PrecisionRecall
+      - type: PrecisionRecallCurve
+      - type: FScoreCurve
   redetection:
     type: UnsupervisedExperiment
     transformers:

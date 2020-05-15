@@ -1,12 +1,18 @@
-import os, sys
+import os
+import sys
 import csv
+import re
 import hashlib
 import errno
+import logging
+import concurrent.futures as futures
+from logging import Formatter, LogRecord
 
 from numbers import Number
 from typing import Tuple
 
 import six
+import colorama
 
 def import_class(classpath, hints=None):
     delimiter = classpath.rfind(".")
@@ -21,6 +27,8 @@ def import_class(classpath, hints=None):
             except ImportError:
                 pass
             except TypeError:
+                pass
+            except AttributeError:
                 pass
         raise ImportError("Class {} not found in any of paths {}".format(classpath, hints))
     else:
@@ -38,19 +46,7 @@ def class_fullname(o):
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
     return (size[1], size[0])
 
-def is_notebook():
-    try:
-        from IPython import get_ipython
-        if get_ipython() is None:
-            raise ImportError("console")
-        if 'IPKernelApp' not in get_ipython().config:  # pragma: no cover
-            raise ImportError("console")
-        if 'VSCODE_PID' in os.environ:  # pragma: no cover
-            raise ImportError("vscode")
-    except ImportError:
-        return False
-    else:
-        return True
+from vot.utilities.notebook import is_notebook
 
 if is_notebook():
     try:
@@ -61,24 +57,46 @@ if is_notebook():
 else:
     from tqdm import tqdm
 
-class Progress(tqdm):
+class Progress(object):
 
-  #  def __init__(self, desc=None, total=100):
-  #      super().__init__()
+    class StreamProxy(object):
 
-    def update_absolute(self, current, total = None):
-        if total is not None:
-            self.total = total
-        self.update(current - self.n)  # will also set self.n = b * bsize
-        
-    def update_relative(self, n, total = None):
-        if total is not None:
-            self.total = total
-        self.update(n)  # will also set self.n = b * bsize
+        def write(self, x):
+            # Avoid print() second call (useless \n)
+            if len(x.rstrip()) > 0:
+                tqdm.write(x)
+        def flush(self):
+            #return getattr(self.file, "flush", lambda: None)()
+            pass
+
+    @staticmethod
+    def logstream():
+        return StreamProxy()
+
+
+    def __init__(self, description, total=100):
+        self._tqdm = tqdm(bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
+        self._tqdm.desc = description
+        self._tqdm.total = total
+
+    def absolute(self, value):
+        self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
+
+    def relative(self, n):
+        self._tqdm.update(n)  # will also set self.n = b * bsize 
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def close(self):
+        self._tqdm.close()
 
 def extract_files(archive, destination, callback = None):
     from zipfile import ZipFile
-    
+
     with ZipFile(file=archive) as zip_file:
         # Loop over each file
         total=len(zip_file.namelist())
@@ -98,10 +116,15 @@ def read_properties(filename, delimiter='='):
     if not os.path.exists(filename):
         return {}
     open_kwargs = {'mode': 'r', 'newline': ''} if six.PY3 else {'mode': 'rb'}
-    with open(filename, **open_kwargs) as csvfile:
-        reader = csv.reader(csvfile, delimiter=delimiter, escapechar='\\',
-                            quoting=csv.QUOTE_NONE)
-        return {row[0]: row[1] for row in reader}
+    matcher = re.compile("^([a-zA-Z0-9_\\-]+) *{} *(.*)$".format(delimiter))
+    with open(filename, **open_kwargs) as pfile:
+        properties = dict()
+        for line in pfile.readlines():
+            groups = matcher.match(line.strip())
+            if not groups:
+                continue
+            properties[groups.group(1)] = groups.group(2)
+        return properties
 
 def write_properties(filename, dictionary, delimiter='='):
     ''' Writes the provided dictionary in key sorted order to a properties
@@ -133,11 +156,14 @@ def file_hash(filename):
 
     return md5.hexdigest(), sha1.hexdigest()
 
-def arg_hash(*args):
+def arg_hash(*args, **kwargs):
     sha1 = hashlib.sha1()
 
     for arg in args:
         sha1.update(("(" + str(arg) + ")").encode("utf-8"))
+
+    for (key, val) in sorted(kwargs.items()):
+        sha1.update(("(" + str(key) + ":" + str(val) + ")").encode("utf-8"))
 
     return sha1.hexdigest()
 
@@ -194,8 +220,72 @@ def to_number(val, max_n = None, min_n = None, conversion=int):
 
 def to_logical(val):
     try:
-        n = bool(val)
+        if isinstance(val, str):
+            return val.lower() in ['true', '1', 't', 'y', 'yes']
+        else:
+            return bool(val)
 
-        return n
     except ValueError:
         raise RuntimeError("Logical value conversion error")
+
+def singleton(class_):
+    instances = {}
+    def getinstance(*args, **kwargs):
+        if class_ not in instances:
+            instances[class_] = class_(*args, **kwargs)
+        return instances[class_]
+    return getinstance
+
+class ColoredFormatter(Formatter):
+
+    class Empty(object):
+        """An empty class used to copy :class:`~logging.LogRecord` objects without reinitializing them."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        colorama.init()
+
+
+        self._styles = dict(
+            debug=colorama.Fore.GREEN,
+            verbose=colorama.Fore.BLACK,
+            info="",
+            notice=colorama.Fore.MAGENTA,
+            warning=colorama.Fore.YELLOW,
+            error=colorama.Fore.RED,
+            critical=colorama.Fore.RED + colorama.Style.BRIGHT,
+        )
+
+
+    def format(self, record: LogRecord):
+        style = self._styles[record.levelname.lower()]
+
+        copy = ColoredFormatter.Empty()
+        copy.__class__ = record.__class__
+        copy.__dict__.update(record.__dict__)
+        msg = record.msg if isinstance(record.msg, str) else str(record.msg)
+        copy.msg = style + msg + colorama.Style.RESET_ALL
+        record = copy
+        # Delegate the remaining formatting to the base formatter.
+        return Formatter.format(self, record)
+
+
+class ThreadPoolExecutor(futures.ThreadPoolExecutor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        #self._work_queue = Queue.Queue(maxsize=maxsize)
+
+    def shutdown(self, wait=True):
+        import queue
+        with self._shutdown_lock:
+            self._shutdown = True
+            try:
+                while True:
+                    item = self._work_queue.get_nowait()
+                    item.future.cancel()
+            except queue.Empty:
+                pass
+            self._work_queue.put(None)
+        if wait:
+            for t in self._threads:
+                t.join()

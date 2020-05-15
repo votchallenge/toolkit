@@ -1,6 +1,5 @@
 #pylint: disable=W0223
 
-from abc import ABC
 from typing import Callable
 
 from vot.dataset import Sequence
@@ -8,21 +7,15 @@ from vot.region import Special, calculate_overlap
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
-from vot.utilities import to_number, to_logical
+from vot.utilities.attributes import Boolean, Integer, Float, List, String
 
-class MultiRunExperiment(Experiment, ABC):
+class MultiRunExperiment(Experiment):
 
-    def __init__(self, identifier: str, workspace: "Workspace", repetitions=1, early_stop=True, **kwargs):
-        super().__init__(identifier, workspace, **kwargs)
-        self._repetitions = to_number(repetitions, min_n=1)
-        self._early_stop = to_logical(early_stop)
-
-    @property
-    def repetitions(self):
-        return self._repetitions
+    repetitions = Integer(val_min=1, default=1)
+    early_stop = Boolean(default=True)
 
     def _can_stop(self, tracker: Tracker, sequence: Sequence):
-        if not self._early_stop:
+        if not self.early_stop:
             return False
         trajectories = self.gather(tracker, sequence)
         if len(trajectories) < 3:
@@ -34,15 +27,14 @@ class MultiRunExperiment(Experiment, ABC):
 
         return True
 
-
     def scan(self, tracker: Tracker, sequence: Sequence):
         
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
         files = []
         complete = True
 
-        for i in range(1, self._repetitions+1):
+        for i in range(1, self.repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
             if Trajectory.exists(results, name):
                 files.extend(Trajectory.gather(results, name))
@@ -56,8 +48,8 @@ class MultiRunExperiment(Experiment, ABC):
 
     def gather(self, tracker: Tracker, sequence: Sequence):
         trajectories = list()
-        results = self.workspace.results(tracker, self, sequence)
-        for i in range(1, self._repetitions+1):
+        results = self.results(tracker, sequence)
+        for i in range(1, self.repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
             if Trajectory.exists(results, name):
                 trajectories.append(Trajectory.read(results, name))
@@ -67,9 +59,9 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
-        for i in range(1, self._repetitions+1):
+        for i in range(1, self.repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
 
             if Trajectory.exists(results, name) and not force:
@@ -96,34 +88,20 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
             trajectory.write(results, name)
 
-            if  callback:
-                callback(i / self._repetitions)
+            if callback:
+                callback(i / self.repetitions)
 
 class SupervisedExperiment(MultiRunExperiment):
 
-    def __init__(self, identifier: str, workspace: "Workspace", skip_initialize=1, skip_tags=(), failure_overlap=0, **kwargs):
-        super().__init__(identifier, workspace, **kwargs)
-        self._skip_initialize = to_number(skip_initialize, min_n=1)
-        self._skip_tags = tuple(skip_tags)
-        self._failure_overlap = to_number(failure_overlap, min_n=0, max_n=1, conversion=float)
-
-    @property
-    def skip_initialize(self):
-        return self._skip_initialize
-
-    @property
-    def skip_tags(self):
-        return self._skip_tags
-
-    @property
-    def failure_overlap(self):
-        return self._failure_overlap
+    skip_initialize = Integer(val_min=1, default=1)
+    skip_tags = List(String())
+    failure_overlap = Float(val_min=0, val_max=1, default=0)
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
 
-        results = self.workspace.results(tracker, self, sequence)
+        results = self.results(tracker, sequence)
 
-        for i in range(1, self._repetitions+1):
+        for i in range(1, self.repetitions+1):
             name = "%s_%03d" % (sequence.name, i)
 
             if Trajectory.exists(results, name) and not force:
@@ -168,6 +146,6 @@ class SupervisedExperiment(MultiRunExperiment):
                         frame = frame + 1
 
             if  callback:
-                callback(i / self._repetitions)
+                callback(i / self.repetitions)
 
             trajectory.write(results, name)

@@ -8,7 +8,6 @@ from matplotlib.patches import Polygon
 from PIL import Image, ImageDraw
 import numpy as np
 import cv2
-
 try:
     from cStringIO import StringIO as BytesIO
 except ImportError:
@@ -154,19 +153,20 @@ class ImageDrawHandle(DrawHandle):
         self._handle = ImageDraw.Draw(self._image, 'RGBA')
 
     @property
-    def array(self):
+    def array(self) -> np.ndarray:
         return np.asarray(self._image)
 
     @property
-    def snapshot(self):
+    def snapshot(self) -> Image.Image:
         return self._image.copy()
 
     def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
         if isinstance(image, np.ndarray):
             image = Image.fromarray(image)
+
         if offset is None:
             offset = (0, 0)
-        self._handle.bitmap(offset, image)
+        self._image.paste(image, offset)
 
     def line(self, p1, p2):
         color = ImageDrawHandle._convert_color(self._color)
@@ -185,7 +185,7 @@ class ImageDrawHandle(DrawHandle):
         if self._fill:
             color = ImageDrawHandle._convert_color(self._color, alpha=128)
             self._handle.polygon(points, fill=color)
-    
+
         color = ImageDrawHandle._convert_color(self._color)
         self._handle.line(points + [points[0]], fill=color, width=self._width)
 

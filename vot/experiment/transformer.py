@@ -1,5 +1,5 @@
 import os
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from PIL import Image
 
@@ -7,42 +7,40 @@ from vot.dataset import Sequence, VOTSequence, InMemorySequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.dataset.vot import write_sequence
 from vot.region import RegionType
-from vot.utilities import to_number, arg_hash
+from vot.utilities import arg_hash
+from vot.utilities.attributes import Attributee, Integer, Float
 
-class Transformer(ABC):
+class Transformer(Attributee):
 
-    def __init__(self, workspace: "Workspace", **kwargs):
-        self._workspace = workspace
+    def __init__(self, cache: "LocalStorage", **kwargs):
+        super().__init__(**kwargs)
+        self._cache = cache
 
     @abstractmethod
     def __call__(self, sequence: Sequence) -> Sequence:
-        pass
-
+        raise NotImplementedError
 
 class Redetection(Transformer):
 
-    def __init__(self, workspace: "Workspace", length: int = 100, initialization: int = 5, padding: float = 2, scaling: float = 1, **kwargs):
-        super().__init__(workspace, **kwargs)
-        self._workspace = workspace
-        self._initialization = to_number(initialization, min_n=1)
-        self._length = to_number(length, min_n=self._initialization+1)
-        self._padding = to_number(padding, min_n=0, conversion=float)
-        self._scaling = to_number(scaling, min_n=0.1, max_n=10, conversion=float)
+    length = Integer(default=100, val_min=1)
+    initialization = Integer(default=5, val_min=1)
+    padding = Float(default=2, val_min=0)
+    scaling = Float(default=1, val_min=0.1, val_max=10)
 
     def __call__(self, sequence: Sequence) -> Sequence:
 
-        chache_dir = self._workspace.cache(self, arg_hash(sequence.name, self._length, self._initialization, self._padding, self._scaling))
+        chache_dir = self._cache.directory(self, arg_hash(sequence.name, **self.dump()))
 
         if not os.path.isfile(os.path.join(chache_dir, "sequence")):
             generated = InMemorySequence(sequence.name, sequence.channels())
-            size = (int(sequence.size[0] * self._scaling), int(sequence.size[1] * self._scaling))
+            size = (int(sequence.size[0] * self.scaling), int(sequence.size[1] * self.scaling))
 
             initial_images = dict()
             redetect_images = dict()
             for channel in sequence.channels():
                 rect = sequence.frame(0).groundtruth().convert(RegionType.RECTANGLE)
 
-                halfsize = int(max(rect.width, rect.height) * self._scaling / 2)
+                halfsize = int(max(rect.width, rect.height) * self.scaling / 2)
                 x, y = rect.center()
 
                 image = Image.fromarray(sequence.frame(0).image())
@@ -61,5 +59,5 @@ class Redetection(Transformer):
             write_sequence(chache_dir, generated)
 
         source = VOTSequence(chache_dir, name=sequence.name)
-        mapping = [0] * self._initialization + [1] * (self._length - self._initialization)
+        mapping = [0] * self.initialization + [1] * (self.length - self.initialization)
         return FrameMapSequence(source, mapping)
