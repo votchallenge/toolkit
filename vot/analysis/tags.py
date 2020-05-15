@@ -2,6 +2,8 @@
 import typing
 from typing import Tuple
 from collections import Counter
+import operator
+import functools
 
 import numpy as np
 
@@ -30,9 +32,11 @@ class AttributeMultiStart(SequenceAveragingAnalysis):
         return "AR per-attribute analysis"
 
     def describe(self):
-        return [Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags], \
-            [Measure("Robustness", "R", minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags], \
-            None
+        accuracy = [Measure("Accuracy: " + t, "A " + t, minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags]
+        robustness = [Measure("Robutsness" + t, "R " + t, minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags]
+        length = [None] * len(self.tags)
+
+        return tuple(functools.reduce(operator.add, [[a, r, n] for a, r, n in zip(accuracy, robustness, length)]))
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
@@ -48,9 +52,11 @@ class AttributeMultiStart(SequenceAveragingAnalysis):
                 robustness[t] += seq_rob * seq_attr_count[t]
                 attribute_total[t] += seq_attr_count[t]
 
-        return [accuracy[t] / attribute_total[t] for t in self.tags], \
-            [robustness[t] / attribute_total[t] for t in self.tags], \
-            [attribute_total[t] for t in self.tags]
+        accuracy = [accuracy[t] / attribute_total[t] for t in self.tags]
+        robustness = [robustness[t] / attribute_total[t] for t in self.tags]
+        length = [attribute_total[t] for t in self.tags]
+
+        return tuple(functools.reduce(operator.add, [[a, r, n] for a, r, n in zip(accuracy, robustness, length)]))
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
 
@@ -138,8 +144,7 @@ class AttributeDifficultyLevelMultiStart(SequenceAveragingAnalysis):
         return "Attribute difficulty"
 
     def describe(self):
-        return [Measure("Difficulty", "D", minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags], \
-            None
+        return tuple([Measure(t, t, minimal=0, maximal=1, direction=Sorting.DESCENDING) for t in self.tags] + [None] * len(self.tags))
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
@@ -149,17 +154,17 @@ class AttributeDifficultyLevelMultiStart(SequenceAveragingAnalysis):
         attribute_counter = Counter()
         for seq_tags_not_failed, seq_tags_count, seq_attr_count in results:
             
-            for t in seq_tags_count:
+            for tag in seq_tags_count:
 
-                if t in seq_tags_not_failed:
-                    seq_attr_difficulty = seq_tags_not_failed[t] / seq_tags_count[t]
+                if tag in seq_tags_not_failed:
+                    seq_attr_difficulty = seq_tags_not_failed[tag] / seq_tags_count[tag]
                 else:
                     seq_attr_difficulty = 0
 
-                attribute_difficulty[t] += seq_attr_difficulty * seq_attr_count[t]
-                attribute_counter[t] += seq_attr_count[t]
+                attribute_difficulty[tag] += seq_attr_difficulty * seq_attr_count[tag]
+                attribute_counter[tag] += seq_attr_count[tag]
 
-        return [attribute_difficulty[t] / attribute_counter[t] for t in self.tags], [attribute_counter[t] for t in self.tags]
+        return tuple([attribute_difficulty[tag] / attribute_counter[tag] for tag in self.tags] + [attribute_counter[tag] for tag in self.tags])
 
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):

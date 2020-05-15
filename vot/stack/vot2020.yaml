@@ -23,6 +23,14 @@ experiments:
           - size_change
           - motion_change
           - empty
+      - type: AttributeMultiStart
+        tags:
+          - camera_motion
+          - illum_change
+          - occlusion
+          - size_change
+          - motion_change
+          - empty
 #      - type: TagDifficulty
 #        low: 108
 #        high: 371

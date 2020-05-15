@@ -4,7 +4,7 @@ from typing import Type
 from collections import Iterable, Mapping
 
 from vot import VOTException
-from vot.utilities import to_number, to_string, to_logical, singleton, import_class
+from vot.utilities import to_number, to_string, to_logical, singleton, import_class, class_fullname
 
 class AttributeException(VOTException):
     pass
@@ -266,6 +266,9 @@ class List(Attribute):
         # This is only here to avoid pylint errors for the actual attribute field
         raise NotImplementedError
 
+    def dump(self, value):
+        return [self._contains.dump(x) for x in value]
+
 class Map(Attribute):
 
     def __init__(self, contains, container=dict, **kwargs):
@@ -287,6 +290,10 @@ class Map(Attribute):
     def __iter__(self):
         # This is only here to avoid pylint errors for the actual attribute field
         raise NotImplementedError
+
+    def dump(self, value):
+        return {k: self._contains.dump(v) for k, v in value.items()}
+
 
 def default_resolver(typename: str, _, **kwargs) -> Attributee:
     """Default object resovler
@@ -312,3 +319,8 @@ class Object(Attribute):
         assert isinstance(value, dict)
         class_name = value.get("type", None)
         return self._resolver(class_name, context, **{k: v for k, v in value.items() if not k == "type"})
+
+    def dump(self, value):
+        data = value.dump()
+        data["type"] = class_fullname(value)
+        return data

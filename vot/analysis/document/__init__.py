@@ -289,14 +289,13 @@ def generate_json_document(trackers: List[Tracker], sequences: List[Sequence], r
 
     for experiment, analyses in results.items():
         exp = dict(parameters=experiment.dump(), type=class_fullname(experiment))
-        exp["analyses"] = dict()
-        for analysis, data in analyses.items():
-            ans = dict(parameters=analysis.dump(), type=class_fullname(analysis))
-            ans["results"] = data
-        doc["results"][experiment.name] = exp
+        exp["results"] = []
+        for _, data in analyses.items():
+            exp["results"].append(data)
+        doc["results"][experiment.identifier] = exp
 
     with storage.write("results.json") as handle:
-        json.dump(results, handle, indent=2)
+        json.dump(doc, handle, indent=2)
 
 
 def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage, build=False):
