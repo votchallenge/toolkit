@@ -36,7 +36,7 @@ setup(name='vot-toolkit',
     ],
     python_requires='>=3.6',
     entry_points={
-        'console_scripts': ['vot=vot.cli:main'],
+        'console_scripts': ['vot=vot.utilities.cli:main'],
     },
 )
 
