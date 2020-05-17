@@ -116,7 +116,7 @@ def read_properties(filename, delimiter='='):
     if not os.path.exists(filename):
         return {}
     open_kwargs = {'mode': 'r', 'newline': ''} if six.PY3 else {'mode': 'rb'}
-    matcher = re.compile("^([a-zA-Z0-9_\\-]+) *{} *(.*)$".format(delimiter))
+    matcher = re.compile("^([a-zA-Z0-9_\\-.]+) *{} *(.*)$".format(delimiter))
     with open(filename, **open_kwargs) as pfile:
         properties = dict()
         for line in pfile.readlines():
