@@ -9,7 +9,7 @@ class VOTException(Exception):
 
 def check_updates():
     import re
-    import packaging
+    import packaging.version as packaging
     import requests
     pattern = r"^__version__ = ['\"]([^'\"]*)['\"]"
 
@@ -27,10 +27,10 @@ def check_updates():
     if not response:
         return False, None
 
-    groups = re.search(pattern, response.raw, re.M)
+    groups = re.search(pattern, response.content.decode("utf-8"), re.M)
     if groups:
-        remote_version = packaging.version.parse(groups.group(1))
-        local_version = packaging.version.parse(__version__)
+        remote_version = packaging.parse(groups.group(1))
+        local_version = packaging.parse(__version__)
 
         return remote_version > local_version, groups.group(1)
 
