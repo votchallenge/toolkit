@@ -5,6 +5,7 @@ import re
 import hashlib
 import errno
 import logging
+import inspect
 import concurrent.futures as futures
 from logging import Formatter, LogRecord
 
@@ -37,11 +38,15 @@ def import_class(classpath, hints=None):
         return getattr(module, classname)
 
 def class_fullname(o):
-    module = o.__class__.__module__
+    return class_string(o.__class__)
+
+def class_string(kls):
+    assert inspect.isclass(kls)
+    module = kls.__module__
     if module is None or module == str.__class__.__module__:
-        return o.__class__.__name__  # Avoid reporting __builtin__
+        return kls.__name__  # Avoid reporting __builtin__
     else:
-        return module + '.' + o.__class__.__name__
+        return module + '.' + kls.__name__
 
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
     return (size[1], size[0])
@@ -71,8 +76,7 @@ class Progress(object):
 
     @staticmethod
     def logstream():
-        return StreamProxy()
-
+        return Progress.StreamProxy()
 
     def __init__(self, description, total=100):
         self._tqdm = tqdm(bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")

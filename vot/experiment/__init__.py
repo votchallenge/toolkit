@@ -19,11 +19,11 @@ class RealtimeConfig(Attributee):
 
 class NoiseConfig(Attributee):
     # Not implemented yet
-    pass
+    placeholder = Integer(default=1)
 
 class InjectConfig(Attributee):
     # Not implemented yet
-    pass
+    placeholder = Integer(default=1)
 
 def transformer_resolver(typename, context, **kwargs):
     from vot.experiment.transformer import Transformer
@@ -51,9 +51,9 @@ def analysis_resolver(typename, context, **kwargs):
 
 class Experiment(Attributee):
 
-    realtime = Nested(RealtimeConfig)
-    noise = Nested(NoiseConfig)
-    inject = Nested(InjectConfig)
+    realtime = Nested(RealtimeConfig, default=None)
+    noise = Nested(NoiseConfig, default=None)
+    inject = Nested(InjectConfig, default=None)
     transformers = List(Object(transformer_resolver), default=[])
     analyses = List(Object(analysis_resolver), default=[])
 

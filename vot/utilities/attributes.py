@@ -4,7 +4,7 @@ from typing import Type
 from collections import Iterable, Mapping
 
 from vot import VOTException
-from vot.utilities import to_number, to_string, to_logical, singleton, import_class, class_fullname
+from vot.utilities import to_number, to_string, to_logical, singleton, import_class, class_fullname, class_string
 
 class AttributeException(VOTException):
     pass
@@ -60,7 +60,7 @@ class Attribute(object):
 
 class Nested(Attribute):
 
-    def __init__(self, acls: Type["Attributee"]):
+    def __init__(self, acls: Type["Attributee"], **kwargs):
         if not issubclass(acls, Attributee):
             raise AttributeException("Illegal base class {}".format(acls))
 
@@ -71,21 +71,32 @@ class Nested(Attribute):
             if afield.required:
                 self._required = True
 
-        super().__init__()
+        super().__init__(**kwargs)
 
     def coerce(self, value, _):
+        if value is None:
+            return None
+        if is_undefined(value):
+            return value
+        assert isinstance(value, Mapping)
         return self._acls(**value)
 
     def dump(self, value: "Attributee"):
+        if value is None:
+            return None
         return value.dump()
 
     @property
-    def default(self):
-        return {}
-
-    @property
     def required(self):
-        return self._required
+        return super().required and self._required
+
+    def __getattr__(self, name):
+        # This is only here to avoid pylint errors for the actual attribute field
+        return super().__getattr__(name)
+
+    def __setattr__(self, name, value):
+        # This is only here to avoid pylint errors for the actual attribute field
+        super().__setattr__(name, value)
 
 class AttributeeMeta(type):
 
@@ -140,6 +151,9 @@ class AttributeeMeta(type):
 
 class Include(Nested):
 
+    def __init__(self, acls: Type["Attributee"]):
+        super().__init__(acls)
+
     def filter(self, **kwargs):
         attributes = getattr(self._acls, "_declared_attributes", {})
         filtered = dict()
@@ -152,7 +166,7 @@ class Include(Nested):
 
     @property
     def default(self):
-        return None
+        return {}
 
 class Attributee(metaclass=AttributeeMeta):
 
@@ -266,6 +280,14 @@ class List(Attribute):
         # This is only here to avoid pylint errors for the actual attribute field
         raise NotImplementedError
 
+    def __getitem__(self, key):
+        # This is only here to avoid pylint errors for the actual attribute field
+        raise NotImplementedError
+
+    def __setitem__(self, key, value):
+        # This is only here to avoid pylint errors for the actual attribute field
+        raise NotImplementedError
+
     def dump(self, value):
         return [self._contains.dump(x) for x in value]
 
@@ -291,11 +313,20 @@ class Map(Attribute):
         # This is only here to avoid pylint errors for the actual attribute field
         raise NotImplementedError
 
+    def __getitem__(self, key):
+        # This is only here to avoid pylint errors for the actual attribute field
+        raise NotImplementedError
+
+    def __setitem__(self, key, value):
+        # This is only here to avoid pylint errors for the actual attribute field
+        raise NotImplementedError
+
+
     def dump(self, value):
         return {k: self._contains.dump(v) for k, v in value.items()}
 
 
-def default_resolver(typename: str, _, **kwargs) -> Attributee:
+def default_object_resolver(typename: str, _, **kwargs) -> Attributee:
     """Default object resovler
 
     Arguments:
@@ -311,7 +342,7 @@ def default_resolver(typename: str, _, **kwargs) -> Attributee:
 
 class Object(Attribute):
 
-    def __init__(self, resolver=default_resolver, **kwargs):
+    def __init__(self, resolver=default_object_resolver, **kwargs):
         super().__init__(**kwargs)
         self._resolver = resolver
 
@@ -324,3 +355,37 @@ class Object(Attribute):
         data = value.dump()
         data["type"] = class_fullname(value)
         return data
+
+    def __getattr__(self, name):
+        # This is only here to avoid pylint errors for the actual attribute field
+        return super().__getattr__(name)
+
+    def __setattr__(self, name, value):
+        # This is only here to avoid pylint errors for the actual attribute field
+        super().__setattr__(name, value)
+
+class Callable(Attribute):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def coerce(self, value, context=None):
+        if callable(value):
+            return value
+
+        assert isinstance(value, str)
+        caltype = import_class(value)
+        assert callable(caltype)
+        caltype.resname = value
+        return caltype
+
+    def dump(self, value):
+        if hasattr(value, "resname"):
+            return value.resname
+        if inspect.isclass(value):
+            return class_string(value)
+        return class_fullname(value)
+
+    def __call__(self):
+        # This is only here to avoid pylint errors for the actual attribute field
+        raise NotImplementedError
