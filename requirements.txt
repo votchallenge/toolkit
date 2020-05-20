@@ -1,5 +1,5 @@
 vot-trax>=3.0.2
-tqdm==4.32
+tqdm>=4.37
 numpy>=1.16
 opencv-python>=4.0
 six
