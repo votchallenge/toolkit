@@ -89,6 +89,12 @@ class Progress(object):
     def relative(self, n):
         self._tqdm.update(n)  # will also set self.n = b * bsize 
 
+    def total(self, t):
+        if self._tqdm.total == t:
+            return
+        self._tqdm.total = t
+        self._tqdm.refresh()
+
     def __enter__(self):
         return self
 

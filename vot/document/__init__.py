@@ -10,6 +10,7 @@ import logging
 import tempfile
 import datetime
 import collections
+from asyncio import wait
 from asyncio.futures import wrap_future
 
 import yaml
@@ -294,8 +295,21 @@ class Generator(Attributee):
     async def generate(self, experiments, trackers, sequences):
         raise NotImplementedError
 
-    def _commit(self, analysis, experiment, trackers, sequences):
-        return wrap_future(analysis.commit(experiment, trackers, sequences))
+    async def process(self, analyses, experiment, trackers, sequences):
+        if not isinstance(analyses, collections.Iterable):
+            analyses = [analyses]
+
+        futures = []
+
+        for analysis in analyses:
+            futures.append(wrap_future(analysis.commit(experiment, trackers, sequences)))
+
+        await wait(futures)
+
+        if len(futures) == 1:
+            return futures[0].result()
+        else:
+            return (future.result() for future in futures)
 
 class ReportConfiguration(Attributee):
 
