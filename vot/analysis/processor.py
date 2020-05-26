@@ -1,7 +1,8 @@
 
 import logging
+import threading
 from collections import Iterable
-from typing import List, Union, Callable
+from typing import List, Union
 from concurrent.futures import Executor, Future
 from threading import RLock
 
@@ -13,7 +14,7 @@ from vot.dataset import Sequence
 from vot.tracker import Tracker
 from vot.experiment import Experiment
 from vot.analysis import SeparableAnalysis, Analysis, DependentAnalysis
-from vot.utilities import arg_hash
+from vot.utilities import arg_hash, class_fullname
 
 logger = logging.getLogger("vot")
 
@@ -115,17 +116,17 @@ class AnalysisAggregator(Future):
         self._tasks = []
         self._key = key
 
-    def _on_result(self, result, i):
+    def _on_result(self, future, i):
         with self._lock:
             if self.done():
                 return
-            if isinstance(result, Exception):
+            try:
+                self._results[i] = future.result()
+            except AnalysisError as e:
                 for promise in self._tasks:
                     promise.cancel()
-                self.set_exception(AnalysisError(result, task=self._key))
-                return
-            
-            self._results[i] = result
+                self.set_exception(AnalysisError(e, task=self._key))
+
             self._count = self._count - 1
             if self._count == 0:
                 promise = self._executor.submit(AnalysisJoinTask(self._analysis, self._experiment,
@@ -140,7 +141,7 @@ class AnalysisAggregator(Future):
                 self.set_exception(e)
 
     def callback(self, i):
-        return lambda result: self._on_result(result, i)
+        return lambda future: self._on_result(future, i)
 
     def append(self, promise):
         self._tasks.append(promise)
@@ -151,32 +152,50 @@ class AnalysisAggregator(Future):
                 promise.cancel()
             super().cancel()
 
+
+class AnalysisFuture(Future):
+
+    def __init__(self, key):
+        super().__init__()
+        self._key = key
+
+    @property
+    def key(self):
+        return self._key
+
 class AnalysisProcessor(object):
+
+    _context = threading.local()
 
     def __init__(self, executor: Executor, cache: Cache):
         self._executor = executor
         self._cache = cache
         self._pending = bidict()
-        self._callbacks = dict()
+        self._promises = dict()
         self._lock = RLock()
         self._total = 0
 
-    def submit(self, analysis: Analysis, experiment: Experiment,
-        trackers: Union[Tracker, List[Tracker]], sequences: Union[Sequence, List], callback: Callable):
+    def commit(self, analysis: Analysis, experiment: Experiment,
+        trackers: Union[Tracker, List[Tracker]], sequences: Union[Sequence, List]):
 
         key = hashkey(analysis, experiment, trackers, sequences)
 
         with self._lock:
 
-            if self._exists(key, callback):
-                return True
+            promise = self._exists(key)
+
+            if not promise is None:
+                return promise
     
+            promise = AnalysisFuture(key)
+            promise.add_done_callback(self._promise_cancelled)
+
             if isinstance(analysis, SeparableAnalysis):
 
                 parts = analysis.separate(experiment, trackers, sequences)
                 aggregator = AnalysisAggregator(key, analysis, experiment, trackers, sequences, len(parts), self._executor)
                 aggregator.add_done_callback(self._future_done)
-                self._callbacks[key] = [callback]
+                self._promises[key] = [promise]
                 self._pending[key] = aggregator
                 self._total += 1
 
@@ -185,16 +204,21 @@ class AnalysisProcessor(object):
 
                     sequence_callback = aggregator.callback(i)
 
-                    if self._exists(partkey, sequence_callback):
+                    partpromise = self._exists(partkey)
+                    if not partpromise is None:
+                        partpromise.add_done_callback(sequence_callback)
                         continue
 
+                    partpromise = AnalysisFuture(key)
+                    partpromise.add_done_callback(sequence_callback)
+
                     task = AnalysisPartTask(analysis, part)
-                    promise = self._executor.submit(task)
-                    self._callbacks[partkey] = [sequence_callback]
-                    self._pending[partkey] = promise
+                    executorpromise = self._executor.submit(task)
+                    self._promises[partkey] = [partpromise]
+                    self._pending[partkey] = executorpromise
                     self._total += 1
-                    aggregator.append(promise)
-                    promise.add_done_callback(self._future_done)
+                    aggregator.append(executorpromise)
+                    executorpromise.add_done_callback(self._future_done)
     
 
             elif isinstance(analysis, DependentAnalysis):
@@ -204,49 +228,38 @@ class AnalysisProcessor(object):
                         trackers, sequences, len(dependencies), self._executor)
                 aggregator.add_done_callback(self._future_done)
 
-                self._callbacks[key] = [callback]
+                self._promises[key] = [promise]
                 self._pending[key] = aggregator
                 self._total += 1
 
                 for i, sub in enumerate(dependencies):
-                    self.submit(sub, experiment, trackers, sequences, aggregator.callback(i))
+                    subpromise = self.commit(sub, experiment, trackers, sequences)
+                    subpromise.add_done_callback(aggregator.callback(i))
 
             else:
                 task = AnalysisTask(analysis, experiment, trackers, sequences)
-                promise = self._executor.submit(task)
-                self._callbacks[key] = [callback]
-                self._pending[key] = promise
+                executorpromise = self._executor.submit(task)
+                promise = AnalysisFuture(key)
+                self._promises[key] = [promise]
+                self._pending[key] = executorpromise
                 self._total += 1
-                promise.add_done_callback(self._future_done)
+                executorpromise.add_done_callback(self._future_done)
                 logger.debug("Adding analysis task %s", key)
             
-            return False
+            return promise
 
-    def cancel(self, analysis, experiment, trackers, sequences, callback):
-
-        key = hashkey(analysis, experiment, trackers, sequences)
-
-        with self._lock:
-
-            if key not in self._callbacks:
-                return False
-
-            if callback not in self._callbacks[key]:
-                return False
-
-            self._callbacks[key].remove(callback)
-            if len(self._callbacks[key]) == 0:
-                self._pending[key].cancel()
-                
-    def _exists(self, key, callback):
+    def _exists(self, key):
         if key in self._cache:
-            callback(self._cache[key])
-            return True
+            promise = AnalysisFuture(key)
+            promise.set_result(self._cache[key])
+            return promise
 
-        if key in self._callbacks:
-            self._callbacks[key].append(callback)
-            return True
-        return False
+        if key in self._promises:
+            promise = AnalysisFuture(key)
+            promise.add_done_callback(self._promise_cancelled)
+            self._promises[key].append(promise)
+            return promise
+        return None
 
     def _future_done(self, future: Future):
 
@@ -256,27 +269,46 @@ class AnalysisProcessor(object):
 
             if future.cancelled():
                 del self._pending[key]
-                del self._callbacks[key]
+                del self._promises[key]
                 return
             try:
                 result = future.result()
-                self._done(key, result, True)
+                self._cache[key] = result
+                error = None
             except AnalysisError as e:
-                self._done(e.task, e, False)
+                error = e
 
-    def _done(self, key, result, cache=True):
+            if key not in self._promises:
+                return
 
-        if cache:
-            self._cache[key] = result
+            if error is None:
+                for promise in self._promises[key]:
+                    promise.set_result(result)
+            else:
+                for promise in self._promises[key]:
+                    promise.set_exception(error)
 
-        if key not in self._callbacks:
+            del self._promises[key]
+            del self._pending[key]
+
+
+    def _promise_cancelled(self, future: Future):
+        if not future.cancelled():
             return
 
-        for callback in self._callbacks[key]:
-            callback(result)
+        key = future.key
 
-        del self._callbacks[key]
-        del self._pending[key]
+        with self._lock:
+
+            if key not in self._promises:
+                return False
+
+            if future not in self._promises[key]:
+                return False
+
+            self._promises[key].remove(future)
+            if len(self._promises[key]) == 0:
+                self._pending[key].cancel()
 
     @property
     def pending(self):
@@ -288,30 +320,72 @@ class AnalysisProcessor(object):
         with self._lock:
             return self._total
 
-    def cancel_all(self):
+    def cancel(self):
         with self._lock:
             for _, future in list(self._pending.items()):
                 future.cancel()
 
-def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], executor: Executor, cache: Cache):
+    def __enter__(self):
+
+        processor = getattr(AnalysisProcessor._context, 'analysis_processor', None)
+
+        if processor == self:
+            return self
+
+        if not processor is None:
+            logger.warning("Changing default processor for thread %s", threading.current_thread().name)
+
+        AnalysisProcessor._context.analysis_processor = self
+        logger.debug("Setting default analysis processor for thread %s", threading.current_thread().name)
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        processor = getattr(AnalysisProcessor._context, 'analysis_processor', None)
+
+        if processor == self:
+            AnalysisProcessor._context.analysis_processor = None
+            self.cancel()
+
+    @staticmethod
+    def default():
+
+        processor = getattr(AnalysisProcessor._context, 'analysis_processor', None)
+
+        if processor is None:
+            logger.warning("Default analysis processor not set for thread %s, using a simple one.", threading.current_thread().name)
+            from vot.utilities import ThreadPoolExecutor
+            from cachetools import LRUCache
+            executor = ThreadPoolExecutor(1)
+            cache = LRUCache(1000)
+            processor = AnalysisProcessor(executor, cache)
+            AnalysisProcessor._context.analysis_processor = processor
+
+        return processor
+
+    @staticmethod
+    def commit_default(analysis: AnalysisFuture, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        processor = AnalysisProcessor.default()
+        return processor.commit(analysis, experiment, trackers, sequences)
+
+def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
     from vot.utilities import Progress
     from threading import Condition
 
-    processor = AnalysisProcessor(executor, cache)
+    processor = AnalysisProcessor.default()
 
     results = dict()
     condition = Condition()
 
     def insert_result(container: dict, key):
-        def insert(x):
-            if isinstance(x, Exception):
-                if isinstance(x, AnalysisError):
-                    x.print(logger)
-                else:
-                    logger.exception(x)
-            else:
-                container[key] = x
+        def insert(future: Future):
+            try:
+                container[key] = future.result()
+            except AnalysisError as e:
+                e.print(logger)
+            except Exception as e:
+                logger.exception(e)
             with condition:
                 condition.notify()
         return insert
@@ -324,16 +398,19 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], exec
 
         results[experiment] = experiment_results
 
+        sequences = [experiment.transform(sequence) for sequence in workspace.dataset]
+
         for analysis in experiment.analyses:
 
             if not analysis.compatible(experiment):
                 continue
 
-            logger.debug("Traversing analysis %s", analysis.name)
+            logger.debug("Traversing analysis %s", class_fullname(analysis))
 
             with condition:
                 experiment_results[analysis] = None
-            processor.submit(analysis, experiment, trackers, workspace.dataset, insert_result(experiment_results, analysis))
+            promise = processor.commit(analysis, experiment, trackers, )
+            promise.add_done_callback(insert_result(experiment_results, analysis))
 
     if processor.total == 0:
         return results
@@ -352,7 +429,7 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], exec
                     condition.wait(1)
 
         except KeyboardInterrupt:
-            processor.cancel_all()
+            processor.cancel()
             progress.close()
             logger.info("Analysis interrupted by user, aborting.")
             return None

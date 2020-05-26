@@ -59,7 +59,7 @@ class PrecisionRecallCurve(TrackerSeparableAnalysis):
     bounded = Boolean(default=True)
 
     @property
-    def name(self):
+    def title(self):
         return "Tracking precision/recall"
 
     def describe(self):
@@ -140,7 +140,7 @@ class FScoreCurve(DependentAnalysis):
     prcurve = Include(PrecisionRecallCurve)
 
     @property
-    def name(self):
+    def title(self):
         return "Tracking precision/recall"
 
     def describe(self):
@@ -173,13 +173,13 @@ class PrecisionRecall(DependentAnalysis):
     fcurve = Include(FScoreCurve)
 
     @property
-    def name(self):
+    def title(self):
         return "Tracking precision/recall"
 
     def describe(self):
         return Measure("Precision", "Pr", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Recall", "Re", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
-             Measure("F Score", "F",  minimal=0, maximal=1, direction=Sorting.DESCENDING)
+             Measure("F Score", "F", minimal=0, maximal=1, direction=Sorting.DESCENDING)
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, UnsupervisedExperiment)

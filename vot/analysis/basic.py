@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 
-from vot.analysis import (DependentAnalysis, Hints, Measure,
+from vot.analysis import (DependentAnalysis, Measure,
                           MissingResultsException, Point,
                           SequenceAveragingAnalysis, Sorting,
                           TrackerSeparableAnalysis, is_special, public)
@@ -70,8 +70,8 @@ class AverageAccuracy(SequenceAveragingAnalysis):
         return isinstance(experiment, MultiRunExperiment)
 
     @property
-    def name(self):
-        return "Average accurarcy per sequence"
+    def title(self):
+        return "Average accurarcy"
 
     def describe(self):
         return Measure("Accuracy", "AUC", 0, 1, Sorting.DESCENDING),
@@ -109,7 +109,7 @@ class FailureCount(SequenceAveragingAnalysis):
         return isinstance(experiment, SupervisedExperiment)
 
     @property
-    def name(self):
+    def title(self):
         return "Number of failures"
 
     def describe(self):

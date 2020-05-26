@@ -61,6 +61,7 @@ class Experiment(Attributee):
         self._identifier = _identifier
         self._storage = _storage
         super().__init__(**kwargs)
+        # TODO: validate analysis names
 
     @property
     def identifier(self) -> str:

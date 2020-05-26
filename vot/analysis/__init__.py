@@ -1,5 +1,6 @@
 import logging
 import functools
+import threading
 from enum import Enum, Flag, auto
 from typing import List, Optional, Tuple, Dict, Any, Set
 from abc import ABC, abstractmethod
@@ -13,7 +14,7 @@ from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.region import Region, RegionType
 from vot.utilities import class_fullname, arg_hash
-from vot.utilities.attributes import Attributee
+from vot.utilities.attributes import Attributee, String
 
 class MissingResultsException(VOTException):
     pass
@@ -22,11 +23,6 @@ class Sorting(Enum):
     UNSORTABLE = auto()
     DESCENDING = auto()
     ASCENDING = auto()
-
-class Hints(Flag):
-    NONE = 0
-    AXIS_EQUAL = auto()
-    SQUARE = auto()
 
 class Axis(Enum):
     TRACKERS = auto()
@@ -97,19 +93,19 @@ class Measure(Result):
 
 class Drawable(Result):
 
-    def __init__(self, name: str, abbreviation: Optional[str] = None, hints: Optional[Hints] = Hints.NONE):
+    def __init__(self, name: str, abbreviation: Optional[str] = None, trait: Optional[str] = None):
         super().__init__(name, abbreviation)
-        self._hints = hints
+        self._trait = trait
 
     @property
-    def hints(self):
-        return self._hints
+    def trait(self):
+        return self._trait
 
 class Multidimensional(Drawable):
     def __init__(self, name: str, dimensions: int, abbreviation: Optional[str] = None, minimal: Optional[Tuple[float]] = None, \
-        maximal: Optional[Tuple[float]] = None, labels: Optional[Tuple[str]] = None, hints: Optional[Hints] = Hints.NONE):
+        maximal: Optional[Tuple[float]] = None, labels: Optional[Tuple[str]] = None, trait: Optional[str] = None):
         assert(dimensions > 1)
-        super().__init__(name, abbreviation, hints)
+        super().__init__(name, abbreviation, trait)
         self._dimensions = dimensions
         self._minimal = minimal
         self._maximal = maximal
@@ -138,8 +134,8 @@ class Plot(Drawable):
     """
 
     def __init__(self, name: str, abbreviation: Optional[str] = None, wrt: str = "frames", minimal: Optional[float] = None, \
-        maximal: Optional[float] = None, hints: Optional[Hints] = Hints.NONE):
-        super().__init__(name, abbreviation, hints)
+        maximal: Optional[float] = None, trait: Optional[str] = None):
+        super().__init__(name, abbreviation, trait)
         self._wrt = wrt
         self._minimal = minimal
         self._maximal = maximal
@@ -161,39 +157,9 @@ class Curve(Multidimensional):
     """Curve is a list of 2+ dimensional results. The number of elements in a list can vary between samples.
     """
 
-class Table(object):
-
-    def __init__(self, size: tuple):
-        self._size = size
-        self._data = [None] * functools.reduce(lambda x, y: x * y, size)
-
-    def _ravel(self, pos):
-        if not isinstance(pos, tuple):
-            pos = (pos, )
-        assert(len(pos) == len(self._size))
-        raveled = 0
-        row = 1
-        for n, i in zip(reversed(self._size), reversed(pos)):
-            if i < 0 or i >= n:
-                raise IndexError("Index out of bounds")
-            raveled = i * row + raveled
-            row = row * n
-        return raveled
-
-    @property
-    def dimensions(self):
-        return len(self._size)
-
-    def size(self):
-        return tuple(self._size)
-
-    def __getitem__(self, i):
-        return self._data[self._ravel(i)]
-
-    def __setitem__(self, i, data):
-        self._data[self._ravel(i)] = data
-
 class Analysis(Attributee):
+
+    name = String(default=None)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -203,7 +169,7 @@ class Analysis(Attributee):
         raise NotImplementedError
 
     @property
-    def name(self) -> str:
+    def title(self) -> str:
         raise NotImplementedError
 
     @property
@@ -212,6 +178,7 @@ class Analysis(Attributee):
             return self._identifier_cache
 
         params = self.dump()
+        del params["name"]
         confighash = arg_hash(**params)
 
         self._identifier_cache = class_fullname(self) + "@" + confighash
@@ -229,6 +196,10 @@ class Analysis(Attributee):
     def axes(self):
         """ Returns a tuple of axes of results or None if only a single result tuple is returned """
         raise NotImplementedError
+
+    def commit(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        from vot.analysis.processor import AnalysisProcessor
+        return AnalysisProcessor.commit_default(self, experiment, trackers, sequences)
 
 class DependentAnalysis(Analysis):
 

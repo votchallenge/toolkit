@@ -7,6 +7,9 @@ from .version import __version__
 class VOTException(Exception):
     pass
 
+def toolkit_version():
+    return __version__
+
 def check_updates():
     import re
     import packaging.version as packaging

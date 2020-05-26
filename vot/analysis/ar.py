@@ -7,11 +7,11 @@ from vot.tracker import Tracker, Trajectory
 from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
-from vot.experiment.multirun import SupervisedExperiment, UnsupervisedExperiment
+from vot.experiment.multirun import SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.region import Region, Special, calculate_overlaps
-from vot.analysis import SequenceAveragingAnalysis, TrackerSeparableAnalysis, DependentAnalysis, \
-    MissingResultsException, Measure, Point, is_special, Sorting, Hints, public, simplejoin, Axis
+from vot.analysis import SequenceAveragingAnalysis, \
+    MissingResultsException, Measure, Point, is_special, Sorting, public, simplejoin, Axis
 from vot.utilities.attributes import Integer, Boolean, Float
 
 def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int = 10, 
@@ -45,14 +45,14 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
     bounded = Boolean(default=True)
 
     @property
-    def name(self):
+    def title(self):
         return "AR analysis"
 
     def describe(self):
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR", minimal=(0, 0), \
-                maximal=(1, 1), labels=("Robustness", "Accuracy"), hints=Hints.AXIS_EQUAL), \
+                maximal=(1, 1), labels=("Robustness", "Accuracy"), trait="ar"), \
              None
 
     def compatible(self, experiment: Experiment):
@@ -68,7 +68,7 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
             accuracy += a * w
             weight_total += w
 
-        ar = (accuracy / weight_total, math.exp(- (failures / weight_total) * float(self.sensitivity)))
+        ar = (math.exp(- (failures / weight_total) * float(self.sensitivity)), accuracy / weight_total)
 
         return accuracy / weight_total, failures / weight_total, ar, weight_total
 
@@ -84,7 +84,7 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
             failures += count_failures(trajectory.regions())[0]
             accuracy += compute_accuracy(trajectory.regions(), sequence, self.burnin, self.ignore_unknown, self.bounded)[0]
 
-        ar = (accuracy / len(trajectories), math.exp(- (float(failures) / len(trajectories)) * float(self.sensitivity)))
+        ar = (math.exp(- (float(failures) / len(trajectories)) * float(self.sensitivity)), accuracy / len(trajectories))
 
         return accuracy / len(trajectories), failures / len(trajectories), ar, len(trajectories[0])
 
@@ -96,14 +96,14 @@ class AccuracyRobustnessMultiStart(SequenceAveragingAnalysis):
     threshold = Float(default=0.1, val_min=0, val_max=1)
 
     @property
-    def name(self):
+    def title(self):
         return "AR analysis"
 
     def describe(self):
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR",
-                minimal=(0, 0), maximal=(1, 1), labels=("Robustness", "Accuracy"), hints=Hints.AXIS_EQUAL), \
+                minimal=(0, 0), maximal=(1, 1), labels=("Robustness", "Accuracy"), trait="ar"), \
              None, None
 
     def compatible(self, experiment: Experiment):
@@ -121,7 +121,7 @@ class AccuracyRobustnessMultiStart(SequenceAveragingAnalysis):
             weight_accuracy += accuracy_w
             weight_robustness += robustness_w
 
-        ar = (total_accuracy / weight_accuracy, total_robustness / weight_robustness)
+        ar = (total_robustness / weight_robustness, total_accuracy / weight_accuracy)
 
         return total_accuracy / weight_accuracy, total_robustness / weight_robustness, ar, weight_accuracy, weight_robustness
 
@@ -168,6 +168,6 @@ class AccuracyRobustnessMultiStart(SequenceAveragingAnalysis):
             accuracy += sum(overlaps[0:progress])
             total += len(proxy)
 
-        ar = (accuracy / robustness if robustness > 0 else 0, robustness / total)
+        ar = (robustness / total, accuracy / robustness if robustness > 0 else 0)
 
         return accuracy / robustness if robustness > 0 else 0, robustness / total, ar, robustness, len(sequence)

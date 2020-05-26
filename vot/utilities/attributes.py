@@ -60,11 +60,12 @@ class Attribute(object):
 
 class Nested(Attribute):
 
-    def __init__(self, acls: Type["Attributee"], **kwargs):
+    def __init__(self, acls: Type["Attributee"], override: Mapping = None, **kwargs):
         if not issubclass(acls, Attributee):
             raise AttributeException("Illegal base class {}".format(acls))
 
         self._acls = acls
+        self._override = dict(override.items() if not override is None else [])
         self._required = False
 
         for aa, afield in getattr(acls, "_declared_attributes", {}).items():
@@ -79,7 +80,9 @@ class Nested(Attribute):
         if is_undefined(value):
             return value
         assert isinstance(value, Mapping)
-        return self._acls(**value)
+        kwargs = dict(value.items())
+        kwargs.update(self._override)
+        return self._acls(**kwargs)
 
     def dump(self, value: "Attributee"):
         if value is None:
@@ -150,9 +153,6 @@ class AttributeeMeta(type):
         return klass
 
 class Include(Nested):
-
-    def __init__(self, acls: Type["Attributee"]):
-        super().__init__(acls)
 
     def filter(self, **kwargs):
         attributes = getattr(self._acls, "_declared_attributes", {})
@@ -251,11 +251,15 @@ class Boolean(Attribute):
 
 class String(Attribute):
 
-    def __init__(self, **kwargs):
+    def __init__(self, transformer=None, **kwargs):
+        self._transformer = transformer
         super().__init__(**kwargs)
 
-    def coerce(self, value, _):
-        return to_string(value)
+    def coerce(self, value, ctx):
+        if self._transformer is None:
+            return to_string(value)
+        else:
+            return self._transformer(to_string(value), ctx)
 
 class List(Attribute):
 

@@ -15,8 +15,11 @@ from vot.dataset import VOTDataset, Sequence, Dataset
 from vot.tracker import Tracker, Results
 from vot.experiment import Experiment
 from vot.stack import Stack, resolve_stack
+from vot.analysis import Analysis
 
 from vot.utilities import normalize_path, class_fullname
+from vot.utilities.attributes import Attribute, Attributee, Nested, List, String, Object
+from vot.document import ReportConfiguration
 
 logger = logging.getLogger("vot")
 
@@ -81,8 +84,10 @@ class LocalStorage(ABC):
         full = os.path.join(self.base, path)
         os.makedirs(os.path.dirname(full), exist_ok=True)
 
-        mode = "wb" if binary else "w"
-        return open(full, mode=mode, newline="")
+        if binary:
+            return open(full, mode="wb")
+        else:
+            return open(full, mode="w", newline="")
 
     def substorage(self, name):
         return LocalStorage(os.path.join(self.base, name))
@@ -162,7 +167,34 @@ class Cache(cachetools.Cache):
         filename = self._filename(key)
         return os.path.isfile(filename)
 
-class Workspace(object):
+class StackLoader(Attribute):
+
+    def coerce(self, value, ctx):
+        if isinstance(value, str):
+
+            stack_file = resolve_stack(value, ctx["parent"].directory)
+
+            if stack_file is None:
+                raise WorkspaceException("Experiment stack does not exist")
+
+            with open(stack_file, 'r') as fp:
+                stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+                return Stack(value, ctx["parent"], **stack_metadata)
+        else:
+            return Stack(None, ctx["parent"], **value)
+
+    def dump(self, value):
+        if value.name is None:
+            return value.dump()
+        else:
+            return value.name
+
+class Workspace(Attributee):
+
+    registry = List(String(transformer=lambda x, ctx: normalize_path(x, ctx["parent"].directory)))
+    stack = StackLoader()
+    sequences = String(default="sequences")
+    report = Nested(ReportConfiguration)
 
     @staticmethod
     def initialize(directory, config=dict(), download=True):
@@ -180,7 +212,6 @@ class Workspace(object):
 
         if not os.path.isfile(os.path.join(directory, "trackers.ini")):
             open(os.path.join(directory, "trackers.ini"), 'w').close()
-
 
         if download:
             # Try do retrieve dataset from stack and download it
@@ -205,49 +236,36 @@ class Workspace(object):
 
         logger.info("Download completed")
 
-    def __init__(self, directory):
-        self._root = directory
+    @staticmethod
+    def load(directory):
         directory = normalize_path(directory)
         config_file = os.path.join(directory, "config.yaml")
         if not os.path.isfile(config_file):
             raise WorkspaceException("Workspace not initialized")
 
         with open(config_file, 'r') as fp:
-            self._config = yaml.load(fp, Loader=yaml.BaseLoader)
+            config = yaml.load(fp, Loader=yaml.BaseLoader)
 
-        if not "stack" in self._config:
-            raise WorkspaceException("Experiment stack not found in workspace configuration")
+            return Workspace(directory, **config)
 
-        stack_file = resolve_stack(self._config["stack"], directory)
-
-        if stack_file is None:
-            raise WorkspaceException("Experiment stack does not exist")
-
+    def __init__(self, directory, **kwargs):
+        self._directory = directory
         self._storage = LocalStorage(directory)
+        super().__init__(**kwargs)
+        dataset_directory = normalize_path(self.sequences, directory)
 
-        with open(stack_file, 'r') as fp:
-            stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-            self._stack = Stack(self, **stack_metadata)
-
-        dataset_directory = normalize_path(self._config.get("sequences", "sequences"), directory)
-
-        if not self._stack.dataset is None:
-            Workspace.download_dataset(self._stack.dataset, dataset_directory)
+        if not self.stack.dataset is None:
+            Workspace.download_dataset(self.stack.dataset, dataset_directory)
 
         self._dataset = VOTDataset(dataset_directory)
-        self._registry = [normalize_path(r, directory) for r in self._config.get("registry", [])]
 
     @property
-    def registry(self):
-        return self._registry
+    def directory(self) -> str:
+        return self._directory
 
     @property
     def dataset(self) -> Dataset:
         return self._dataset
-
-    @property
-    def stack(self) -> Stack:
-        return self._stack
 
     @property
     def storage(self) -> LocalStorage:
@@ -257,4 +275,4 @@ class Workspace(object):
         if not isinstance(identifier, str):
             identifier = class_fullname(identifier)
 
-        return LocalStorage(os.path.join(self._root, "cache", identifier))
+        return LocalStorage(os.path.join(self._directory, "cache", identifier))

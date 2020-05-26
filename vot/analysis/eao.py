@@ -67,11 +67,11 @@ class EAOCurve(TrackerSeparableAnalysis):
     bounded = Boolean(default=True)
 
     @property
-    def name(self):
+    def title(self):
         return "EAO Curve"
 
     def describe(self):
-        return Plot("Expected Average Overlap", "EAO", minimal=0, maximal=1),
+        return Plot("Expected Average Overlap", "EAO", minimal=0, maximal=1, trait="eao"),
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
@@ -123,7 +123,7 @@ class EAOCurveMultiStart2(TrackerSeparableAnalysis):
     threshold = Float(default=0.1, val_min=0, val_max=1)
 
     @property
-    def name(self):
+    def title(self):
         return "EAO Curve"
 
     def describe(self):
@@ -202,7 +202,7 @@ class EAOScore(DependentAnalysis):
     high = Integer()
 
     @property
-    def name(self):
+    def title(self):
         return "EAO analysis"
 
     def describe(self):
@@ -232,11 +232,11 @@ class EAOCurveMultiStart(SequenceAveragingAnalysis):
     high = Integer()
 
     @property
-    def name(self):
+    def title(self):
         return "EAO Curve"
 
     def describe(self):
-        return Plot("Expected average overlap score", "EAO", minimal=0, maximal=1, wrt="frames"),
+        return Plot("Expected average overlap", "EAO", minimal=0, maximal=1, wrt="frames", trait="eao"),
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
@@ -309,11 +309,11 @@ class EAOScoreMultiStart(DependentAnalysis):
     eaocurve = Include(EAOCurveMultiStart)
 
     @property
-    def name(self):
+    def title(self):
         return "EAO analysis"
 
     def describe(self):
-        return Measure("Expected average overlap score", "EAO", minimal=0, maximal=1, direction=Sorting.DESCENDING),
+        return Measure("Expected average overlap", "EAO", minimal=0, maximal=1, direction=Sorting.DESCENDING),
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
@@ -327,27 +327,3 @@ class EAOScoreMultiStart(DependentAnalysis):
     def axes(self):
         return Axis.TRACKERS,
 
-class EAOScorePlotMultiStart(DependentAnalysis):
-
-    eaocurve = Include(EAOScoreMultiStart)
-
-    @property
-    def name(self):
-        return "EAO Score plot"
-
-    def describe(self):
-        return Point("Expected average overlap score plot", 2, "EAO", minimal=(None, 0), maximal=(None, 1), labels=("order", "EAO")),
-
-    def compatible(self, experiment: Experiment):
-        return isinstance(experiment, MultiStartExperiment)
-
-    def dependencies(self):
-        return self.eaocurve,
-
-    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
-        scores = [x[0] for x in results[0]]
-        indices = [i[0] for i in sorted(enumerate(scores), key=lambda x: x[1])]
-        return [((indices.index(i), v), ) for i, v in enumerate(scores)]
-
-    def axes(self):
-        return Axis.TRACKERS,

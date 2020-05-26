@@ -148,7 +148,7 @@ def do_evaluate(config, logger):
 
     from vot.experiment import run_experiment
 
-    workspace = Workspace(config.workspace)
+    workspace = Workspace.load(config.workspace)
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
@@ -182,10 +182,10 @@ def do_evaluate(config, logger):
 
 def do_analysis(config, logger):
 
-    from vot.analysis.processor import process_stack_analyses
-    from vot.analysis.document import generate_json_document, generate_latex_document, generate_html_document
+    from vot.analysis.processor import AnalysisProcessor, process_stack_analyses
+    from vot.document import generate_document
 
-    workspace = Workspace(config.workspace)
+    workspace = Workspace.load(config.workspace)
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
@@ -220,28 +220,23 @@ def do_analysis(config, logger):
     else:
         cache = Cache(workspace.cache("analysis"))
 
-    results = process_stack_analyses(workspace, trackers, executor, cache)
+    with AnalysisProcessor(executor, cache):
+
+        results = process_stack_analyses(workspace, trackers)
+
+        if results is None:
+            return
+
+        if config.name is None:
+            name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
+        else:
+            name = config.name
+
+        storage = workspace.storage.substorage("analysis").substorage(name)
+
+        generate_document(config.format, workspace.report, trackers, workspace.dataset, results, storage)
 
     executor.shutdown(wait=True)
-
-    if results is None:
-        return
-
-    if config.name is None:
-        name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
-    else:
-        name = config.name
-
-    storage = workspace.storage.substorage("analysis").substorage(name)
-
-    if config.format == "latex":
-        generate_latex_document(trackers, workspace.dataset, results, storage, False)
-    if config.format == "pdf":
-        generate_latex_document(trackers, workspace.dataset, results, storage, True)
-    elif config.format == "html":
-        generate_html_document(trackers, workspace.dataset, results, storage)
-    elif config.format == "json":
-        generate_json_document(trackers, workspace.dataset, results, storage)
 
     logger.info("Analysis successful, report available as %s", name)
 
@@ -251,7 +246,7 @@ def do_pack(config, logger):
     import zipfile, io
     from shutil import copyfileobj
 
-    workspace = Workspace(config.workspace)
+    workspace = Workspace.load(config.workspace)
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
@@ -339,7 +334,7 @@ def main():
     analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
-    analysis_parser.add_argument("--format", choices=("html", "latex", "pdf", "json"), default="html", help='Analysis output format')
+    analysis_parser.add_argument("--format", choices=("html", "latex", "pdf", "json", "yaml"), default="html", help='Analysis output format')
     analysis_parser.add_argument("--name", required=False, help='Analysis output name')
     analysis_parser.add_argument("--workers", default=1, required=False, help='Number of parallel workers', type=int)
     analysis_parser.add_argument("--nocache", default=False, required=False, help="Do not cache data to disk", action='store_true')

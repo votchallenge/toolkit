@@ -35,14 +35,19 @@ class Stack(Attributee):
     deprecated = Boolean(default=False)
     experiments = Map(Object(experiment_resolver))
 
-    def __init__(self, workspace: "Workspace", **kwargs):
+    def __init__(self, name: str, workspace: "Workspace", **kwargs):
         self._workspace = workspace
+        self._name = name
 
         super().__init__(**kwargs)
 
     @property
     def workspace(self):
         return self._workspace
+
+    @property
+    def name(self):
+        return self._name
 
     def __iter__(self):
         return iter(self.experiments.values())
