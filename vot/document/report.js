@@ -41,7 +41,7 @@ $(function() {
         $(el).find("path").after($("<title>").text(trackerNames[tracker]));
     });
 
-    $("table.measures").stupidtable();
+    $("table.overview-table").stupidtable();
 
 
 

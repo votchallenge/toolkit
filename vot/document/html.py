@@ -5,6 +5,8 @@ import logging
 import datetime
 from typing import List
 
+import xml.etree.cElementTree as ET
+
 import dominate
 from dominate.tags import h1, h2, table, thead, tbody, tr, th, td, div, p, li, ol, span, style, link, script
 from dominate.util import raw
@@ -23,6 +25,11 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
     def insert_figure(figure):
         buffer = io.StringIO()
         figure.save(buffer, "SVG")
+        raw(buffer.getvalue())
+
+    def insert_mplfigure(figure):
+        buffer = io.StringIO()
+        figure.savefig(buffer, format="SVG", bbox_inches='tight', pad_inches=0.01, dpi=200)
         raw(buffer.getvalue())
 
     def insert_cell(value, order):
@@ -73,7 +80,7 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
         if len(table_header[2]) == 0:
             logger.debug("No measures found, skipping table")
         else:
-            with table(cls="measures pure-table pure-table-horizontal pure-table-striped"):
+            with table(cls="overview-table pure-table pure-table-horizontal pure-table-striped"):
                 with thead():
                     with tr():
                         th()
@@ -86,10 +93,9 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
                         [th(c.abbreviation, data_sort="int" if order else "") for c, order in zip(table_header[2], table_order)]
                 with tbody():
                     for tracker, data in table_data.items():
-                        with tr():
-                            number = legend.number(tracker.identifier)
-                            with td(id="legend_%d" % number):
-                                insert_figure(legend.figure(tracker.identifier))
+                        with tr(data_tracker=tracker.reference):
+                            with td():
+                                insert_mplfigure(legend.figure(tracker))
                                 span(tracker.label)
                             for value, order in zip(data, table_order):
                                 insert_cell(value, order[tracker] if not order is None else None)
