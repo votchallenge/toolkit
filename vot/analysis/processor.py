@@ -409,7 +409,7 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
             with condition:
                 experiment_results[analysis] = None
-            promise = processor.commit(analysis, experiment, trackers, )
+            promise = processor.commit(analysis, experiment, trackers, sequences)
             promise.add_done_callback(insert_result(experiment_results, analysis))
 
     if processor.total == 0:
