@@ -267,11 +267,14 @@ class StyleManager(Attributee):
 
 class TrackerSorter(Attributee):
 
-    experiment = String()
-    analysis = String()
+    experiment = String(default=None)
+    analysis = String(default=None)
     result = Integer(val_min=0, default=0)
 
-    def sort(self, experiments, trackers, sequences):
+    def __call__(self, experiments, trackers, sequences):
+        if self.experiment is None or self.analysis is None:
+            return range(len(trackers))
+
         experiment = next(filter(lambda x: x.identifier == self.experiment, experiments), None)
 
         if experiment is None:
@@ -317,7 +320,7 @@ class ReportConfiguration(Attributee):
     sort = Nested(TrackerSorter)
     generators = List(Object(), default=[])
 
-# TODO: replace this with report generator and json/yaml dump
+# TODO: replace this with report generator and separate json/yaml dump
 def generate_document(format: str, config: ReportConfiguration, trackers: typing.List[Tracker], sequences: typing.List[Sequence], results, storage: "Storage"):
 
     from .html import generate_html_document
@@ -329,7 +332,7 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
     elif format == "yaml":
         generate_serialized(trackers, sequences, results, storage, "yaml")
     else:
-        order = config.sort.sort(results.keys(), trackers, sequences)
+        order = config.sort(results.keys(), trackers, sequences)
 
         trackers = [trackers[i] for i in order]
 

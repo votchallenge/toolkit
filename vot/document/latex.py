@@ -1,7 +1,5 @@
 
-import os
 import io
-import re
 import logging
 import tempfile
 import datetime
@@ -18,6 +16,8 @@ from vot.dataset import Sequence
 from vot.workspace import Storage
 from vot.document.common import format_value, read_resource, merge_repeats, extract_measures_table, extract_plots
 from vot.document import StyleManager
+
+TRACKER_GROUP = "default"
 
 class Chunk(Container):
 
@@ -42,15 +42,10 @@ def generate_symbols(container, trackers):
 
     legend = StyleManager.default().legend(Tracker)
 
-    container.append(UnsafeCommand('newcommand', r'\DefineTracker', options=3,
-            extra_arguments='%\n\\expandafter\\newcommand\\csname trk-\detokenize{#1}-\detokenize{#2}\\endcsname{#3}%\n'))
-    container.append(UnsafeCommand('newcommand', r'\Tracker', options=2,
-            extra_arguments=r'\csname trk-\detokenize{#1}-\detokenize{#2}\endcsname'))
-
     container.append(Command("makeatletter"))
     for tracker in trackers:
-        container.append(UnsafeCommand('DefineTracker', [tracker.reference, "default"],
-             extra_arguments=insert_mplfigure(legend.figure(tracker), False) + r' \detokenize{%s}' % tracker.label))
+        container.append(UnsafeCommand('DefineTracker', [tracker.reference, TRACKER_GROUP],
+             extra_arguments=insert_mplfigure(legend.figure(tracker), False) + r' \replunderscores{%s}' % tracker.label))
 
     container.append(Command("makeatother"))
 
@@ -75,6 +70,8 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
     doc.preamble.append(Package('pgf'))
     doc.preamble.append(Package('xcolor'))
     doc.preamble.append(Package('fullpage'))
+
+    doc.preamble.append(NoEscape(read_resource("commands.tex")))
 
     doc.preamble.append(UnsafeCommand('newcommand', r'\first', options=1, extra_arguments=r'{\color{red} #1 }'))
     doc.preamble.append(UnsafeCommand('newcommand', r'\second', options=1, extra_arguments=r'{\color{green} #1 }'))
@@ -111,7 +108,7 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
             data_table.add_hline()
 
             for tracker, data in table_data.items():
-                data_table.add_row([UnsafeCommand("Tracker", [tracker.reference, "default"])] +
+                data_table.add_row([UnsafeCommand("Tracker", [tracker.reference, TRACKER_GROUP])] +
                     [format_cell(x, order[tracker] if not order is None else None) for x, order in zip(data, table_order)])
 
     for experiment, experiment_plots in plots.items():

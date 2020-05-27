@@ -66,19 +66,22 @@ class Nested(Attribute):
 
         self._acls = acls
         self._override = dict(override.items() if not override is None else [])
-        self._required = False
+        if "default" not in kwargs:
+            self._required = False
 
-        for aa, afield in getattr(acls, "_declared_attributes", {}).items():
-            if afield.required:
-                self._required = True
+            for _, afield in getattr(acls, "_declared_attributes", {}).items():
+                if afield.required:
+                    self._required = True
+            if not self._required:
+                kwargs["default"] = {}
+        else:
+            self._required = False
 
         super().__init__(**kwargs)
 
     def coerce(self, value, _):
         if value is None:
             return None
-        if is_undefined(value):
-            return value
         assert isinstance(value, Mapping)
         kwargs = dict(value.items())
         kwargs.update(self._override)
@@ -164,10 +167,6 @@ class Include(Nested):
                 filtered[aname] = kwargs[aname]
         return filtered
 
-    @property
-    def default(self):
-        return {}
-
 class Attributee(metaclass=AttributeeMeta):
 
     def __init__(self, **kwargs):
@@ -186,11 +185,12 @@ class Attributee(metaclass=AttributeeMeta):
                 if not aname in kwargs:
                     if not afield.required:
                         avalue = afield.default
+                        super().__setattr__(aname, avalue)
                     else:
                         continue
                 else:
                     avalue = kwargs[aname]
-                super().__setattr__(aname, afield.coerce(avalue, {"parent": self}))
+                    super().__setattr__(aname, afield.coerce(avalue, {"parent": self}))
             unconsumed.difference_update([aname])
             unspecified.difference_update([aname])
 
@@ -256,6 +256,8 @@ class String(Attribute):
         super().__init__(**kwargs)
 
     def coerce(self, value, ctx):
+        if value is None:
+            return None
         if self._transformer is None:
             return to_string(value)
         else:

@@ -1,0 +1,16 @@
+\newcommand{\DefineTracker}[3]{%
+\expandafter\newcommand\csname trk-\detokenize{#1}-\detokenize{#2}\endcsname{#3}%
+}%
+\newcommand{\Tracker}[2]{\csname trk-\detokenize{#1}-\detokenize{#2}\endcsname}%
+\makeatletter%
+\newcommand{\replunderscores}[1]{\expandafter\@repl@underscores#1_\relax}
+\def\@repl@underscores#1_#2\relax{%
+    \ifx \relax #2\relax
+        #1%
+    \else
+        #1%
+        \textunderscore
+        \@repl@underscores#2\relax
+    \fi
+}
+\makeatother%
