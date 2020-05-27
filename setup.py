@@ -2,6 +2,7 @@
 
 from os.path import join, dirname, abspath, isfile
 from distutils.core import setup
+from setuptools import find_packages
 
 this_directory = abspath(dirname(__file__))
 with open(join(this_directory, 'README.md'), encoding='utf-8') as f:
@@ -24,7 +25,7 @@ setup(name='vot-toolkit',
     author='Luka Cehovin Zajc',
     author_email='luka.cehovin@gmail.com',
     url='https://github.com/votchallenge/toolkit',
-    packages=['vot', 'vot.analysis', 'vot.dataset', 'vot.experiment', 'vot.region', 'vot.stack', 'vot.tracker', 'vot.utilities'],
+    packages=find_packages(),
     install_requires=install_requires,
     include_package_data=True,
     classifiers=[
