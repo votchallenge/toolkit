@@ -18,6 +18,7 @@ import yaml
 from matplotlib.cm import get_cmap
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
+import matplotlib.colors as colors
 
 from vot import __version__ as version
 from vot import check_debug
@@ -136,12 +137,14 @@ def configure_figure(traits=None):
         args["figsize"] = (5, 5)
     elif traits == "eao":
         args["figsize"] = (7, 5)
+    elif traits == "attributes":
+        args["figsize"] = (15, 5)
 
     return Figure(**args)
 
 class PlotStyle(object):
 
-    def line_style(self):
+    def line_style(self, opacity=1):
         raise NotImplementedError
 
     def point_style(self):
@@ -157,8 +160,10 @@ class DefaultStyle(PlotStyle):
         super().__init__()
         self._number = number
 
-    def line_style(self):
+    def line_style(self, opacity=1):
         color = DefaultStyle.colormap((self._number % DefaultStyle.colorcount + 1) / DefaultStyle.colorcount)
+        if opacity < 1:
+            color = colors.to_rgba(color, opacity)
         return dict(linewidth=1, c=color)
 
     def point_style(self):
