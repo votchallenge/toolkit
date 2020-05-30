@@ -277,7 +277,7 @@ class List(Attribute):
         if isinstance(value, dict):
             value = value.values()
         if not isinstance(value, Iterable):
-            raise AttributeException("Unable to value convert to list")
+            raise AttributeException("Unable to convert value to list")
         if context is None:
             context = dict()
         return [self._contains.coerce(x, dict(key=i, **context)) for i, x in enumerate(value)]
