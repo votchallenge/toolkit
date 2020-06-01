@@ -4,12 +4,11 @@ dataset: vot:vot2013
 deprecated: True
 experiments:
   baseline:
-    type: vot.experiment.multirun.SupervisedExperiment
+    type: supervised
     repetitions: 15
     skip_initialize: 5
-    measures:
-      - type: vot.analysis.measures.AccuracyRobustness
+    analyses:
+      - type: ar
         sensitivity: 30
-
     # TODO: missing experiments
 

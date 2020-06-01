@@ -3,15 +3,15 @@ dataset: vot:vot-lt2019
 url: http://www.votchallenge.net/vot2020/
 experiments:
   longterm:
-    type: UnsupervisedExperiment
+    type: unsupervised
     repetitions: 1
     analyses:
-      - type: PrecisionRecall
+      - type: tpr
         name: tpr
-      - type: PrecisionRecallCurve
-      - type: FScoreCurve
+      - type: prcurve
+      - type: fscorecurve
   redetection:
-    type: UnsupervisedExperiment
+    type: unsupervised
     transformers:
       - type: Redetection
         length: 200

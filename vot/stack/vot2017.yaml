@@ -3,17 +3,23 @@ dataset: vot:vot2017
 url: http://www.votchallenge.net/vot2017/
 experiments:
   baseline:
-    type: vot.experiment.SupervisedExperiment
+    type: SupervisedExperiment
     repetitions: 15
     skip_initialize: 5
-    measures:
-      - type: vot.analysis.measures.AccuracyRobustness
+    analyses:
+      - type: AccuracyRobustness
         sensitivity: 30
-  unsupervised:
-    type: vot.experiment.UnsupervisedExperiment
-    repetitions: 1
-    measures:
-      - type: vot.analysis.measures.AverageAccuracy
   realtime:
-    type: vot.experiment.RealtimeSupervisedExperiment
-    grace: 3
+    realtime:
+      grace: 3
+    repetitions: 1
+    skip_initialize: 5
+    analyses:
+      - type: AccuracyRobustness
+        sensitivity: 30
+      - type: EAO
+  unsupervised:
+    type: UnsupervisedExperiment
+    repetitions: 1
+    analyses:
+      - type: AverageAccuracy

@@ -3,14 +3,14 @@ dataset: vot:vot2016
 url: http://www.votchallenge.net/vot2016/
 experiments:
   baseline:
-    type: vot.experiment.SupervisedExperiment
+    type: SupervisedExperiment
     repetitions: 15
     skip_initialize: 5
-    measures:
-      - type: vot.analysis.measures.AccuracyRobustness
+    analyses:
+      - type: AccuracyRobustness
         sensitivity: 30
   unsupervised:
-    type: vot.experiment.UnsupervisedExperiment
+    type: UnsupervisedExperiment
     repetitions: 1
-    measures:
-      - type: vot.analysis.measures.AverageAccuracy
+    analyses:
+      - type: AverageAccuracy
