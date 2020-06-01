@@ -288,7 +288,7 @@ class TrackerSorter(Attributee):
         analysis = next(filter(lambda x: x.name == self.analysis, experiment.analyses), None)
 
         if analysis is None:
-            raise RuntimeError("Experiment not found")
+            raise RuntimeError("Analysis not found")
 
         future = analysis.commit(experiment, trackers, sequences)
         result = future.result()
