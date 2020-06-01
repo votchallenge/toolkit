@@ -1,20 +1,18 @@
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
 
 from vot.analysis import (DependentAnalysis, Measure,
                           MissingResultsException, Point,
                           SequenceAveragingAnalysis, Sorting,
-                          TrackerSeparableAnalysis, is_special, public)
+                          is_special)
 from vot.dataset import Sequence
-from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
-from vot.experiment.multirun import (MultiRunExperiment, SupervisedExperiment,
-                                     UnsupervisedExperiment)
-from vot.experiment.multistart import MultiStartExperiment, find_anchors
+from vot.experiment.multirun import (MultiRunExperiment, SupervisedExperiment)
 from vot.region import Region, Special, calculate_overlaps
 from vot.tracker import Tracker
-from vot.utilities.attributes import Boolean, Float, Integer
+from vot.utilities import alias
+from vot.utilities.attributes import Boolean, Integer
 
 def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int = 10, 
     ignore_unknown: bool = True, bounded: bool = True) -> float:
@@ -59,7 +57,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
-@public()
+@alias("auc", "Average Overlap", "AverageAccuracy")
 class AverageAccuracy(SequenceAveragingAnalysis):
 
     burnin = Integer(default=10, val_min=0)
@@ -102,7 +100,7 @@ class AverageAccuracy(SequenceAveragingAnalysis):
         return accuracy / frames,
 
 
-@public()
+@alias("failures", "FailureCount")
 class FailureCount(SequenceAveragingAnalysis):
 
     def compatible(self, experiment: Experiment):

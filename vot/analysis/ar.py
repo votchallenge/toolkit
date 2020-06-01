@@ -11,7 +11,8 @@ from vot.experiment.multirun import SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.region import Region, Special, calculate_overlaps
 from vot.analysis import SequenceAveragingAnalysis, \
-    MissingResultsException, Measure, Point, is_special, Sorting, public, simplejoin, Axis
+    MissingResultsException, Measure, Point, is_special, Sorting, simplejoin, Axis
+from vot.utilities import alias
 from vot.utilities.attributes import Integer, Boolean, Float
 
 def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int = 10, 
@@ -37,6 +38,7 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
+@alias("AccuracyRobustness", "ar")
 class AccuracyRobustness(SequenceAveragingAnalysis):
 
     sensitivity = Float(default=30, val_min=1)
@@ -88,6 +90,7 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
 
         return accuracy / len(trajectories), failures / len(trajectories), ar, len(trajectories[0])
 
+@alias("AccuracyRobustnessMultiStart", "ar_multistart")
 class AccuracyRobustnessMultiStart(SequenceAveragingAnalysis):
 
     burnin = Integer(default=10, val_min=0)

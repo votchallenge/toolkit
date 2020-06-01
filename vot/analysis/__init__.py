@@ -5,6 +5,7 @@ from enum import Enum, Flag, auto
 from typing import List, Optional, Tuple, Dict, Any, Set
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor
+import importlib
 
 from cachetools import Cache
 
@@ -308,14 +309,6 @@ class TrackerSeparableAnalysis(SeparableAnalysis): # pylint: disable=W0223
     def axes(self):
         return Axis.TRACKERS,
 
-_ANALYSES = list()
-
-def public(name=None):
-    def register(cls):
-        _ANALYSES.append(cls)
-        return cls
-    return register
-
 def simplejoin():
     """Decorator for analyses with join that is simple and can be performed without creating a new task.
     """
@@ -329,5 +322,5 @@ def is_special(region: Region, code=None) -> bool:
         return region.type == RegionType.SPECIAL
     return region.type == RegionType.SPECIAL and region.code == code
 
-
-ANALYSIS_PACKAGES = ["vot.analysis.ar", "vot.analysis.eao", "vot.analysis.basic", "vot.analysis.tpr", "vot.analysis.tags"]
+for module in ["vot.analysis.ar", "vot.analysis.eao", "vot.analysis.basic", "vot.analysis.tpr"]:
+    importlib.import_module(module)

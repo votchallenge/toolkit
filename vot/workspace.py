@@ -5,6 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 import pickle
+import importlib
 
 import yaml
 import cachetools
@@ -15,10 +16,9 @@ from vot.dataset import VOTDataset, Sequence, Dataset
 from vot.tracker import Tracker, Results
 from vot.experiment import Experiment
 from vot.stack import Stack, resolve_stack
-from vot.analysis import Analysis
 
 from vot.utilities import normalize_path, class_fullname
-from vot.utilities.attributes import Attribute, Attributee, Nested, List, String, Object
+from vot.utilities.attributes import Attribute, Attributee, Nested, List, String
 from vot.document import ReportConfiguration
 
 logger = logging.getLogger("vot")
@@ -170,6 +170,8 @@ class Cache(cachetools.Cache):
 class StackLoader(Attribute):
 
     def coerce(self, value, ctx):
+        importlib.import_module("vot.analysis")
+        importlib.import_module("vot.experiment")
         if isinstance(value, str):
 
             stack_file = resolve_stack(value, ctx["parent"].directory)
@@ -197,7 +199,7 @@ class Workspace(Attributee):
     report = Nested(ReportConfiguration)
 
     @staticmethod
-    def initialize(directory, config=dict(), download=True):
+    def initialize(directory, config=None, download=True):
         config_file = os.path.join(directory, "config.yaml")
         if os.path.isfile(config_file):
             raise WorkspaceException("Workspace already initialized")
@@ -205,7 +207,7 @@ class Workspace(Attributee):
         os.makedirs(directory, exist_ok=True)
 
         with open(config_file, 'w') as fp:
-            yaml.dump(config, fp)
+            yaml.dump(config if config is not None else dict(), fp)
 
         os.makedirs(os.path.join(directory, "sequences"), exist_ok=True)
         os.makedirs(os.path.join(directory, "results"), exist_ok=True)
