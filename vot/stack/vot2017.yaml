@@ -17,7 +17,7 @@ experiments:
     analyses:
       - type: AccuracyRobustness
         sensitivity: 30
-      - type: EAO
+      - type: EAOScore
   unsupervised:
     type: UnsupervisedExperiment
     repetitions: 1

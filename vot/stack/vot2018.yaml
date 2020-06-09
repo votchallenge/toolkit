@@ -9,7 +9,7 @@ experiments:
     analyses:
       - type: AccuracyRobustness
         sensitivity: 30
-      - type: EAO
+      - type: EAOScore
   realtime:
     type: SupervisedExperiment
     realtime:
@@ -19,7 +19,7 @@ experiments:
     analyses:
       - type: AccuracyRobustness
         sensitivity: 30
-      - type: EAO
+      - type: EAOScore
   unsupervised:
     type: UnsupervisedExperiment
     repetitions: 1

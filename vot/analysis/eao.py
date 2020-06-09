@@ -61,7 +61,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
     phi = [p / a if a > 0 else 0 for p, a in zip(phi, active)]
     return phi, active
 
-@alias("EAO curve", "EAOCurve")
+@alias("EAO curve", "EAOCurve", "eaocurve")
 class EAOCurve(TrackerSeparableAnalysis):
 
     burnin = Integer(default=10, val_min=0)
@@ -196,7 +196,7 @@ class EAOCurveMultiStart2(TrackerSeparableAnalysis):
 
         return compute_eao_curve(overlaps_all, weights_all, success_all),
 
-@alias("EAO score", "EAOScore")
+@alias("EAO score", "EAOScore", "eaoscore")
 class EAOScore(DependentAnalysis):
 
     eaocurve = Include(EAOCurve)
