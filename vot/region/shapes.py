@@ -157,7 +157,7 @@ class Polygon(Shape):
         return self._points.shape[0] # pylint: disable=E1136
 
     def __getitem__(self, i):
-        return tuple(self._points[i, 0], self._points[i, 1])
+        return self._points[i, 0], self._points[i, 1]
 
     def copy(self):
         return copy(self)

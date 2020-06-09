@@ -9,8 +9,11 @@ import shlex
 import socket as socketio
 import tempfile
 import logging
+import unittest
 from typing import Tuple
 from threading import Thread, Lock
+
+import numpy as np
 
 import colorama
 
@@ -82,7 +85,7 @@ def convert_region(region: Region) -> TraxRegion:
     if isinstance(region, Rectangle):
         return TraxRectangle.create(region.x, region.y, region.width, region.height)
     elif isinstance(region, Polygon):
-        return TraxPolygon.create(region.points)
+        return TraxPolygon.create([region[i] for i in range(region.size)])
     elif isinstance(region, Mask):
         return TraxMask.create(region.mask, x=region.offset[0], y=region.offset[1])
 
@@ -98,6 +101,18 @@ def convert_traxregion(region: TraxRegion) -> Region:
         return Mask(region.array(), region.offset(), optimize=True)
 
     return None
+
+class TestRasterMethods(unittest.TestCase):
+
+    def test_convert_traxregion(self):
+        convert_traxregion(TraxRectangle.create(0, 0, 10, 10))
+        convert_traxregion(TraxPolygon.create([(0, 0), (10, 0), (10, 10), (0, 10)]))
+        convert_traxregion(TraxMask.create(np.ones((100, 100), dtype=np.uint8)))
+
+    def test_convert_region(self):
+        convert_region(Rectangle(0, 0, 10, 10))
+        convert_region(Polygon([(0, 0), (10, 0), (10, 10), (0, 10)]))
+        convert_region(Mask(np.ones((100, 100), dtype=np.uint8)))
 
 def open_local_port(port: int):
     socket = socketio.socket(socketio.AF_INET, socketio.SOCK_STREAM)
