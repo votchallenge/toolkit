@@ -7,8 +7,15 @@ experiments:
     repetitions: 15
     skip_initialize: 5
     analyses:
-      - type: AccuracyRobustness
+      - type: AR
         sensitivity: 30
+      - type: Failures
+      - type: EAOScore
+        low: 108
+        high: 371
+      - type: EAOCurve
+        low: 108
+        high: 371
   unsupervised:
     type: UnsupervisedExperiment
     repetitions: 1

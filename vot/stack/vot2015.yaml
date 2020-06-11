@@ -3,16 +3,16 @@ dataset: vot:vot2015
 url: http://www.votchallenge.net/vot2015/
 experiments:
   baseline:
-    type: supervised
+    type: SupervisedExperiment
     repetitions: 15
     skip_initialize: 5
     analyses:
-      - type: ar
+      - type: AR
         sensitivity: 30
-      - type: failures
-      - type: eaoscore
+      - type: Failures
+      - type: EAOScore
         low: 108
         high: 371
-      - type: eaocurve
+      - type: EAOCurve
         low: 108
         high: 371
