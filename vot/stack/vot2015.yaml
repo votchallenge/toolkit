@@ -14,5 +14,3 @@ experiments:
         low: 108
         high: 371
       - type: EAOCurve
-        low: 108
-        high: 371

@@ -14,8 +14,6 @@ experiments:
         low: 46
         high: 291
       - type: EAOCurve
-        low: 46
-        high: 291
   realtime:
     type: SupervisedExperiment
     realtime:
@@ -30,8 +28,6 @@ experiments:
         low: 46
         high: 291
       - type: EAOCurve
-        low: 46
-        high: 291
   unsupervised:
     type: UnsupervisedExperiment
     repetitions: 1

@@ -14,8 +14,6 @@ experiments:
         low: 108
         high: 371
       - type: EAOCurve
-        low: 108
-        high: 371
   unsupervised:
     type: UnsupervisedExperiment
     repetitions: 1
