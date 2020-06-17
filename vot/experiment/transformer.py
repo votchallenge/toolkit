@@ -7,7 +7,7 @@ from vot.dataset import Sequence, VOTSequence, InMemorySequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.dataset.vot import write_sequence
 from vot.region import RegionType
-from vot.utilities import arg_hash
+from vot.utilities import alias, arg_hash
 from vot.utilities.attributes import Attributee, Integer, Float
 
 class Transformer(Attributee):
@@ -20,6 +20,7 @@ class Transformer(Attributee):
     def __call__(self, sequence: Sequence) -> Sequence:
         raise NotImplementedError
 
+@alias("Redetection", "redetection")
 class Redetection(Transformer):
 
     length = Integer(default=100, val_min=1)

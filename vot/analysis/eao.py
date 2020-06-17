@@ -10,7 +10,8 @@ from vot.experiment import Experiment
 from vot.experiment.multirun import SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.analysis import TrackerSeparableAnalysis, DependentAnalysis, MissingResultsException, \
-    Plot, Point, is_special, public, Axis, Sorting, Measure, SequenceAveragingAnalysis
+    Plot, Point, is_special, Axis, Sorting, Measure, SequenceAveragingAnalysis
+from vot.utilities import alias
 from vot.utilities.attributes import Float, Integer, Boolean, Include
 
 def locate_failures_inits(trajectory: List[Region]) -> Tuple[int, int]:
@@ -60,7 +61,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
     phi = [p / a if a > 0 else 0 for p, a in zip(phi, active)]
     return phi, active
 
-
+@alias("EAO curve", "EAOCurve", "eaocurve")
 class EAOCurve(TrackerSeparableAnalysis):
 
     burnin = Integer(default=10, val_min=0)
@@ -195,6 +196,7 @@ class EAOCurveMultiStart2(TrackerSeparableAnalysis):
 
         return compute_eao_curve(overlaps_all, weights_all, success_all),
 
+@alias("EAO score", "EAOScore", "eaoscore")
 class EAOScore(DependentAnalysis):
 
     eaocurve = Include(EAOCurve)
@@ -221,6 +223,7 @@ class EAOScore(DependentAnalysis):
         return Axis.TRACKERS,
 
 # TODO: remove low, high
+@alias("EAO curve (multi-start)", "eao_curve_multistart", "EAOCurveMultiStart")
 class EAOCurveMultiStart(SequenceAveragingAnalysis):
 
     burnin = Integer(default=10, val_min=0)
@@ -302,6 +305,7 @@ class EAOCurveMultiStart(SequenceAveragingAnalysis):
 
         return compute_eao_partial(overlaps_all, success_all, self.high), 1
 
+@alias("EAO score (multi-start)", "eao_score_multistart", "EAOScoreMultiStart")
 class EAOScoreMultiStart(DependentAnalysis):
 
     low = Integer()

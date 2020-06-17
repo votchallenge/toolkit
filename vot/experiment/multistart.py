@@ -7,6 +7,7 @@ from vot.region import Special
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
+from vot.utilities import alias
 from vot.utilities.attributes import String
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
@@ -21,6 +22,7 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
                 backward.append(frame)
     return forward, backward
 
+@alias("MultiStartExperiment", "multistart")
 class MultiStartExperiment(Experiment):
 
     anchor = String(default="anchor")

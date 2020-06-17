@@ -8,7 +8,8 @@ from vot.region import Region, RegionType, calculate_overlaps
 from vot.experiment import Experiment
 from vot.experiment.multirun import UnsupervisedExperiment
 from vot.analysis import TrackerSeparableAnalysis, DependentAnalysis, \
-    MissingResultsException, Measure, Sorting, Curve, Plot, Axis, public
+    MissingResultsException, Measure, Sorting, Curve, Plot, Axis
+from vot.utilities import alias
 from vot.utilities.attributes import Float, Integer, Boolean, Include
 
 def determine_thresholds(scores: List[float], resolution: int) -> List[float]:
@@ -51,7 +52,7 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
 
     return precision, recall
 
-@public("Tracking Precision/Recall Curve")
+@alias("Tracking Precision/Recall Curve", "prcurve")
 class PrecisionRecallCurve(TrackerSeparableAnalysis):
 
     resolution = Integer(default=100)
@@ -133,7 +134,7 @@ class PrecisionRecallCurve(TrackerSeparableAnalysis):
 
         return curve, thresholds
 
-@public("Tracking F-Score Curve")
+@alias("Tracking F-Score Curve", "FScoreCurve", "fcurve", "fscorecurve")
 class FScoreCurve(DependentAnalysis):
 
     beta = Float(default=1)
@@ -166,7 +167,7 @@ class FScoreCurve(DependentAnalysis):
     def axes(self):
         return Axis.TRACKERS,
 
-@public("Best Tracking Precision/Recall based on FScore")
+@alias("Best Tracking Precision/Recall based on FScore", "PrecisionRecall", "tpr")
 class PrecisionRecall(DependentAnalysis):
 
     prcurve = Include(PrecisionRecallCurve)

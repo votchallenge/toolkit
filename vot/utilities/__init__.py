@@ -15,27 +15,31 @@ from typing import Tuple
 import six
 import colorama
 
-def import_class(classpath, hints=None):
+__ALIASES = dict()
+
+def import_class(classpath):
     delimiter = classpath.rfind(".")
     if delimiter == -1:
-        if hints is None:
-            hints = []
-        for hint in hints:
-            try:
-                classname = classpath
-                module = __import__(hint, globals(), locals(), [classname])
-                return getattr(module, classname)
-            except ImportError:
-                pass
-            except TypeError:
-                pass
-            except AttributeError:
-                pass
-        raise ImportError("Class {} not found in any of paths {}".format(classpath, hints))
+        if classpath in __ALIASES:
+            return __ALIASES[classpath]
+        else:
+            raise ImportError("Class alias '{}' not found".format(classpath))
     else:
         classname = classpath[delimiter+1:len(classpath)]
         module = __import__(classpath[0:delimiter], globals(), locals(), [classname])
         return getattr(module, classname)
+
+def alias(*args):
+    def register(cls):
+        assert cls is not None
+        for name in args:
+            if name in __ALIASES:
+                if not __ALIASES[name] == cls:
+                    raise ImportError("Alias already taken")
+            else:
+                __ALIASES[name] = cls
+        return cls
+    return register
 
 def class_fullname(o):
     return class_string(o.__class__)

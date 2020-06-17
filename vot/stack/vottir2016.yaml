@@ -3,9 +3,9 @@ dataset: vot:vot-tir2016
 url: http://www.votchallenge.net/vot2016/
 experiments:
   baseline:
-    type: vot.experiment.SupervisedExperiment
+    type: supervised
     repetitions: 15
     skip_initialize: 5
-    measures:
-      - type: vot.analysis.measures.AccuracyRobustness
+    analyses:
+      - type: AccuracyRobustness
         sensitivity: 30

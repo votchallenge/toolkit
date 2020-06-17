@@ -7,6 +7,7 @@ from vot.region import Special, calculate_overlap
 
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
+from vot.utilities import alias
 from vot.utilities.attributes import Boolean, Integer, Float, List, String
 
 class MultiRunExperiment(Experiment):
@@ -54,7 +55,8 @@ class MultiRunExperiment(Experiment):
             if Trajectory.exists(results, name):
                 trajectories.append(Trajectory.read(results, name))
         return trajectories
-        
+
+@alias("UnsupervisedExperiment", "unsupervised")
 class UnsupervisedExperiment(MultiRunExperiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
@@ -91,10 +93,11 @@ class UnsupervisedExperiment(MultiRunExperiment):
             if callback:
                 callback(i / self.repetitions)
 
+@alias("SupervisedExperiment", "supervised")
 class SupervisedExperiment(MultiRunExperiment):
 
     skip_initialize = Integer(val_min=1, default=1)
-    skip_tags = List(String())
+    skip_tags = List(String(), default=[])
     failure_overlap = Float(val_min=0, val_max=1, default=0)
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):

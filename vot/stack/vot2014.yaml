@@ -4,11 +4,11 @@ url: http://www.votchallenge.net/vot2014/
 deprecated: True
 experiments:
   baseline:
-    type: vot.experiment.multirun.SupervisedExperiment
+    type: supervised
     repetitions: 15
     skip_initialize: 5
-    measures:
-      - type: vot.analysis.measures.AccuracyRobustness
+    analyses:
+      - type: ar
         sensitivity: 30
-      - type: vot.analysis.measures.FailureCount
+      - type: failures
   # TODO: region noise

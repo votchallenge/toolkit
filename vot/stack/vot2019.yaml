@@ -6,22 +6,30 @@ experiments:
     type: SupervisedExperiment
     repetitions: 15
     skip_initialize: 5
-    measures:
+    analyses:
       - type: AccuracyRobustness
         sensitivity: 30
-      - type: EAO
-  unsupervised:
-    type: UnsupervisedExperiment
-    repetitions: 1
-    measures:
-      - type: AverageAccuracy
+      - type: Failures
+      - type: EAOScore
+        low: 46
+        high: 291
+      - type: EAOCurve
   realtime:
     type: SupervisedExperiment
     realtime:
       grace: 3
     repetitions: 1
     skip_initialize: 5
-    measures:
+    analyses:
       - type: AccuracyRobustness
         sensitivity: 30
-      - type: EAO
+      - type: Failures
+      - type: EAOScore
+        low: 46
+        high: 291
+      - type: EAOCurve
+  unsupervised:
+    type: UnsupervisedExperiment
+    repetitions: 1
+    analyses:
+      - type: AverageAccuracy

@@ -27,7 +27,7 @@ class InjectConfig(Attributee):
 
 def transformer_resolver(typename, context, **kwargs):
     from vot.experiment.transformer import Transformer
-    transformer_class = import_class(typename, hints=["vot.experiment.transformer"])
+    transformer_class = import_class(typename)
     assert issubclass(transformer_class, Transformer)
 
     if "parent" in context:
@@ -38,8 +38,8 @@ def transformer_resolver(typename, context, **kwargs):
     return transformer_class(cache=storage, **kwargs)
 
 def analysis_resolver(typename, context, **kwargs):
-    from vot.analysis import Analysis, ANALYSIS_PACKAGES
-    analysis_class = import_class(typename, hints=ANALYSIS_PACKAGES)
+    from vot.analysis import Analysis
+    analysis_class = import_class(typename)
     assert issubclass(analysis_class, Analysis)
 
     analysis = analysis_class(**kwargs)

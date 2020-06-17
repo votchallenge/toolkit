@@ -9,11 +9,11 @@ import yaml
 from vot.experiment import Experiment
 from vot.experiment.transformer import Transformer
 from vot.utilities import import_class
-from vot.analysis import Analysis, ANALYSIS_PACKAGES
+from vot.analysis import Analysis
 from vot.utilities.attributes import Attributee, String, Boolean, Map, Object
 
 def experiment_resolver(typename, context, **kwargs):
-    experiment_class = import_class(typename, hints=["vot.experiment"])
+    experiment_class = import_class(typename)
     assert issubclass(experiment_class, Experiment)
     if "key" in context:
         identifier = context["key"]

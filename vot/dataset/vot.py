@@ -1,16 +1,16 @@
 
 import os
 import glob
-import tempfile
-import six
 import logging
 from collections import OrderedDict
+
+import six
 
 import cv2
 
 from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel
 from vot.region import parse, write_file
-from vot.utilities import Progress, extract_files, localize_path, read_properties, write_properties
+from vot.utilities import Progress, localize_path, read_properties, write_properties
 
 logger = logging.getLogger("vot")
 
