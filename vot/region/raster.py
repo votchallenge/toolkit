@@ -145,10 +145,6 @@ def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int,
 
     return copy
 
-#@numba.njit(inline='always')
-#def _region_bounds(a: np.ndarray, o: Optional[Tuple[int, int]] = None):
-#    return (0, 0, 0, 0)
-
 @numba.njit(inline='always')
 def _bounds_rectangle(a):
     return (int(round(a[0, 0])), int(round(a[1, 0])), int(round(a[0, 0] + a[2, 0] - 1)), int(round(a[1, 0] + a[3, 0] - 1)))

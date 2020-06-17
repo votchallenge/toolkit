@@ -266,10 +266,10 @@ class String(Attribute):
 class List(Attribute):
 
     def __init__(self, contains, separator=",", **kwargs):
-        super().__init__(**kwargs)
         assert isinstance(contains, Attribute)
         self._separator = separator
         self._contains = contains
+        super().__init__(**kwargs)
 
     def coerce(self, value, context=None):
         if isinstance(value, str):
@@ -300,10 +300,10 @@ class List(Attribute):
 class Map(Attribute):
 
     def __init__(self, contains, container=dict, **kwargs):
-        super().__init__(**kwargs)
         assert isinstance(contains, Attribute)
         self._contains = contains
         self._container = container
+        super().__init__(**kwargs)
 
     def coerce(self, value, context=None):
         if not isinstance(value, Mapping):
@@ -326,7 +326,6 @@ class Map(Attribute):
     def __setitem__(self, key, value):
         # This is only here to avoid pylint errors for the actual attribute field
         raise NotImplementedError
-
 
     def dump(self, value):
         return {k: self._contains.dump(v) for k, v in value.items()}

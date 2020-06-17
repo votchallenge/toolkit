@@ -300,7 +300,6 @@ class Mask(Shape):
     def move(self, dx=0, dy=0):
         return Mask(self._mask, (self.offset[0] + dx, self.offset[1] + dy))
 
-    @jit(nopython=True)
     def bounds(self):
         bounds = mask_bounds(self.mask)
         return bounds[0] + self.offset[0], bounds[1] + self.offset[1], bounds[2] + self.offset[0], bounds[3] + self.offset[1]

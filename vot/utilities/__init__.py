@@ -78,7 +78,7 @@ class Progress(object):
     def logstream():
         return Progress.StreamProxy()
 
-    def __init__(self, description, total=100):
+    def __init__(self, description="Processing", total=100):
         self._tqdm = tqdm(bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
         self._tqdm.desc = description
         self._tqdm.total = total
