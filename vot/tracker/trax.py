@@ -216,7 +216,6 @@ class TrackerProcess(object):
                 logger.warning("Timeout reached, terminating tracker")
                 self.terminate()
                 break
-        print("Terminate")
 
     @property
     def has_vot_wrapper(self):
@@ -289,6 +288,12 @@ class TrackerProcess(object):
                 self._process.wait(3)
             except subprocess.TimeoutExpired:
                 pass
+
+            # Flush remaining output
+            #while True:
+            #    line = self._process.stdout.readline()
+            #    if not line is None and not self._client._logger is None:
+            #        self._client._logger.handle(line.decode("utf-8"))
 
             if self._process.returncode is None:
                 self._process.terminate()
@@ -436,43 +441,13 @@ def escape_path(path):
     else:
         return path
 
-def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, virtualenv=None, condaenv=None, socket=False, restart=False, **kwargs):
+def trax_python_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, python=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
     pathimport = " ".join(["sys.path.insert(0, '{}');".format(escape_path(x)) for x in normalize_paths(paths[::-1], tracker)])
 
-    interpreter = sys.executable
-
-    if not virtualenv is None and not condaenv is None:
-        raise TrackerException("Cannot use both vitrtualenv and conda", tracker=tracker)
-
-    virtualenv_launch = ""
-    if not virtualenv is None:
-        if sys.platform.startswith("win"):
-            activate_function = os.path.join(os.path.join(virtualenv, "Scripts"), "activate_this.py")
-            interpreter = os.path.join(os.path.join(virtualenv, "Scripts", "python.exe"))
-        else:
-            activate_function = os.path.join(os.path.join(virtualenv, "bin"), "activate_this.py")
-            interpreter = os.path.join(os.path.join(virtualenv, "bin", "python"))
-        if not os.path.isfile(interpreter):
-            raise TrackerException("Executable {} not found".format(interpreter), tracker=tracker)
-
-        if os.path.isfile(activate_function):
-            virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))
-
-    if not condaenv is None:
-        if sys.platform.startswith("win"):
-            paths = ["Library\\mingw-w64\\bin", "Library\\usr\\bin", "Library\\bin", "Scripts", "bin"]
-            interpreter = os.path.join(os.path.join(virtualenv, "python.exe"))
-        else:
-            paths = [] #TODO
-            interpreter = os.path.join(os.path.join(virtualenv, "python"))
-        paths = [os.path.join(condaenv, x) for x in paths]
-        envvars["PATH"] = os.pathsep.join(paths) + os.pathsep + envvars.get("PATH", "")
-
-        if os.path.isfile(activate_function):
-            virtualenv_launch = "exec(open('{0}').read(), dict(__file__='{0}'));".format(escape_path(activate_function))
+    interpreter = sys.executable if python is None else python
 
     # simple check if the command is only a package name to be imported or a script
     if re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", command) is None:
@@ -481,13 +456,13 @@ def trax_python_adapter(tracker, command, paths, envvars, log: bool = False, tim
     else:
         command = "import " + command
 
-    command = '{} -c "{}import sys;{} {}"'.format(interpreter, virtualenv_launch, pathimport, command)
+    command = '{} -c "import sys;{} {}"'.format(interpreter, pathimport, command)
 
     envvars["PYTHONUNBUFFERED"] = "1"
 
     return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
 
-def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
+def trax_matlab_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
@@ -523,7 +498,7 @@ def trax_matlab_adapter(tracker, command, paths, envvars, log: bool = False, tim
 
     return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
 
-def trax_octave_adapter(tracker, command, paths, envvars, log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
+def trax_octave_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
