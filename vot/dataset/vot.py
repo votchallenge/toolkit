@@ -133,7 +133,7 @@ class VOTDataset(Dataset):
     def __getitem__(self, key):
         return self._sequences[key]
 
-    def __hasitem__(self, key):
+    def __contains__(self, key):
         return key in self._sequences
 
     def __iter__(self):

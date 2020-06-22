@@ -308,7 +308,7 @@ class Dataset(ABC):
         pass
 
     @abstractmethod
-    def __hasitem__(self, key):
+    def __contains__(self, key):
         return False
 
     @abstractmethod
@@ -318,6 +318,9 @@ class Dataset(ABC):
     @abstractmethod
     def list(self):
         return []
+
+    def keys(self):
+        return self.list()
 
 class BaseSequence(Sequence):
 
