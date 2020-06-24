@@ -215,7 +215,7 @@ class Tracker(object):
         self._source = _source
         self._command = command
         self._protocol = protocol
-        self._label = label
+        self._label = label if label is not None else _identifier
         self._version = to_string(version) if not version is None else None
         self._envvars, args = Tracker._collect_envvars(**kwargs)
         self._metadata, args = Tracker._collect_metadata(**args)
