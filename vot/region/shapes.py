@@ -146,7 +146,7 @@ class Polygon(Shape):
 
     def __str__(self):
         """ Create string from class """
-        return ','.join(['{},{}'.format(p[0], p[1]) for p in self._points])
+        return ';'.join(['{},{}'.format(p[0], p[1]) for p in self._points])
 
     @property
     def type(self):
@@ -180,7 +180,7 @@ class Polygon(Shape):
             raise ConversionException("Unable to convert polygon region to {}".format(rtype), source=self)
 
     def draw(self, handle: DrawHandle):
-        handle.polygon(self._points.tolist())
+        handle.polygon([(p[0], p[1]) for p in self._points])
 
     def resize(self, factor=1):
         return Polygon([(p[0] * factor, p[1] * factor) for p in self._points])

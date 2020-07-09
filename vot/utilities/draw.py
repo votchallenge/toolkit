@@ -1,7 +1,6 @@
 
 
 from typing import Tuple, List, Union
-from abc import ABC, abstractmethod
 
 from matplotlib import colors
 from matplotlib.patches import Polygon
@@ -30,6 +29,10 @@ _PALETTE = {
     "red": (1, 0, 0),
     "green": (0, 1, 0),
     "blue": (0, 0, 1),
+    "cyan": (0, 1, 1),
+    "magenta": (1, 0, 1),
+    "yellow": (1, 1, 0),
+    "gray": (0.5, 0.5, 0.5),
 }
 
 def resolve_color(color: Union[Tuple[float, float, float], str]):
@@ -38,7 +41,7 @@ def resolve_color(color: Union[Tuple[float, float, float], str]):
         return _PALETTE.get(color, (0, 0, 0, 1))
     return (np.clip(color[0], 0, 1), np.clip(color[1], 0, 1), np.clip(color[2], 0, 1))
 
-class DrawHandle(ABC):
+class DrawHandle(object):
 
     def __init__(self, color: Union[Tuple[float, float, float], str] = (1, 0, 0), width: int = 1, fill: bool = False):
         self._color = resolve_color(color)
@@ -58,23 +61,18 @@ class DrawHandle(ABC):
     def region(self, region):
         region.draw(self)
 
-    @abstractmethod
     def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
         pass
 
-    @abstractmethod
     def line(self, p1: Tuple[float, float], p2: Tuple[float, float]):
         pass
 
-    @abstractmethod
     def lines(self, points: List[Tuple[float, float]]):
         pass
 
-    @abstractmethod
     def polygon(self, points: List[Tuple[float, float]]):
         pass
 
-    @abstractmethod
     def mask(self, mask: np.array, offset: Tuple[int, int]):
         pass
 
