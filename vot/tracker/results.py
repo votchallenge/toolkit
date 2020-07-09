@@ -12,7 +12,7 @@ class Results(object):
         self._storage = storage
 
     def exists(self, name):
-        return self._storage.isfile(name)
+        return self._storage.isdocument(name)
 
     def read(self, name):
         return self._storage.read(name)
@@ -74,7 +74,7 @@ class Trajectory(object):
     def set(self, frame: int, region: Region, properties: dict = None):
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
-    
+
         self._regions[frame] = region
 
         if properties is None:
@@ -89,7 +89,7 @@ class Trajectory(object):
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
         return self._regions[frame]
-        
+
     def regions(self) -> List[Region]:
         return copy(self._regions)
 
@@ -115,7 +115,7 @@ class Trajectory(object):
     def equals(self, trajectory: 'Trajectory', check_properties: bool = False, overlap_threshold: float = 0.99999):
         if not len(self) == len(trajectory):
             return False
-        
+
         for r1, r2 in zip(self.regions(), trajectory.regions()):
             if calculate_overlap(r1, r2) < overlap_threshold and not (r1.type == RegionType.SPECIAL and r2.type == RegionType.SPECIAL):
                 return False
