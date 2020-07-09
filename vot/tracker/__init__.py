@@ -48,7 +48,7 @@ def parse_reference(reference):
     matches = VALID_REFERENCE.match(reference)
     if not matches:
         return None, None
-    return matches.group(1), matches.group(2).substring(1) if not matches.group(2) is None else None
+    return matches.group(1), matches.group(2)[1:] if not matches.group(2) is None else None
 
 _runtime_protocols = {}
 
