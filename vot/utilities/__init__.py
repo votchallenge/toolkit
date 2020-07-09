@@ -88,18 +88,40 @@ class Progress(object):
             bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
         self._tqdm.desc = description
         self._tqdm.total = total
+        if self._tqdm.disable:
+            self._tqdm = None
+            self._value = 0
+            self._total = total
+
+    def _percent(self, n):
+        return int((n * 100) / self._total)
 
     def absolute(self, value):
-        self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
-
+        if self._tqdm is None:
+            prev = self._value
+            self._value = max(0, min(value, self._total))
+            if self._percent(prev) != self._percent(self._value):
+                print("%d %%" % self._percent(self._value))
+        else:
+            self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
+        
     def relative(self, n):
-        self._tqdm.update(n)  # will also set self.n = b * bsize 
+        if self._tqdm is None:
+            prev = self._value
+            self._value = max(0, min(self._value + n, self._total))
+            if self._percent(prev) != self._percent(self._value):
+                print("%d %%" % self._percent(self._value))
+        else:
+            self._tqdm.update(n)  # will also set self.n = b * bsize 
 
     def total(self, t):
-        if self._tqdm.total == t:
-            return
-        self._tqdm.total = t
-        self._tqdm.refresh()
+        if self._tqdm is None:
+            self._total = t
+        else:
+            if self._tqdm.total == t:
+                return
+            self._tqdm.total = t
+            self._tqdm.refresh()
 
     def __enter__(self):
         return self
@@ -108,7 +130,8 @@ class Progress(object):
         self.close()
 
     def close(self):
-        self._tqdm.close()
+        if self._tqdm:
+            self._tqdm.close()
 
 def extract_files(archive, destination, callback = None):
     from zipfile import ZipFile
