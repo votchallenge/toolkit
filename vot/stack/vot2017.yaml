@@ -7,26 +7,27 @@ experiments:
     repetitions: 15
     skip_initialize: 5
     analyses:
-      - type: AccuracyRobustness
+      - type: AccuracyRobustnessSupervised
         sensitivity: 30
       - type: Failures
-      - type: EAOScore
+      - type: EAOScoreSupervised
         low: 100
         high: 356
-      - type: EAOCurve
+      - type: EAOCurveSupervised
   realtime:
+    type: SupervisedExperiment
     realtime:
       grace: 3
     repetitions: 1
     skip_initialize: 5
     analyses:
-      - type: AccuracyRobustness
+      - type: AccuracyRobustnessSupervised
         sensitivity: 30
       - type: Failures
-      - type: EAOScore
+      - type: EAOScoreSupervised
         low: 100
         high: 356
-      - type: EAOCurve
+      - type: EAOCurveSupervised
   unsupervised:
     type: UnsupervisedExperiment
     repetitions: 1

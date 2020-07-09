@@ -196,7 +196,7 @@ def do_analysis(config, logger):
     logger.info("Found data for %d trackers", len(registry))
 
     if not config.trackers:
-        trackers = workspace.storage.list_results(registry)
+        trackers = workspace.list_results(registry)
     else:
         trackers = registry.resolve(*config.trackers, skip_unknown=False)
 

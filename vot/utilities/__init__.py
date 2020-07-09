@@ -17,6 +17,7 @@ import colorama
 
 __ALIASES = dict()
 
+
 def import_class(classpath):
     delimiter = classpath.rfind(".")
     if delimiter == -1:
@@ -83,7 +84,8 @@ class Progress(object):
         return Progress.StreamProxy()
 
     def __init__(self, description="Processing", total=100):
-        self._tqdm = tqdm(bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
+        self._tqdm = tqdm(disable=False if is_notebook() else None,
+            bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
         self._tqdm.desc = description
         self._tqdm.total = total
 

@@ -1,6 +1,6 @@
 
 import os
-import glob
+import fnmatch
 from typing import List
 from copy import copy
 from vot.region import Region, RegionType, Special, write_file, read_file, calculate_overlap
@@ -8,24 +8,20 @@ from vot.utilities import to_string
 
 class Results(object):
 
-    def __init__(self, root):
-        self._root = root
+    def __init__(self, storage: "Storage"):
+        self._storage = storage
 
     def exists(self, name):
-        return os.path.isfile(os.path.join(self._root, name))
+        return self._storage.isfile(name)
 
     def read(self, name):
-        return open(os.path.join(self._root, name), 'r')
+        return self._storage.read(name)
 
     def write(self, name):
-        if not os.path.isdir(self._root):
-            os.makedirs(self._root, exist_ok=True)
-        return open(os.path.join(self._root, name), 'w')
+        return self._storage.write(name)
 
     def find(self, pattern):
-        matches = glob.glob(os.path.join(self._root, pattern))
-
-        return [os.path.basename(match) for match in matches]
+        return fnmatch.filter(self._storage.documents(), pattern)
 
 class Trajectory(object):
 

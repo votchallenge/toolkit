@@ -20,10 +20,10 @@ def experiment_resolver(typename, context, **kwargs):
     else:
         identifier = None
 
+    storage = None
     if "parent" in context:
-        storage = context["parent"].workspace.storage
-    else:
-        storage = None
+        if getattr(context["parent"], "workspace", None) is not None:
+            storage = context["parent"].workspace.storage
 
     return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
 

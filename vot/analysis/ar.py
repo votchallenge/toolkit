@@ -38,7 +38,7 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
-@alias("AccuracyRobustness", "ar")
+@alias("AccuracyRobustness", "ar", "AccuracyRobustnessSupervised")
 class AccuracyRobustness(SequenceAveragingAnalysis):
 
     sensitivity = Float(default=30, val_min=1)

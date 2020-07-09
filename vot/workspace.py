@@ -33,15 +33,27 @@ class Storage(ABC):
         pass
 
     @abstractmethod
-    def list_results(self, registry: "Registry"):
+    def documents(self):
         pass
 
     @abstractmethod
-    def open_log(self, identifier):
+    def folders(self):
         pass
 
     @abstractmethod
-    def write(self, path, binary=False):
+    def write(self, name, binary=False):
+        pass
+
+    @abstractmethod
+    def read(self, name, binary=False):
+        pass
+
+    @abstractmethod
+    def isdocument(self, name):
+        pass
+
+    @abstractmethod
+    def isfolder(self, name):
         pass
 
     @abstractmethod
@@ -52,7 +64,39 @@ class Storage(ABC):
     def copy(self, localfile, destination):
         pass
 
-class LocalStorage(ABC):
+class VoidStorage(Storage):
+
+    def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+        return Results(self)
+
+    def write(self, name, binary=False):
+        if binary:
+            return open(os.devnull, "wb")
+        else:
+            return open(os.devnull, "w")
+
+    def documents(self):
+        return []
+
+    def folders(self):
+        return []
+
+    def read(self, name, binary=False):
+        return None
+
+    def isdocument(self, name):
+        return False
+
+    def isfolder(self, name):
+        return False
+
+    def substorage(self, name):
+        return VoidStorage()
+
+    def copy(self, localfile, destination):
+        return
+
+class LocalStorage(Storage):
 
     def __init__(self, root: str):
         self._root = root
@@ -63,31 +107,44 @@ class LocalStorage(ABC):
         return self._root
 
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
-        root = os.path.join(self._results, tracker.reference, experiment.identifier, sequence.name)
-        return Results(root)
+        storage = LocalStorage(os.path.join(self._results, tracker.reference, experiment.identifier, sequence.name))
+        return Results(storage)
 
-    def list_results(self, registry: "Registry"):
-        references = [os.path.basename(x) for x in glob.glob(os.path.join(self._results, "*")) if os.path.isdir(x)]
-        return registry.resolve(*references)
+    def documents(self):
+        return [name for name in os.listdir(self._root) if os.path.isfile(os.path.join(self._root, name))]
 
-    def open_log(self, identifier):
+    def folders(self):
+        return [name for name in os.listdir(self._root) if os.path.isdir(os.path.join(self._root, name))]
 
-        logdir = os.path.join(self.base, "logs")
-        os.makedirs(logdir, exist_ok=True)
-
-        return open(os.path.join(logdir, "{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now())), "w")
-
-    def write(self, path, binary=False):
-        if os.path.isabs(path):
+    def write(self, name, binary=False):
+        if os.path.isabs(name):
             raise IOError("Only relative paths allowed")
 
-        full = os.path.join(self.base, path)
+        full = os.path.join(self.base, name)
         os.makedirs(os.path.dirname(full), exist_ok=True)
 
         if binary:
             return open(full, mode="wb")
         else:
             return open(full, mode="w", newline="")
+
+    
+    def read(self, name, binary=False):
+        if os.path.isabs(name):
+            raise IOError("Only relative paths allowed")
+
+        full = os.path.join(self.base, name)
+
+        if binary:
+            return open(full, mode="rb")
+        else:
+            return open(full, mode="r", newline="")
+
+    def isdocument(self, name):
+        return os.path.isfile(os.path.join(self._root, name))
+
+    def isfolder(self, name):
+        return os.path.isdir(os.path.join(self._root, name))
 
     def substorage(self, name):
         return LocalStorage(os.path.join(self.base, name))
@@ -101,7 +158,6 @@ class LocalStorage(ABC):
         os.makedirs(os.path.dirname(full), exist_ok=True)
 
         shutil.move(localfile, os.path.join(self.base, full))
-        #with open(localfile, "rb") as fin:
 
     def directory(self, *args):
         segments = []
@@ -252,7 +308,7 @@ class Workspace(Attributee):
 
     def __init__(self, directory, **kwargs):
         self._directory = directory
-        self._storage = LocalStorage(directory)
+        self._storage = LocalStorage(directory) if directory is not None else VoidStorage()
         super().__init__(**kwargs)
         dataset_directory = normalize_path(self.sequences, directory)
 
@@ -277,4 +333,8 @@ class Workspace(Attributee):
         if not isinstance(identifier, str):
             identifier = class_fullname(identifier)
 
-        return LocalStorage(os.path.join(self._directory, "cache", identifier))
+        return self._storage.substorage("cache").substorage(identifier)
+
+    def list_results(self, registry: "Registry"):
+        references = self._storage.substorage("results").folders()
+        return registry.resolve(*references)

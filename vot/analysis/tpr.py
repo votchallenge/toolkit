@@ -52,7 +52,7 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
 
     return precision, recall
 
-@alias("Tracking Precision/Recall Curve", "prcurve")
+@alias("Tracking Precision/Recall Curve", "prcurve" ,"PrecisionRecallCurve")
 class PrecisionRecallCurve(TrackerSeparableAnalysis):
 
     resolution = Integer(default=100)

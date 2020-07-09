@@ -5,6 +5,7 @@ import json
 import glob
 import logging
 import typing
+from datetime import datetime
 
 from abc import abstractmethod, ABC
 
@@ -96,7 +97,7 @@ class Experiment(Attributee):
         return self._storage.results(tracker, self, sequence)
 
     def log(self, identifier: str):
-        return self._storage.open_log(identifier)
+        return self._storage.substorage("logs").write("{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now()))
 
     def transform(self, sequence: "Sequence"):
         for transformer in self.transformers:

@@ -100,7 +100,7 @@ class AverageAccuracy(SequenceAveragingAnalysis):
         return accuracy / frames,
 
 
-@alias("failures", "FailureCount")
+@alias("failures", "FailureCount", "Failures")
 class FailureCount(SequenceAveragingAnalysis):
 
     def compatible(self, experiment: Experiment):

@@ -9,7 +9,6 @@ experiments:
     analyses:
       - type: AccuracyRobustness
         sensitivity: 30
-      - type: Failures
       - type: EAOScore
         low: 46
         high: 291
@@ -23,7 +22,6 @@ experiments:
     analyses:
       - type: AccuracyRobustness
         sensitivity: 30
-      - type: Failures
       - type: EAOScore
         low: 46
         high: 291
