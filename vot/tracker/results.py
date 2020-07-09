@@ -12,7 +12,7 @@ class Results(object):
         self._storage = storage
 
     def exists(self, name):
-        return self._storage.isfile(name)
+        return self._storage.isdocument(name)
 
     def read(self, name):
         return self._storage.read(name)
