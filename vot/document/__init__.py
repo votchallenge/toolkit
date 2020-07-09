@@ -79,7 +79,7 @@ class ScatterPlot(Plot):
 class LinePlot(Plot):
 
     def draw(self, key, data):
-        if len(data) < 1:
+        if data is None or len(data) < 1:
             return
 
         if isinstance(data[0], tuple):
@@ -343,6 +343,9 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
 
         for _, eresults in results.items():
             for analysis, aresults in eresults.items():
+                if aresults is None:
+                    eresults[analysis] = [None] * len(order)
+                    continue
                 if wrt_trackers(analysis.axes()) is None:
                     continue
                 eresults[analysis] = [aresults[i] for i in order]
