@@ -5,8 +5,6 @@ import logging
 import datetime
 from typing import List
 
-import xml.etree.cElementTree as ET
-
 import dominate
 from dominate.tags import h1, h2, table, thead, tbody, tr, th, td, div, p, li, ol, span, style, link, script
 from dominate.util import raw
