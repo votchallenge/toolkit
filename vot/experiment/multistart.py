@@ -60,20 +60,21 @@ class MultiStartExperiment(Experiment):
         total = len(forward) + len(backward)
         current = 0
 
-        for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
-            name = "%s_%08d" % (sequence.name, i)
+        with self._get_runtime(tracker, sequence) as runtime:
 
-            if Trajectory.exists(results, name) and not force:
-                continue
+            for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
+                name = "%s_%08d" % (sequence.name, i)
 
-            if reverse:
-                proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
-            else:
-                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                if Trajectory.exists(results, name) and not force:
+                    continue
 
-            trajectory = Trajectory(proxy.length)
+                if reverse:
+                    proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
+                else:
+                    proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
 
-            with self._get_runtime(tracker, sequence) as runtime:
+                trajectory = Trajectory(proxy.length)
+
                 _, properties, elapsed = runtime.initialize(proxy.frame(0), self._get_initialization(proxy, 0))
 
                 properties["time"] = elapsed
@@ -87,8 +88,8 @@ class MultiStartExperiment(Experiment):
 
                     trajectory.set(frame, region, properties)
 
-            trajectory.write(results, name)
+                trajectory.write(results, name)
 
-            current = current + 1
-            if  callback:
-                callback(current / total)
+                current = current + 1
+                if  callback:
+                    callback(current / total)
