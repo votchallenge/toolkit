@@ -46,10 +46,9 @@ class Trajectory(object):
     def read(cls, results: Results, name: str) -> 'Trajectory':
 
         def parse_float(line):
-            try:
-                return float(line.strip())
-            except ValueError:
+            if not line.strip():
                 return None
+            return float(line.strip())
 
         if not results.exists(name + ".txt"):
             raise FileNotFoundError("Trajectory data not found")
@@ -63,8 +62,12 @@ class Trajectory(object):
         for propertyfile in results.find(name + "*.value"):
             with results.read(propertyfile) as filehandle:
                 propertyname = os.path.splitext(os.path.basename(propertyfile))[0][len(name)+1:]
-                trajectory._properties[propertyname] = [parse_float(line) for line in filehandle.readlines()]
-
+                lines = list(filehandle.readlines())
+                try:
+                    trajectory._properties[propertyname] = [parse_float(line) for line in lines]
+                except ValueError:
+                    trajectory._properties[propertyname] = lines
+                    
         return trajectory
 
     def __init__(self, length:int):
@@ -93,7 +96,11 @@ class Trajectory(object):
     def regions(self) -> List[Region]:
         return copy(self._regions)
 
-    def properties(self, frame: int) -> dict:
+    def properties(self, frame: int = None) -> dict:
+
+        if frame is None:
+            return tuple(self._properties.keys())
+
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
 
