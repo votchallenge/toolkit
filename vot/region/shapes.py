@@ -146,7 +146,7 @@ class Polygon(Shape):
 
     def __str__(self):
         """ Create string from class """
-        return ';'.join(['{},{}'.format(p[0], p[1]) for p in self._points])
+        return ','.join(['{},{}'.format(p[0], p[1]) for p in self._points])
 
     @property
     def type(self):
