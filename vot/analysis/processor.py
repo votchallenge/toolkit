@@ -4,7 +4,7 @@ import threading
 from collections import Iterable
 from typing import List, Union
 from concurrent.futures import Executor, Future
-from threading import RLock
+from threading import RLock, Condition
 
 from cachetools import Cache
 from bidict import bidict
@@ -14,7 +14,7 @@ from vot.dataset import Sequence
 from vot.tracker import Tracker
 from vot.experiment import Experiment
 from vot.analysis import SeparableAnalysis, Analysis, DependentAnalysis
-from vot.utilities import arg_hash, class_fullname
+from vot.utilities import arg_hash, class_fullname, Progress
 
 logger = logging.getLogger("vot")
 
@@ -174,6 +174,7 @@ class AnalysisProcessor(object):
         self._promises = dict()
         self._lock = RLock()
         self._total = 0
+        self._wait_condition = Condition()
 
     def commit(self, analysis: Analysis, experiment: Experiment,
         trackers: Union[Tracker, List[Tracker]], sequences: Union[Sequence, List]):
@@ -291,6 +292,9 @@ class AnalysisProcessor(object):
             del self._promises[key]
             del self._pending[key]
 
+            with self._wait_condition:
+                self._wait_condition.notify()
+
 
     def _promise_cancelled(self, future: Future):
         if not future.cancelled():
@@ -324,6 +328,26 @@ class AnalysisProcessor(object):
         with self._lock:
             for _, future in list(self._pending.items()):
                 future.cancel()
+
+    def wait(self):
+
+        if self.total == 0:
+            return
+
+        with Progress("Running analysis", self.total) as progress:
+            try:
+
+                while True:
+                    progress.absolute(self.total - self.pending)
+                    if self.pending == 0:
+                        break
+
+                    with self._wait_condition:
+                        self._wait_condition.wait(1)
+
+            except KeyboardInterrupt:
+                self.cancel()
+                progress.close()
 
     def __enter__(self):
 
@@ -369,9 +393,6 @@ class AnalysisProcessor(object):
         return processor.commit(analysis, experiment, trackers, sequences)
 
 def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
-
-    from vot.utilities import Progress
-    from threading import Condition
 
     processor = AnalysisProcessor.default()
 
