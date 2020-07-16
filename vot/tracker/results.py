@@ -66,7 +66,7 @@ class Trajectory(object):
                 try:
                     trajectory._properties[propertyname] = [parse_float(line) for line in lines]
                 except ValueError:
-                    trajectory._properties[propertyname] = lines
+                    trajectory._properties[propertyname] = [line.strip() for line in lines]
                     
         return trajectory
 
