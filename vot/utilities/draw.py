@@ -73,7 +73,7 @@ class DrawHandle(object):
     def polygon(self, points: List[Tuple[float, float]]):
         pass
 
-    def mask(self, mask: np.array, offset: Tuple[int, int]):
+    def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
         pass
 
 class MatplotlibDrawHandle(DrawHandle):
@@ -193,7 +193,6 @@ class ImageDrawHandle(DrawHandle):
 
         if self._fill:
             image = Image.fromarray(mask * 128, mode="L")
-            image.save("/tmp/test.png")
             color = ImageDrawHandle._convert_color(self._color, 128)
             self._image.paste(color, offset, mask=image)
 
