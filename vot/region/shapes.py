@@ -159,6 +159,9 @@ class Polygon(Shape):
     def __getitem__(self, i):
         return self._points[i, 0], self._points[i, 1]
 
+    def points(self):
+        return [self[i] for i in range(self.size)]
+
     def copy(self):
         return copy(self)
 

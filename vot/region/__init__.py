@@ -99,7 +99,7 @@ class Special(Region):
         """
         return self._code
 
-    def draw(self, handle: DrawHandle, color, width):
+    def draw(self, handle: DrawHandle):
         pass
 
     def is_empty(self):
