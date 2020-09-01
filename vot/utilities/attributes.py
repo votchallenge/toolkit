@@ -9,6 +9,19 @@ from vot.utilities import to_number, to_string, to_logical, singleton, import_cl
 class AttributeException(VOTException):
     pass
 
+class AttributeParseException(AttributeException):
+    def __init__(self, cause, key):
+        self._keys = []
+        if isinstance(cause, AttributeParseException):
+            self._keys.extend(cause._keys)
+            cause = cause.__cause__ or cause.__context__
+        super().__init__(cause)
+        self._keys.append(key)
+ 
+    def __str__(self):
+        return "Attribute error: {}".format(".".join(self._keys))
+
+
 @singleton
 class Undefined():
     pass
@@ -190,15 +203,20 @@ class Attributee(metaclass=AttributeeMeta):
                         continue
                 else:
                     avalue = kwargs[aname]
-                    super().__setattr__(aname, afield.coerce(avalue, {"parent": self}))
+                    try:
+                        super().__setattr__(aname, afield.coerce(avalue, {"parent": self}))
+                    except AttributeException as ae:
+                        raise AttributeParseException(ae, aname)
+                    except AttributeError as ae:
+                        raise AttributeParseException(ae, aname)
             unconsumed.difference_update([aname])
             unspecified.difference_update([aname])
 
         if unspecified:
-            raise AttributeError("Missing arguments: {}".format(", ".join(unspecified)))
+            raise AttributeException("Missing arguments: {}".format(", ".join(unspecified)))
 
         if unconsumed:
-            raise AttributeError("Unsupported arguments: {}".format(", ".join(unconsumed)))
+            raise AttributeException("Unsupported arguments: {}".format(", ".join(unconsumed)))
 
     def __setattr__(self, key, value):
         attributes = getattr(self.__class__, "_declared_attributes", {})
@@ -273,14 +291,16 @@ class List(Attribute):
 
     def coerce(self, value, context=None):
         if isinstance(value, str):
-            value = value.split(self._separator)
+            value = [v.strip() for v in value.split(self._separator)]
         if isinstance(value, dict):
             value = value.values()
         if not isinstance(value, Iterable):
             raise AttributeException("Unable to convert value to list")
         if context is None:
             context = dict()
-        return [self._contains.coerce(x, dict(key=i, **context)) for i, x in enumerate(value)]
+        else:
+            context = dict(**context)
+        return [self._contains.coerce(x, context) for i, x in enumerate(value)]
 
     def __iter__(self):
         # This is only here to avoid pylint errors for the actual attribute field
@@ -311,8 +331,11 @@ class Map(Attribute):
         container = self._container()
         if context is None:
             context = dict()
+        else:
+            context = dict(**context)
         for name, data in value.items():
-            container[name] = self._contains.coerce(data, dict(key=name, **context))
+            context["key"] = name
+            container[name] = self._contains.coerce(data, context)
         return ReadonlyMapping(container)
 
     def __iter__(self):
@@ -335,7 +358,7 @@ def default_object_resolver(typename: str, _, **kwargs) -> Attributee:
     """Default object resovler
 
     Arguments:
-        typename {str} -- String representation of a class that can be imported. 
+        typename {str} -- String representation of a class that can be imported.
             Should be a subclass of Attributee as it is constructed from kwargs.
 
     Returns:
@@ -347,14 +370,20 @@ def default_object_resolver(typename: str, _, **kwargs) -> Attributee:
 
 class Object(Attribute):
 
-    def __init__(self, resolver=default_object_resolver, **kwargs):
+    def __init__(self, resolver=default_object_resolver, subclass=None, **kwargs):
         super().__init__(**kwargs)
+        assert subclass is None or inspect.isclass(subclass)
         self._resolver = resolver
+        self._subclass = subclass
 
     def coerce(self, value, context=None):
         assert isinstance(value, dict)
         class_name = value.get("type", None)
-        return self._resolver(class_name, context, **{k: v for k, v in value.items() if not k == "type"})
+        obj = self._resolver(class_name, context, **{k: v for k, v in value.items() if not k == "type"})
+        if not self._subclass is None:
+            if not isinstance(obj, self._subclass):
+                raise AttributeException("Object is not a subclass of {}".format(self._subclass))
+        return obj
 
     def dump(self, value):
         data = value.dump()
