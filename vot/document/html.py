@@ -15,10 +15,39 @@ from vot.dataset import Sequence
 from vot.workspace import Storage
 from vot.document.common import format_value, read_resource, merge_repeats, extract_measures_table, extract_plots
 from vot.document import StyleManager
+from vot.utilities.data import Grid
+
+ORDER_CLASSES = {1: "first", 2: "second", 3: "third"}
+
+def insert_cell(value, order):
+    attrs = dict(data_sort_value=order, data_value=value)
+    if order in ORDER_CLASSES:
+        attrs["cls"] = ORDER_CLASSES[order]
+    td(format_value(value), **attrs)
+
+def grid_table(data: Grid, rows: List[str], columns: List[str]):
+
+    assert data.dimensions == 2
+    assert data.size(0) == len(rows) and data.size(1) == len(columns)
+
+    with table() as element:
+        with thead():
+            with tr():
+                th()
+                [th(column) for column in columns]
+        with tbody():
+            for i, row in enumerate(rows):
+                with tr():
+                    th(row)
+                    for value in data.row(i):
+                        if isinstance(value, tuple):
+                            if len(value) == 1:
+                                value = value[0]
+                        insert_cell(value, None)
+
+    return element
 
 def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage):
-
-    order_classes = {1: "first", 2: "second", 3: "third"}
 
     def insert_figure(figure):
         buffer = io.StringIO()
@@ -29,12 +58,6 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
         buffer = io.StringIO()
         figure.savefig(buffer, format="SVG", bbox_inches='tight', pad_inches=0.01, dpi=200)
         raw(buffer.getvalue())
-
-    def insert_cell(value, order):
-        attrs = dict(data_sort_value=order, data_value=value)
-        if order in order_classes:
-            attrs["cls"] = order_classes[order]
-        td(format_value(value), **attrs)
 
     def add_style(name, linked=False):
         if linked:

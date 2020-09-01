@@ -52,7 +52,7 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
 
     def describe(self):
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
-             Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
+             Measure("Robustness", "R", minimal=0, direction=Sorting.ASCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR", minimal=(0, 0), \
                 maximal=(1, 1), labels=("Robustness", "Accuracy"), trait="ar"), \
              None
@@ -70,7 +70,7 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
             accuracy += a * w
             weight_total += w
 
-        ar = (math.exp(- (failures / weight_total) * float(self.sensitivity)), accuracy / weight_total)
+        ar = (math.exp(- (failures / weight_total) * self.sensitivity), accuracy / weight_total)
 
         return accuracy / weight_total, failures / weight_total, ar, weight_total
 
@@ -86,7 +86,7 @@ class AccuracyRobustness(SequenceAveragingAnalysis):
             failures += count_failures(trajectory.regions())[0]
             accuracy += compute_accuracy(trajectory.regions(), sequence, self.burnin, self.ignore_unknown, self.bounded)[0]
 
-        ar = (math.exp(- (float(failures) / len(trajectories)) * float(self.sensitivity)), accuracy / len(trajectories))
+        ar = (math.exp(- (float(failures) / len(trajectories)) * self.sensitivity), accuracy / len(trajectories))
 
         return accuracy / len(trajectories), failures / len(trajectories), ar, len(trajectories[0])
 

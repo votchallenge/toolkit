@@ -12,6 +12,7 @@ from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.analysis import TrackerSeparableAnalysis, DependentAnalysis, MissingResultsException, \
     Plot, Point, is_special, Axis, Sorting, Measure, SequenceAveragingAnalysis
 from vot.utilities import alias
+from vot.utilities.data import Grid
 from vot.utilities.attributes import Float, Integer, Boolean, Include
 
 def locate_failures_inits(trajectory: List[Region]) -> Tuple[int, int]:
@@ -114,7 +115,10 @@ class EAOCurve(TrackerSeparableAnalysis):
                     success_all.append(True)
                     weights_all.append(1)
 
-        return compute_eao_curve(overlaps_all, weights_all, success_all),
+        result = Grid((1,1))
+        result[0, 0] = (compute_eao_curve(overlaps_all, weights_all, success_all),)
+
+        return result
 
 class EAOCurveMultiStart2(TrackerSeparableAnalysis):
 
@@ -216,7 +220,7 @@ class EAOScore(DependentAnalysis):
     def dependencies(self):
         return self.eaocurve,
 
-    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[Grid]):
         return [(float(np.mean(x[0][self.low:self.high + 1])), ) for x in results[0]]
 
     def axes(self):
@@ -244,7 +248,7 @@ class EAOCurveMultiStart(SequenceAveragingAnalysis):
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiStartExperiment)
 
-    def collapse(self, tracker: Tracker, sequences: List[Sequence], results: List[tuple]):
+    def collapse(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
         eao_curve = self.high * [float(0)]
         eao_weights = self.high * [float(0)]
 
@@ -325,8 +329,14 @@ class EAOScoreMultiStart(DependentAnalysis):
     def dependencies(self):
         return self.eaocurve,
 
-    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
-        return [(float(np.mean(x[0][self.low:self.high + 1])), ) for x in results[0]]
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[Grid]):
+        joined = Grid((len(trackers), ))
+
+        for i, result in enumerate(results[0]):
+            if result is None:
+                continue
+            joined[i] = (float(np.mean(result[0][self.low:self.high + 1])), )
+        return joined
 
     def axes(self):
         return Axis.TRACKERS,

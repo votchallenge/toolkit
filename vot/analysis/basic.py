@@ -4,15 +4,16 @@ import numpy as np
 
 from vot.analysis import (DependentAnalysis, Measure,
                           MissingResultsException, Point,
-                          SequenceAveragingAnalysis, Sorting,
-                          is_special)
+                          SequenceAggregator, Sorting,
+                          is_special, FullySeparableAnalysis)
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import (MultiRunExperiment, SupervisedExperiment)
 from vot.region import Region, Special, calculate_overlaps
 from vot.tracker import Tracker
 from vot.utilities import alias
-from vot.utilities.attributes import Boolean, Integer
+from vot.utilities.data import Grid
+from vot.utilities.attributes import Boolean, Integer, Include
 
 def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int = 10, 
     ignore_unknown: bool = True, bounded: bool = True) -> float:
@@ -57,8 +58,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
-@alias("auc", "Average Overlap", "AverageAccuracy")
-class AverageAccuracy(SequenceAveragingAnalysis):
+class AverageAccuracyPerSequence(FullySeparableAnalysis):
 
     burnin = Integer(default=10, val_min=0)
     ignore_unknown = Boolean(default=True)
@@ -89,19 +89,43 @@ class AverageAccuracy(SequenceAveragingAnalysis):
 
             return cummulative / len(trajectories),
 
-    def collapse(self, _: Tracker, sequences: List[Sequence], results: List[tuple]):
+@alias("auc", "Average Overlap", "AverageAccuracy")
+class AverageAccuracy(SequenceAggregator):
+
+    analysis = Include(AverageAccuracyPerSequence)
+    weighted = Boolean(default=True)
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
+
+    @property
+    def title(self):
+        return "Average accurarcy"
+
+    def dependencies(self):
+        return self.analysis,
+
+    def describe(self):
+        return Measure("Accuracy", "AUC", 0, 1, Sorting.DESCENDING),
+
+    def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
         accuracy = 0
         frames = 0
 
-        for sequence, a in  zip(sequences, results):
-            accuracy = accuracy + a[0] * len(sequence)
-            frames = frames + len(sequence)
+        for i, sequence in enumerate(sequences):
+            if results[i] is None:
+                continue
+
+            if self.weighted:
+                accuracy += results[i][0] * len(sequence)
+                frames += len(sequence)
+            else:
+                accuracy += results[i][0]
+                frames += 1
 
         return accuracy / frames,
 
-
-@alias("failures", "FailureCount", "Failures")
-class FailureCount(SequenceAveragingAnalysis):
+class FailuresPerSequence(FullySeparableAnalysis):
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
@@ -112,15 +136,6 @@ class FailureCount(SequenceAveragingAnalysis):
 
     def describe(self):
         return Measure("Failures", "F", 0, None, Sorting.ASCENDING), 
-
-    def collapse(self, _: Tracker, sequences: List[Sequence], results: List[tuple]):
-        failures = 0
-
-        for a in results:
-            failures = failures + a
-
-        return failures,
-
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
         trajectories = experiment.gather(tracker, sequence)
@@ -133,3 +148,30 @@ class FailureCount(SequenceAveragingAnalysis):
             failures = failures + count_failures(trajectory.regions())[0]
 
         return failures / len(trajectories), len(trajectories[0])
+
+
+@alias("failures", "FailureCount", "Failures")
+class FailureCount(SequenceAggregator):
+
+    analysis = Include(FailuresPerSequence)
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, SupervisedExperiment)
+
+    def dependencies(self):
+        return self.analysis, 
+
+    @property
+    def title(self):
+        return "Number of failures"
+
+    def describe(self):
+        return Measure("Failures", "F", 0, None, Sorting.ASCENDING), 
+
+    def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
+        failures = 0
+
+        for a in results:
+            failures = failures + a[0]
+
+        return failures,

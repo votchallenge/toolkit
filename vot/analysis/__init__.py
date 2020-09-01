@@ -15,6 +15,7 @@ from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.region import Region, RegionType
 from vot.utilities import class_fullname, arg_hash
+from vot.utilities.data import Grid
 from vot.utilities.attributes import Attributee, String
 
 class MissingResultsException(VOTException):
@@ -191,7 +192,7 @@ class Analysis(Attributee):
         """
         raise NotImplementedError
 
-    def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+    def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]) -> Grid:
         raise NotImplementedError
 
     def axes(self):
@@ -205,7 +206,7 @@ class Analysis(Attributee):
 class DependentAnalysis(Analysis):
 
     @abstractmethod
-    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[Grid]) -> Grid:
         raise NotImplementedError
 
     @abstractmethod
@@ -224,7 +225,7 @@ class SeparableAnalysis(Analysis):
     """
 
     @abstractmethod
-    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[Grid]):
         raise NotImplementedError
 
     @abstractmethod
@@ -247,16 +248,16 @@ class FullySeparableAnalysis(SeparableAnalysis): # pylint: disable=W0223
     """
 
     def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
-        transformed_results = [[None] * len(sequences) for _ in enumerate(trackers)]
+        transformed_results = Grid((len(trackers), len(sequences)))
         k = 0
         for i, _ in enumerate(trackers):
             for j, _ in enumerate(sequences):
-                transformed_results[i][j] = results[k]
+                transformed_results[i, j] = results[k]
                 k += 1
         return transformed_results
 
     @abstractmethod
-    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence): # pylint: disable=arguments-differ
         raise NotImplementedError
 
     def separate(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
@@ -273,17 +274,43 @@ class SequenceAveragingAnalysis(FullySeparableAnalysis): # pylint: disable=W0223
 
     def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
         results = super().join(experiment, trackers, sequences, results)
-        collapsed = list()
-        for tracker, partial in zip(trackers, results):
-            collapsed.append(self.collapse(tracker, sequences, partial))
-        return collapsed
+        transformed_results = Grid((len(trackers), ))
+
+        for i, tracker in enumerate(trackers):
+            transformed_results[i] = self.collapse(tracker, sequences, results.row(i))
+
+        return transformed_results
 
     @abstractmethod
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
         raise NotImplementedError
 
     @abstractmethod
-    def collapse(self, tracker: Tracker, sequences: List[Sequence], results: List[tuple]):
+    def collapse(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
+        raise NotImplementedError
+
+    def axes(self):
+        return Axis.TRACKERS,
+
+class SequenceAggregator(DependentAnalysis): # pylint: disable=W0223
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        assert len(self.dependencies()) == 1 # We only support one dependency for now
+        assert self.dependencies()[0].axes() == (Axis.TRACKERS, Axis.SEQUENCES)
+
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[Grid]):
+
+        results = results[0]
+        transformed_results = Grid((len(trackers), ))
+
+        for i, tracker in enumerate(trackers):
+            transformed_results[i] = self.aggregate(tracker, sequences, results.row(i))
+
+        return transformed_results
+
+    @abstractmethod
+    def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
         raise NotImplementedError
 
     def axes(self):
@@ -293,11 +320,14 @@ class TrackerSeparableAnalysis(SeparableAnalysis): # pylint: disable=W0223
     """Separate analysis into multiple per-tracker tasks, each of them is non-separable.
     """
 
-    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[tuple]):
-        return results
+    def join(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], results: List[Grid]):
+        transformed_results = Grid((len(trackers), ))
+        for i, _ in enumerate(trackers):
+            transformed_results[i] = results[i][0, 0]
+        return transformed_results
 
     @abstractmethod
-    def subcompute(self, experiment: Experiment, tracker: Tracker, sequences: List[Sequence]):
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequences: List[Sequence]):  # pylint: disable=arguments-differ
         raise NotImplementedError
 
     def separate(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):

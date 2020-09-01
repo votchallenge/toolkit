@@ -323,7 +323,7 @@ class ReportConfiguration(Attributee):
 
     style = Nested(StyleManager)
     sort = Nested(TrackerSorter)
-    generators = List(Object(), default=[])
+    generators = List(Object(subclass=Generator), default=[])
 
 # TODO: replace this with report generator and separate json/yaml dump
 def generate_document(format: str, config: ReportConfiguration, trackers: typing.List[Tracker], sequences: typing.List[Sequence], results, storage: "Storage"):
