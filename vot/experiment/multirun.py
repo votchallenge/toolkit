@@ -63,18 +63,19 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
         results = self.results(tracker, sequence)
 
-        for i in range(1, self.repetitions+1):
-            name = "%s_%03d" % (sequence.name, i)
+        with self._get_runtime(tracker, sequence) as runtime:
 
-            if Trajectory.exists(results, name) and not force:
-                continue
+            for i in range(1, self.repetitions+1):
+                name = "%s_%03d" % (sequence.name, i)
 
-            if self._can_stop(tracker, sequence):
-                return
+                if Trajectory.exists(results, name) and not force:
+                    continue
 
-            trajectory = Trajectory(sequence.length)
+                if self._can_stop(tracker, sequence):
+                    return
 
-            with self._get_runtime(tracker, sequence) as runtime:
+                trajectory = Trajectory(sequence.length)
+
                 _, properties, elapsed = runtime.initialize(sequence.frame(0), self._get_initialization(sequence, 0))
 
                 properties["time"] = elapsed
@@ -88,10 +89,10 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
                     trajectory.set(frame, region, properties)
 
-            trajectory.write(results, name)
+                trajectory.write(results, name)
 
-            if callback:
-                callback(i / self.repetitions)
+                if callback:
+                    callback(i / self.repetitions)
 
 @alias("SupervisedExperiment", "supervised")
 class SupervisedExperiment(MultiRunExperiment):
@@ -104,18 +105,18 @@ class SupervisedExperiment(MultiRunExperiment):
 
         results = self.results(tracker, sequence)
 
-        for i in range(1, self.repetitions+1):
-            name = "%s_%03d" % (sequence.name, i)
+        with self._get_runtime(tracker, sequence) as runtime:
 
-            if Trajectory.exists(results, name) and not force:
-                continue
+            for i in range(1, self.repetitions+1):
+                name = "%s_%03d" % (sequence.name, i)
 
-            if self._can_stop(tracker, sequence):
-                return
+                if Trajectory.exists(results, name) and not force:
+                    continue
 
-            trajectory = Trajectory(sequence.length)
+                if self._can_stop(tracker, sequence):
+                    return
 
-            with self._get_runtime(tracker, sequence) as runtime:
+                trajectory = Trajectory(sequence.length)
 
                 frame = 0
                 while frame < sequence.length:
@@ -148,7 +149,7 @@ class SupervisedExperiment(MultiRunExperiment):
                             trajectory.set(frame, region, properties)
                         frame = frame + 1
 
-            if  callback:
-                callback(i / self.repetitions)
+                if  callback:
+                    callback(i / self.repetitions)
 
-            trajectory.write(results, name)
+                trajectory.write(results, name)

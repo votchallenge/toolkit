@@ -135,7 +135,7 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
             if not te.log is None:
                 with experiment.log(te.tracker.identifier) as flog:
                     flog.write(te.log)
-                    logger.error("Tracker output writtent to file: %s", flog.name)
+                    logger.error("Tracker output written to file: %s", flog.name)
             if not persist:
                 raise te
         progress.push()
