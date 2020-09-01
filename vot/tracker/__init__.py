@@ -36,7 +36,7 @@ class TrackerTimeoutException(TrackerException):
 
 VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9-_]+$")
 
-VALID_REFERENCE = re.compile("^([a-zA-Z0-9-_]+)(@[a-zA-Z0-9]+)?$")
+VALID_REFERENCE = re.compile("^([a-zA-Z0-9-_]+)(@[a-zA-Z0-9]*)?$")
 
 def is_valid_identifier(identifier):
     return not VALID_IDENTIFIER.match(identifier) is None
@@ -119,7 +119,7 @@ class Registry(object):
     def __len__(self):
         return len(self._trackers)
 
-    def resolve(self, *references, skip_unknown=True, resolve_plural=True):
+    def resolve(self, *references, storage=None, skip_unknown=True, resolve_plural=True):
 
         trackers = []
 
@@ -131,7 +131,7 @@ class Registry(object):
                     continue
                 for tracker in self._trackers.values():
                     if tracker.tagged(tag):
-                        trackers.append(tracker)
+                        trackers.extend(self._find_versions(tracker.identifier, storage))
                 continue
 
             identifier, version = parse_reference(reference)
@@ -144,7 +144,25 @@ class Registry(object):
 
             base = self._trackers[identifier]
 
-            trackers.append(base.reversion(version))
+            if version == "":
+                trackers.extend(self._find_versions(identifier, storage))
+            else:
+                trackers.append(base.reversion(version))
+
+        return trackers
+
+    def _find_versions(self, identifier, storage):
+
+        trackers = []
+
+        if storage is None:
+            return trackers
+
+        for reference in storage.folders():
+            if reference.startswith(identifier + "@"):
+                identifier, version = parse_reference(reference)
+                base = self._trackers[identifier]
+                trackers.append(base.reversion(version))
 
         return trackers
 

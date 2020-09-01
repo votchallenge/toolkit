@@ -158,7 +158,7 @@ def do_evaluate(config, logger):
 
     logger.info("Found data for %d trackers", len(registry))
 
-    trackers = registry.resolve(*config.trackers, skip_unknown=False)
+    trackers = registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
     if len(trackers) == 0:
         logger.error("Unable to continue without at least on tracker")
@@ -198,7 +198,7 @@ def do_analysis(config, logger):
     if not config.trackers:
         trackers = workspace.list_results(registry)
     else:
-        trackers = registry.resolve(*config.trackers, skip_unknown=False)
+        trackers = registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
     if not trackers:
         logger.warning("No trackers resolved, stopping.")
