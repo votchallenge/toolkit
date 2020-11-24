@@ -2,18 +2,12 @@ import os
 import math
 
 from vot.document import ScatterPlot, LinePlot
-from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axis
+from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
     path = os.path.join(os.path.dirname(__file__), name)
     with open(path, "r") as filehandle:
         return filehandle.read()
-
-def wrt_trackers(axes):
-    if axes is None:
-        return None
-
-    return next(filter(lambda x: x == Axis.TRACKERS, axes), None)
 
 def extract_measures_table(trackers, results):
     table_header = [[], [], []]
@@ -25,7 +19,7 @@ def extract_measures_table(trackers, results):
             descriptions = analysis.describe()
 
             # Ignore all non per-tracker results
-            if wrt_trackers(analysis.axes()) is None:
+            if analysis.axes != Axes.TRACKERS:
                 continue
 
             for i, description in enumerate(descriptions):
@@ -79,10 +73,9 @@ def extract_plots(trackers, results):
         experiment_plots = list()
         for analysis, aresults in eresults.items():
             descriptions = analysis.describe()
-            axes = analysis.axes()
 
             # Ignore all non per-tracker results
-            if axes is None or len(axes) != 1 or axes[0] != Axis.TRACKERS:
+            if analysis.axes != Axes.TRACKERS:
                 continue
 
             for i, description in enumerate(descriptions):

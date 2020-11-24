@@ -3,37 +3,35 @@ dataset: vot:vot-st2020
 url: http://www.votchallenge.net/vot2020/
 experiments:
   baseline:
-    type: MultiStartExperiment
+    type: multistart
     analyses:
-      - type: EAOScoreMultiStart
+      - type: multistart_eao_score
         name: eaoscore
         low: 115
         high: 755
-      - type: EAOCurveMultiStart
+      - type: multistart_eao_curve
         name: eaocurve
-        low: 115
         high: 755
-      - type: AccuracyRobustnessMultiStart
+      - type: multistart_average_ar
         name: ar
   realtime:
-    type: MultiStartExperiment
+    type: multistart
     realtime:
       grace: 3
     analyses:
-      - type: EAOScoreMultiStart
+      - type: multistart_eao_score
         name: eaoscore
         low: 115
         high: 755
-      - type: EAOCurveMultiStart
+      - type: multistart_eao_curve
         name: eaocurve
-        low: 115
         high: 755
-      - type: AccuracyRobustnessMultiStart
+      - type: multistart_average_ar
         name: ar
   unsupervised:
-    type: UnsupervisedExperiment
+    type: unsupervised
     repetitions: 1
     analyses:
-      - type: AverageAccuracy
+      - type: average_accuracy
         name: accuracy
         burnin: 1

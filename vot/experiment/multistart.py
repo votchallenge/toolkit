@@ -5,10 +5,10 @@ from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.region import Special
 
-from vot.experiment import Experiment
+from attributee import String
+
+from vot.experiment import Experiment, experiment_registry
 from vot.tracker import Tracker, Trajectory
-from vot.utilities import alias
-from vot.utilities.attributes import String
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
     forward = []
@@ -22,7 +22,7 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
                 backward.append(frame)
     return forward, backward
 
-@alias("MultiStartExperiment", "multistart")
+@experiment_registry.register("multistart")
 class MultiStartExperiment(Experiment):
 
     anchor = String(default="anchor")

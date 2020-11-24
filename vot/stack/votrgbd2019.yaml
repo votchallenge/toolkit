@@ -3,9 +3,9 @@ dataset: vot:vot-rgbd2019
 url: http://www.votchallenge.net/vot2019/
 experiments:
   rgbd-unsupervised:
-    type: UnsupervisedExperiment
+    type: unsupervised
     repetitions: 1
     analyses:
-      - type: PrecisionRecall
-      - type: PrecisionRecallCurve
-      - type: FScoreCurve
+      - type: average_tpr
+      - type: pr_curve
+      - type: f_curve

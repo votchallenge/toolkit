@@ -15,3 +15,5 @@ packaging>=20
 dominate>=2.5
 cachetools>=4.1
 bidict>=0.19
+class-registry>=2.1
+attributee>=0.1

@@ -182,7 +182,7 @@ def do_evaluate(config, logger):
 
 def do_analysis(config, logger):
 
-    from vot.analysis.processor import AnalysisProcessor, process_stack_analyses
+    from vot.analysis import AnalysisProcessor, process_stack_analyses
     from vot.document import generate_document
 
     workspace = Workspace.load(config.workspace)
@@ -220,6 +220,8 @@ def do_analysis(config, logger):
     else:
         cache = Cache(workspace.cache("analysis"))
 
+    try:
+
     with AnalysisProcessor(executor, cache):
 
         results = process_stack_analyses(workspace, trackers)
@@ -236,9 +238,11 @@ def do_analysis(config, logger):
 
         generate_document(config.format, workspace.report, trackers, workspace.dataset, results, storage)
 
-    executor.shutdown(wait=True)
+            logger.info("Analysis successful, report available as %s", name)
 
-    logger.info("Analysis successful, report available as %s", name)
+    finally:
+
+    executor.shutdown(wait=True)
 
 
 def do_pack(config, logger):

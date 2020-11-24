@@ -2,18 +2,19 @@ from typing import List, Tuple
 
 import numpy as np
 
-from vot.analysis import (DependentAnalysis, Measure,
-                          MissingResultsException, Point,
+from attributee import Boolean, Integer, Include
+
+from vot.analysis import (Measure,
+                          MissingResultsException,
                           SequenceAggregator, Sorting,
-                          is_special, FullySeparableAnalysis)
+                          is_special, SeparableAnalysis,
+                          analysis_registry)
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import (MultiRunExperiment, SupervisedExperiment)
 from vot.region import Region, Special, calculate_overlaps
 from vot.tracker import Tracker
-from vot.utilities import alias
 from vot.utilities.data import Grid
-from vot.utilities.attributes import Boolean, Integer, Include
 
 def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int = 10, 
     ignore_unknown: bool = True, bounded: bool = True) -> float:
@@ -39,7 +40,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
     phi = curve_length * [float(0)]
     active = curve_length * [float(0)]
 
-    for i, (o, success) in enumerate(zip(overlaps, success)):
+    for o, success in zip(overlaps, success):
 
         o_array = np.array(o)
 
@@ -58,7 +59,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
-class AverageAccuracyPerSequence(FullySeparableAnalysis):
+class SequenceAccuracy(SeparableAnalysis):
 
     burnin = Integer(default=10, val_min=0)
     ignore_unknown = Boolean(default=True)
@@ -74,7 +75,7 @@ class AverageAccuracyPerSequence(FullySeparableAnalysis):
     def describe(self):
         return Measure("Accuracy", "AUC", 0, 1, Sorting.DESCENDING),
 
-    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Grid:
 
         if isinstance(experiment, MultiRunExperiment):
             trajectories = experiment.gather(tracker, sequence)
@@ -89,10 +90,10 @@ class AverageAccuracyPerSequence(FullySeparableAnalysis):
 
             return cummulative / len(trajectories),
 
-@alias("auc", "Average Overlap", "AverageAccuracy")
+@analysis_registry.register("average_accuracy")
 class AverageAccuracy(SequenceAggregator):
 
-    analysis = Include(AverageAccuracyPerSequence)
+    analysis = Include(SequenceAccuracy)
     weighted = Boolean(default=True)
 
     def compatible(self, experiment: Experiment):
@@ -113,19 +114,20 @@ class AverageAccuracy(SequenceAggregator):
         frames = 0
 
         for i, sequence in enumerate(sequences):
-            if results[i] is None:
+            if results[i, 0] is None:
                 continue
 
             if self.weighted:
-                accuracy += results[i][0] * len(sequence)
+                accuracy += results[i, 0][0] * len(sequence)
                 frames += len(sequence)
             else:
-                accuracy += results[i][0]
+                accuracy += results[i, 0][0]
                 frames += 1
 
         return accuracy / frames,
 
-class FailuresPerSequence(FullySeparableAnalysis):
+@analysis_registry.register("failures")
+class FailureCount(SeparableAnalysis):
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
@@ -135,9 +137,9 @@ class FailuresPerSequence(FullySeparableAnalysis):
         return "Number of failures"
 
     def describe(self):
-        return Measure("Failures", "F", 0, None, Sorting.ASCENDING), 
+        return Measure("Failures", "F", 0, None, Sorting.ASCENDING),
 
-    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence):
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Grid:
         trajectories = experiment.gather(tracker, sequence)
 
         if len(trajectories) == 0:
@@ -150,16 +152,16 @@ class FailuresPerSequence(FullySeparableAnalysis):
         return failures / len(trajectories), len(trajectories[0])
 
 
-@alias("failures", "FailureCount", "Failures")
-class FailureCount(SequenceAggregator):
+@analysis_registry.register("cumulative_failures")
+class CumulativeFailureCount(SequenceAggregator):
 
-    analysis = Include(FailuresPerSequence)
+    analysis = Include(FailureCount)
 
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, SupervisedExperiment)
 
     def dependencies(self):
-        return self.analysis, 
+        return self.analysis,
 
     @property
     def title(self):

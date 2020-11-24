@@ -3,14 +3,17 @@ dataset: vot:vot-lt2019
 url: http://www.votchallenge.net/vot2019/
 experiments:
   longterm:
-    type: UnsupervisedExperiment
+    type: unsupervised
     repetitions: 1
     analyses:
-      - type: PrecisionRecall
+      - type: average_tpr
+        name: average_tpr
+      - type: pr_curve
+      - type: f_curve
   redetection:
-    type: UnsupervisedExperiment
+    type: unsupervised
     transformers:
-      - type: Redetection
+      - type: redetection
         length: 200
         initialization: 5
         padding: 2

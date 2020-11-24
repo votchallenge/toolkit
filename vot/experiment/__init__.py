@@ -6,12 +6,18 @@ import glob
 import logging
 import typing
 from datetime import datetime
-
 from abc import abstractmethod, ABC
+
+from class_registry import ClassRegistry
+
+from attributee import Attributee, Object, Integer, Float, Nested, List
 
 from vot.tracker import RealtimeTrackerRuntime, TrackerException
 from vot.utilities import Progress, to_number, import_class
-from vot.utilities.attributes import Attributee, Object, Integer, Float, Nested, List
+
+experiment_registry = ClassRegistry("vot_experiment")
+
+transformer_registry = ClassRegistry("vot_transformer")
 
 class RealtimeConfig(Attributee):
 
@@ -28,22 +34,31 @@ class InjectConfig(Attributee):
 
 def transformer_resolver(typename, context, **kwargs):
     from vot.experiment.transformer import Transformer
-    transformer_class = import_class(typename)
-    assert issubclass(transformer_class, Transformer)
 
     if "parent" in context:
         storage = context["parent"].storage.substorage("cache").substorage("transformer")
     else:
         storage = None
 
-    return transformer_class(cache=storage, **kwargs)
+    if typename in transformer_registry:
+        transformer = transformer_registry.get(typename, cache=storage, **kwargs)
+        assert isinstance(transformer, Transformer)
+        return transformer
+    else:
+        transformer_class = import_class(typename)
+        assert issubclass(transformer_class, Transformer)
+        return transformer_class(cache=storage, **kwargs)
 
 def analysis_resolver(typename, context, **kwargs):
-    from vot.analysis import Analysis
-    analysis_class = import_class(typename)
-    assert issubclass(analysis_class, Analysis)
+    from vot.analysis import Analysis, analysis_registry
 
-    analysis = analysis_class(**kwargs)
+    if typename in analysis_registry:
+        analysis = analysis_registry.get(typename, **kwargs)
+        assert isinstance(analysis, Analysis)
+    else:
+        analysis_class = import_class(typename)
+        assert issubclass(analysis_class, Analysis)
+        analysis = analysis_class(**kwargs)
 
     if "parent" in context:
         assert analysis.compatible(context["parent"])

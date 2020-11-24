@@ -3,31 +3,31 @@ dataset: vot:vot-st2019
 url: http://www.votchallenge.net/vot2019/
 experiments:
   baseline:
-    type: SupervisedExperiment
+    type: supervised
     repetitions: 15
     skip_initialize: 5
     analyses:
-      - type: AccuracyRobustness
+      - type: supervised_average_ar
         sensitivity: 30
-      - type: EAOScore
+      - type: supervised_eao_score
         low: 46
         high: 291
-      - type: EAOCurve
+      - type: supervised_eao_curve
   realtime:
-    type: SupervisedExperiment
+    type: supervised
     realtime:
       grace: 3
     repetitions: 1
     skip_initialize: 5
     analyses:
-      - type: AccuracyRobustness
+      - type: supervised_average_ar
         sensitivity: 30
-      - type: EAOScore
+      - type: supervised_eao_score
         low: 46
         high: 291
-      - type: EAOCurve
+      - type: supervised_eao_curve
   unsupervised:
-    type: UnsupervisedExperiment
+    type: unsupervised
     repetitions: 1
     analyses:
-      - type: AverageAccuracy
+      - type: average_accuracy

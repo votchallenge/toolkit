@@ -5,10 +5,10 @@ from typing import Callable
 from vot.dataset import Sequence
 from vot.region import Special, calculate_overlap
 
-from vot.experiment import Experiment
+from attributee import Boolean, Integer, Float, List, String
+
+from vot.experiment import Experiment, experiment_registry
 from vot.tracker import Tracker, Trajectory
-from vot.utilities import alias
-from vot.utilities.attributes import Boolean, Integer, Float, List, String
 
 class MultiRunExperiment(Experiment):
 
@@ -56,7 +56,7 @@ class MultiRunExperiment(Experiment):
                 trajectories.append(Trajectory.read(results, name))
         return trajectories
 
-@alias("UnsupervisedExperiment", "unsupervised")
+@experiment_registry.register("unsupervised")
 class UnsupervisedExperiment(MultiRunExperiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
@@ -94,7 +94,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
                 if callback:
                     callback(i / self.repetitions)
 
-@alias("SupervisedExperiment", "supervised")
+@experiment_registry.register("supervised")
 class SupervisedExperiment(MultiRunExperiment):
 
     skip_initialize = Integer(val_min=1, default=1)

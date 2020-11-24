@@ -6,15 +6,15 @@ from typing import List
 
 import yaml
 
-from vot.experiment import Experiment
+from attributee import Attributee, String, Boolean, Map, Object
+
+from vot.experiment import Experiment, experiment_registry
 from vot.experiment.transformer import Transformer
 from vot.utilities import import_class
 from vot.analysis import Analysis
-from vot.utilities.attributes import Attributee, String, Boolean, Map, Object
 
 def experiment_resolver(typename, context, **kwargs):
-    experiment_class = import_class(typename)
-    assert issubclass(experiment_class, Experiment)
+
     if "key" in context:
         identifier = context["key"]
     else:
@@ -25,7 +25,13 @@ def experiment_resolver(typename, context, **kwargs):
         if getattr(context["parent"], "workspace", None) is not None:
             storage = context["parent"].workspace.storage
 
-    return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
+    if typename in experiment_registry:
+        experiment = experiment_registry.get(typename, _identifier=identifier, _storage=storage, **kwargs)
+        assert isinstance(experiment, Experiment)
+    else:
+        experiment_class = import_class(typename)
+        assert issubclass(experiment_class, Experiment)
+        return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
 
 class Stack(Attributee):
 

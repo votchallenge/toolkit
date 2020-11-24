@@ -1,7 +1,7 @@
 
 import os
-import glob
 import logging
+import typing
 from abc import ABC, abstractmethod
 from datetime import datetime
 import pickle
@@ -10,15 +10,14 @@ import importlib
 import yaml
 import cachetools
 
-from vot import VOTException
+from attributee import Attribute, Attributee, Nested, List, String
 
+from vot import VOTException
 from vot.dataset import VOTDataset, Sequence, Dataset
 from vot.tracker import Tracker, Results
-from vot.experiment import Experiment
+from vot.experiment import Experiment, experiment_registry
 from vot.stack import Stack, resolve_stack
-
 from vot.utilities import normalize_path, class_fullname
-from vot.utilities.attributes import Attribute, Attributee, Nested, List, String
 from vot.document import ReportConfiguration
 
 logger = logging.getLogger("vot")
@@ -103,7 +102,7 @@ class LocalStorage(Storage):
         self._results = os.path.join(root, "results")
 
     @property
-    def base(self):
+    def base(self) -> str:
         return self._root
 
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
@@ -309,6 +308,7 @@ class Workspace(Attributee):
     def __init__(self, directory, **kwargs):
         self._directory = directory
         self._storage = LocalStorage(directory) if directory is not None else VoidStorage()
+
         super().__init__(**kwargs)
         dataset_directory = normalize_path(self.sequences, directory)
 
@@ -335,6 +335,6 @@ class Workspace(Attributee):
 
         return self._storage.substorage("cache").substorage(identifier)
 
-    def list_results(self, registry: "Registry"):
+    def list_results(self, registry: "Registry") -> typing.List["Tracker"]:
         references = self._storage.substorage("results").folders()
         return registry.resolve(*references)

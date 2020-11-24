@@ -13,6 +13,7 @@ import collections
 from asyncio import wait
 from asyncio.futures import wrap_future
 
+import numpy as np
 import yaml
 
 from matplotlib.cm import get_cmap
@@ -20,13 +21,16 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 import matplotlib.colors as colors
 
+from attributee import Attributee, Object, Nested, String, Callable, Integer, List
+
 from vot import __version__ as version
 from vot import check_debug
 from vot.dataset import Sequence
 from vot.tracker import Tracker
+from vot.analysis import Axes
 from vot.experiment import Experiment, analysis_resolver
 from vot.utilities import class_fullname
-from vot.utilities.attributes import Attributee, Object, Nested, String, Callable, Integer, List
+from vot.utilities.data import Grid
 
 class Plot(object):
 
@@ -96,6 +100,39 @@ class LinePlot(Plot):
         handle = self._axes.plot(x, y, **style.line_style())
        # handle[0].set_gid("report_%s_%d" % (self._identifier, style["number"]))
 
+class ResultsJSONEncoder(json.JSONEncoder):
+
+    def default(self, o):
+        if isinstance(o, Grid):
+            return list(o)
+        elif isinstance(o, datetime.date):
+            return o.strftime('%Y/%m/%d')
+        else:
+            return super().default(o)
+
+class ResultsYAMLEncoder(yaml.Dumper):
+
+    def represent_tuple(self, data):
+        return self.represent_list(list(data))
+
+
+    def represent_object(self, o):
+        if isinstance(o, Grid):
+            return self.represent_list(list(o))
+        elif isinstance(o, datetime.date):
+            return o.strftime('%Y/%m/%d')
+        elif isinstance(o, np.ndarray):
+            return self.represent_list(o.tolist())
+        else:
+            return super().represent_object(o)
+
+ResultsYAMLEncoder.add_representer(collections.OrderedDict, ResultsYAMLEncoder.represent_dict)
+ResultsYAMLEncoder.add_representer(tuple, ResultsYAMLEncoder.represent_tuple)
+ResultsYAMLEncoder.add_representer(Grid, ResultsYAMLEncoder.represent_object)
+ResultsYAMLEncoder.add_representer(np.ndarray, ResultsYAMLEncoder.represent_object)
+ResultsYAMLEncoder.add_multi_representer(np.integer, ResultsYAMLEncoder.represent_int)
+ResultsYAMLEncoder.add_multi_representer(np.inexact, ResultsYAMLEncoder.represent_float)
+
 def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[Sequence], results, storage: "Storage", serializer: str):
 
     doc = dict()
@@ -115,10 +152,10 @@ def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[S
 
     if serializer == "json":
         with storage.write("results.json") as handle:
-            json.dump(doc, handle, indent=2)
+            json.dump(doc, handle, indent=2, cls=ResultsJSONEncoder)
     elif serializer == "yaml":
         with storage.write("results.yaml") as handle:
-            yaml.dump(doc, handle)
+            yaml.dump(doc, handle, Dumper=ResultsYAMLEncoder)
     else:
         raise RuntimeError("Unknown serializer")
 
@@ -330,7 +367,6 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
 
     from .html import generate_html_document
     from .latex import generate_latex_document
-    from .common import wrt_trackers
 
     if format == "json":
         generate_serialized(trackers, sequences, results, storage, "json")
@@ -346,7 +382,7 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
                 if aresults is None:
                     eresults[analysis] = [None] * len(order)
                     continue
-                if wrt_trackers(analysis.axes()) is None:
+                if analysis.axes != Axes.TRACKERS:
                     continue
                 eresults[analysis] = [aresults[i] for i in order]
 

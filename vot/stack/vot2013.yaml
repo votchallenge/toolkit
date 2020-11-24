@@ -8,7 +8,7 @@ experiments:
     repetitions: 15
     skip_initialize: 5
     analyses:
-      - type: ar
+      - type: supervised_average_ar
         sensitivity: 30
     # TODO: missing experiments
 

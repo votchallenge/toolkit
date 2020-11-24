@@ -7,5 +7,5 @@ experiments:
     repetitions: 15
     skip_initialize: 5
     analyses:
-      - type: AccuracyRobustness
+      - type: supervised_average_ar
         sensitivity: 30

@@ -3,19 +3,19 @@ dataset: vot:vot2016
 url: http://www.votchallenge.net/vot2016/
 experiments:
   baseline:
-    type: SupervisedExperiment
+    type: supervised
     repetitions: 15
     skip_initialize: 5
     analyses:
-      - type: AccuracyRobustnessSupervised
+      - type: supervised_average_ar
         sensitivity: 30
-      - type: Failures
-      - type: EAOScoreSupervised
+      - type: cumulative_failures
+      - type: supervised_eao_score
         low: 108
         high: 371
-      - type: EAOCurveSupervised
+      - type: supervised_eao_curve
   unsupervised:
-    type: UnsupervisedExperiment
+    type: unsupervised
     repetitions: 1
     analyses:
-      - type: AverageAccuracy
+      - type: average_accuracy
