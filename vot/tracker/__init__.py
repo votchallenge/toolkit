@@ -228,11 +228,13 @@ class Tracker(object):
 
         return metadata, other
 
-    def __init__(self, _identifier, _source, command, protocol=None, label=None, version=None, tags=None, **kwargs):
+    def __init__(self, _identifier, _source, command, protocol=None, label=None, version=None, tags=None, storage=None, **kwargs):
+        from vot.workspace import LocalStorage
         self._identifier = _identifier
         self._source = _source
         self._command = command
         self._protocol = protocol
+        self._storage = LocalStorage(storage) if storage is not None else None
         self._label = label if label is not None else _identifier
         self._version = to_string(version) if not version is None else None
         self._envvars, args = Tracker._collect_envvars(**kwargs)
@@ -290,7 +292,11 @@ class Tracker(object):
         return self._source
 
     @property
-    def identifier(self):
+    def storage(self) -> "Storage":
+        return self._storage
+
+    @property
+    def identifier(self) -> str:
         return self._identifier
 
     @property
@@ -301,18 +307,18 @@ class Tracker(object):
             return self._label + " (" + self._version + ")"
 
     @property
-    def version(self):
+    def version(self) -> str:
         return self._version
 
     @property
-    def reference(self):
+    def reference(self) -> str:
         if self._version is None:
             return self._identifier
         else:
             return self._identifier + "@" + self._version
 
     @property
-    def protocol(self):
+    def protocol(self) -> str:
         return self._protocol
 
     def describe(self):
@@ -361,7 +367,7 @@ class TrackerRuntime(ABC):
 
 class RealtimeTrackerRuntime(TrackerRuntime):
 
-    def __init__(self, runtime: TrackerRuntime, grace:int = 1, interval:float = 0.1):
+    def __init__(self, runtime: TrackerRuntime, grace: int = 1, interval: float = 0.1):
         super().__init__(runtime.tracker)
         self._runtime = runtime
         self._grace = grace

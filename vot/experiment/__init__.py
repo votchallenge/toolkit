@@ -94,6 +94,10 @@ class Experiment(Attributee):
         raise NotImplementedError
 
     def results(self, tracker: "Tracker", sequence: "Sequence") -> "Results":
+        from vot.tracker import Results
+        from vot.workspace import LocalStorage
+        if tracker.storage is not None:
+            return tracker.storage.results(tracker, self, sequence)
         return self._storage.results(tracker, self, sequence)
 
     def log(self, identifier: str):
