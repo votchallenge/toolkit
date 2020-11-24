@@ -160,6 +160,8 @@ class ImageDrawHandle(DrawHandle):
 
     def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
         if isinstance(image, np.ndarray):
+            if image.dtype == np.float32 or image.dtype == np.float64:
+                image = (image * 255).astype(np.uint8)
             image = Image.fromarray(image)
 
         if offset is None:
