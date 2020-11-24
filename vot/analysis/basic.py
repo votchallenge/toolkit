@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 import numpy as np
 
@@ -59,6 +59,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
 
+@analysis_registry.register("accuracy")
 class SequenceAccuracy(SeparableAnalysis):
 
     burnin = Integer(default=10, val_min=0)
@@ -70,25 +71,26 @@ class SequenceAccuracy(SeparableAnalysis):
 
     @property
     def title(self):
-        return "Average accurarcy"
+        return "Sequence accurarcy"
 
     def describe(self):
         return Measure("Accuracy", "AUC", 0, 1, Sorting.DESCENDING),
 
-    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Grid:
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
 
-        if isinstance(experiment, MultiRunExperiment):
-            trajectories = experiment.gather(tracker, sequence)
+        assert isinstance(experiment, MultiRunExperiment)
 
-            if len(trajectories) == 0:
-                raise MissingResultsException()
+        trajectories = experiment.gather(tracker, sequence)
 
-            cummulative = 0
-            for trajectory in trajectories:
-                accuracy, _ = compute_accuracy(trajectory.regions(), sequence, self.burnin, self.ignore_unknown, self.bounded)
-                cummulative = cummulative + accuracy
+        if len(trajectories) == 0:
+            raise MissingResultsException()
 
-            return cummulative / len(trajectories),
+        cummulative = 0
+        for trajectory in trajectories:
+            accuracy, _ = compute_accuracy(trajectory.regions(), sequence, self.burnin, self.ignore_unknown, self.bounded)
+            cummulative = cummulative + accuracy
+
+        return cummulative / len(trajectories),
 
 @analysis_registry.register("average_accuracy")
 class AverageAccuracy(SequenceAggregator):
@@ -139,7 +141,10 @@ class FailureCount(SeparableAnalysis):
     def describe(self):
         return Measure("Failures", "F", 0, None, Sorting.ASCENDING),
 
-    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Grid:
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+
+        assert isinstance(experiment, SupervisedExperiment)
+
         trajectories = experiment.gather(tracker, sequence)
 
         if len(trajectories) == 0:

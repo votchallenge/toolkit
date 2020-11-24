@@ -28,6 +28,7 @@ def experiment_resolver(typename, context, **kwargs):
     if typename in experiment_registry:
         experiment = experiment_registry.get(typename, _identifier=identifier, _storage=storage, **kwargs)
         assert isinstance(experiment, Experiment)
+        return experiment
     else:
         experiment_class = import_class(typename)
         assert issubclass(experiment_class, Experiment)
