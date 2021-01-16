@@ -4,7 +4,7 @@ import threading
 from collections import Iterable, OrderedDict, namedtuple
 from functools import partial
 from typing import List, Union, Mapping, Tuple, Any
-from concurrent.futures import Executor, Future
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from threading import RLock, Condition
 from queue import Queue, Empty
 
@@ -361,7 +361,10 @@ class AnalysisProcessor(object):
 
     _context = threading.local()
 
-    def __init__(self, executor: Executor, cache: Cache):
+    def __init__(self, executor: Executor = None, cache: Cache = None):
+        if executor is None:
+            executor = ThreadPoolExecutor(1)
+
         self._executor = ExecutorWrapper(executor)
         self._cache = cache
         self._pending = bidict()
@@ -429,7 +432,7 @@ class AnalysisProcessor(object):
             return promise
 
     def _exists(self, key):
-        if key in self._cache:
+        if self._cache is not None and key in self._cache:
             promise = AnalysisFuture(key)
             promise.set_result(self._cache[key])
             return promise
@@ -568,9 +571,26 @@ class AnalysisProcessor(object):
         return processor
 
     @staticmethod
-    def commit_default(analysis: AnalysisFuture, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+    def commit_default(analysis: Analysis, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
         processor = AnalysisProcessor.default()
         return processor.commit(analysis, experiment, trackers, sequences)
+
+    def run(self, analysis: Analysis, experiment: Experiment,
+        trackers: Union[Tracker, List[Tracker]], sequences: Union[Sequence, List[Sequence]]) -> Grid:
+
+        assert self.pending == 0
+
+        future = self.commit(analysis, experiment, trackers, sequences)
+
+        self.wait()
+
+        return future.result()
+
+    @staticmethod
+    def run_default(analysis: Analysis, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        processor = AnalysisProcessor.default()
+        return processor.run(analysis, experiment, trackers, sequences)
+
 
 def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 

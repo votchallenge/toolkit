@@ -218,13 +218,6 @@ class Analysis(Attributee):
         """
         raise NotImplementedError()
 
-    def run(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
-        dependencies = []
-        for dependency in self.dependencies():
-            dependencies.append(dependency.compute(experiment, trackers, sequences))
-
-        return self.compute(experiment, trackers, sequences, dependencies)
-
     def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
         raise NotImplementedError()
 
@@ -235,6 +228,9 @@ class Analysis(Attributee):
 
     def commit(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
         return AnalysisProcessor.commit_default(self, experiment, trackers, sequences)
+
+    def run(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        return AnalysisProcessor.run_default(self, experiment, trackers, sequences)
 
 class SeparableAnalysis(Analysis):
     """Analysis that is separable with respect to trackers and/or sequences, each part can be processed in parallel

@@ -18,7 +18,7 @@ import yaml
 
 from matplotlib.cm import get_cmap
 from matplotlib.figure import Figure
-from matplotlib.axes import Axes
+from matplotlib.axes import Axes as PlotAxes
 import matplotlib.colors as colors
 
 from attributee import Attributee, Object, Nested, String, Callable, Integer, List
@@ -161,7 +161,7 @@ def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[S
 
 def configure_axes(figure, rect=None, _=None):
 
-    axes = Axes(figure, rect or [0, 0, 1, 1])
+    axes = PlotAxes(figure, rect or [0, 0, 1, 1])
 
     figure.add_axes(axes)
 
@@ -234,7 +234,7 @@ class Legend(object):
     def figure(self, key):
         style = self[key]
         figure = Figure(figsize=(0.1, 0.1))  # TODO: hardcoded
-        axes = Axes(figure, [0, 0, 1, 1], yticks=[], xticks=[], frame_on=False)
+        axes = PlotAxes(figure, [0, 0, 1, 1], yticks=[], xticks=[], frame_on=False)
         figure.add_axes(axes)
         axes.patch.set_visible(False)
         marker_style = style.point_style()
@@ -374,7 +374,6 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
         generate_serialized(trackers, sequences, results, storage, "yaml")
     else:
         order = config.sort(results.keys(), trackers, sequences)
-
         trackers = [trackers[i] for i in order]
 
         for _, eresults in results.items():
@@ -384,7 +383,7 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
                     continue
                 if analysis.axes != Axes.TRACKERS:
                     continue
-                eresults[analysis] = [aresults[i] for i in order]
+                eresults[analysis] = [aresults[i, 0] for i in order]
 
         with config.style:
             if format == "html":
