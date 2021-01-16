@@ -25,6 +25,15 @@ def insert_cell(value, order):
         attrs["cls"] = ORDER_CLASSES[order]
     td(format_value(value), **attrs)
 
+def table_cell(value):
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, Tracker):
+        return value.label
+    elif isinstance(value, Sequence):
+        return value.name
+    return format_value(value)
+
 def grid_table(data: Grid, rows: List[str], columns: List[str]):
 
     assert data.dimensions == 2
@@ -34,11 +43,11 @@ def grid_table(data: Grid, rows: List[str], columns: List[str]):
         with thead():
             with tr():
                 th()
-                [th(column) for column in columns]
+                [th(table_cell(column)) for column in columns]
         with tbody():
             for i, row in enumerate(rows):
                 with tr():
-                    th(row)
+                    th(table_cell(row))
                     for value in data.row(i):
                         if isinstance(value, tuple):
                             if len(value) == 1:
