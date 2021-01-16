@@ -60,21 +60,29 @@ class DrawHandle(object):
 
     def region(self, region):
         region.draw(self)
+        return self
 
     def image(self, image: Union[np.ndarray, Image.Image], offset: Tuple[int, int] = None):
-        pass
+        return self
 
     def line(self, p1: Tuple[float, float], p2: Tuple[float, float]):
-        pass
+        return self
 
     def lines(self, points: List[Tuple[float, float]]):
-        pass
+        return self
 
     def polygon(self, points: List[Tuple[float, float]]):
-        pass
+        return self
+
+    def points(self, points: List[Tuple[float, float]]):
+        return self
+
+    def rectangle(self, left: float, top: float, right: float, bottom: float):
+        self.polygon([(left, top), (right, top), (right, bottom), (left, bottom)])
+        return self
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
-        pass
+        return self
 
 class MatplotlibDrawHandle(DrawHandle):
 
@@ -102,13 +110,17 @@ class MatplotlibDrawHandle(DrawHandle):
         self._axis.imshow(image, extent=[offset[0], \
                 offset[0] + width, offset[1] + height, offset[1]])
 
+        return self
+
     def line(self, p1: Tuple[float, float], p2: Tuple[float, float]):
         self._axis.plot((p1[0], p2[0]), (p1[1], p2[1]), linewidth=self._width, color=self._color)
+        return self
 
     def lines(self, points: List[Tuple[float, float]]):
         x = [x for x, _ in points]
         y = [y for _, y in points]
         self._axis.plot(x, y, linewidth=self._width, color=self._color)
+        return self
 
     def polygon(self, points: List[Tuple[float, float]]):
         if self._fill:
@@ -116,6 +128,12 @@ class MatplotlibDrawHandle(DrawHandle):
         else:
             poly = Polygon(points, edgecolor=self._color, linewidth=self._width, fill=False)
         self._axis.add_patch(poly)
+        return self
+
+    def points(self, points: List[Tuple[float, float]]):
+        x, y = zip(*points)
+        self._axis.plot(x, y, markeredgecolor=self._color, markeredgewidth=self._width, linewidth=0)
+        return self
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
         # TODO: segmentation should also have option of non-filled
@@ -134,6 +152,7 @@ class MatplotlibDrawHandle(DrawHandle):
         if not self._size is None:
             self._axis.set_xlim(left=0, right=self._size[0])
             self._axis.set_ylim(top=0, bottom=self._size[1])
+        return self
 
 
 class ImageDrawHandle(DrawHandle):
@@ -167,20 +186,23 @@ class ImageDrawHandle(DrawHandle):
         if offset is None:
             offset = (0, 0)
         self._image.paste(image, offset)
+        return self
 
     def line(self, p1, p2):
         color = ImageDrawHandle._convert_color(self._color)
         self._handle.line([p1, p2], fill=color, width=self._width)
+        return self
 
     def lines(self, points: List[Tuple[float, float]]):
         if len(points) == 0:
             return
         color = ImageDrawHandle._convert_color(self._color)
         self._handle.line(points, fill=color, width=self._width)
+        return self
 
     def polygon(self, points: List[Tuple[float, float]]):
         if len(points) == 0:
-            return
+            return self
 
         if self._fill:
             color = ImageDrawHandle._convert_color(self._color, alpha=128)
@@ -188,10 +210,17 @@ class ImageDrawHandle(DrawHandle):
 
         color = ImageDrawHandle._convert_color(self._color)
         self._handle.line(points + [points[0]], fill=color, width=self._width)
+        return self
+
+    def points(self, points: List[Tuple[float, float]]):
+        color = ImageDrawHandle._convert_color(self._color)
+        for (x, y) in points:
+            self._handle.ellipse((x - 2, y - 2, x + 2, y + 2), outline=color, width=self._width)
+        return self
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
         if mask.size == 0:
-            return
+            return self
 
         if self._fill:
             image = Image.fromarray(mask * 128, mode="L")
@@ -201,3 +230,5 @@ class ImageDrawHandle(DrawHandle):
         image = Image.fromarray((mask - cv2.erode(mask, kernel=None, iterations=self._width, borderValue=0)) * 255, mode="L")
         color = ImageDrawHandle._convert_color(self._color)
         self._handle.bitmap(offset, image, fill=color)
+
+        return self
