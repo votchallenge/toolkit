@@ -116,7 +116,7 @@ def do_test(config, logger):
 def do_workspace(config, logger):
 
     from vot.workspace import WorkspaceException
-    print(os.path.join(config.workspace, "configuration.m"))
+
     if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
         from vot.utilities.migration import migrate_matlab_workspace
         migrate_matlab_workspace(config.workspace)
@@ -207,8 +207,14 @@ def do_analysis(config, logger):
     logger.debug("Running analysis for %d trackers", len(trackers))
 
     if config.workers == 1:
-        from vot.utilities import ThreadPoolExecutor
-        executor = ThreadPoolExecutor(1)
+
+        if config.debug:
+            from vot.analysis._processor import DebugExecutor
+            logging.getLogger("concurrent.futures").setLevel(logging.DEBUG)
+            executor = DebugExecutor()
+        else:
+            from vot.utilities import ThreadPoolExecutor
+            executor = ThreadPoolExecutor(1)
 
     else:
         from concurrent.futures import ProcessPoolExecutor
@@ -222,29 +228,29 @@ def do_analysis(config, logger):
 
     try:
 
-    with AnalysisProcessor(executor, cache):
+        with AnalysisProcessor(executor, cache):
 
-        results = process_stack_analyses(workspace, trackers)
+            results = process_stack_analyses(workspace, trackers)
 
-        if results is None:
-            return
+            if results is None:
+                return
 
-        if config.name is None:
-            name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
-        else:
-            name = config.name
+            if config.name is None:
+                name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
+            else:
+                name = config.name
 
-        storage = workspace.storage.substorage("analysis").substorage(name)
+            storage = workspace.storage.substorage("analysis").substorage(name)
 
-        generate_document(config.format, workspace.report, trackers, workspace.dataset, results, storage)
+            generate_document(config.format, workspace.report, trackers, workspace.dataset, results, storage)
 
             logger.info("Analysis successful, report available as %s", name)
 
     finally:
 
-    executor.shutdown(wait=True)
+        executor.shutdown(wait=True)
 
-
+    
 def do_pack(config, logger):
 
     import zipfile, io
