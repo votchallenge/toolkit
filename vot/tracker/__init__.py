@@ -36,7 +36,7 @@ class TrackerTimeoutException(TrackerException):
 
 VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9-_]+$")
 
-VALID_REFERENCE = re.compile("^([a-zA-Z0-9-_]+)(@[a-zA-Z0-9]*)?$")
+VALID_REFERENCE = re.compile("^([a-zA-Z0-9-_]+)(@[a-zA-Z0-9-_]*)?$")
 
 def is_valid_identifier(identifier):
     return not VALID_IDENTIFIER.match(identifier) is None
@@ -248,7 +248,7 @@ class Tracker(object):
         self._tags = [tag.strip() for tag in self._tags]
         self._tags = [tag for tag in self._tags if is_valid_identifier(tag)]
 
-        if not self._version is None and not self._version.isalnum():
+        if not self._version is None and not is_valid_identifier(self._version):
             raise TrackerException("Illegal version format", tracker=self)
 
     def reversion(self, version=None) -> "Tracker":

@@ -160,7 +160,7 @@ class TrackerProcess(object):
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    env=environment, bufsize=0)
+                    env=environment, bufsize=0, close_fds=False)
         else:
             self._process = subprocess.Popen(
                     shlex.split(command),
@@ -169,7 +169,7 @@ class TrackerProcess(object):
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    env=environment)
+                    env=environment, bufsize=0, close_fds=False)
 
         self._timeout = timeout
         self._client = None
@@ -289,12 +289,6 @@ class TrackerProcess(object):
             except subprocess.TimeoutExpired:
                 pass
 
-            # Flush remaining output
-            #while True:
-            #    line = self._process.stdout.readline()
-            #    if not line is None and not self._client._logger is None:
-            #        self._client._logger.handle(line.decode("utf-8"))
-
             if self._process.returncode is None:
                 self._process.terminate()
                 try:
@@ -304,6 +298,12 @@ class TrackerProcess(object):
 
                 if self._process.returncode is None:
                     self._process.kill()
+
+            if not self._process.stdout.closed:
+                self._process.stdout.close()
+
+            if not self._process.stdin.closed:
+                self._process.stdin.close()
 
             if not self._socket is None:
                 self._socket.close()
@@ -316,6 +316,19 @@ class TrackerProcess(object):
     def __del__(self):
         if hasattr(self, "_workdir"):
             shutil.rmtree(self._workdir, ignore_errors=True)
+
+    def wait(self):
+
+        self._watchdog_reset(True)
+
+        # Flush remaining output
+        while True: #self._process.returncode is None:
+            line = self._process.stdout.readline()
+            if not line is None and not self._client._logger is None:
+                self._client._logger.handle(line.decode("utf-8"))
+
+        self._watchdog_reset(False)
+
 
 class TraxTrackerRuntime(TrackerRuntime):
 
@@ -369,14 +382,14 @@ class TraxTrackerRuntime(TrackerRuntime):
         timeout = False
         if not self._output is None:
             if not self._process is None:
-                if not self._process.alive:
-                    self._output("Process exited with code ({})".format(self._process.returncode))
-                else:
-                    self._output("Process did not finish yet")
+                if self._process.alive:
+                    self._process.terminate()
+                
+                self._output("Process exited with code ({})\n".format(self._process.returncode))
                 timeout = self._process.interrupted
                 self._workdir = self._process.workdir
             else:
-                self._output("Process not alive anymore, unable to retrieve return code")
+                self._output("Process not alive anymore, unable to retrieve return code\n")
 
         log = str(self._output)
 
