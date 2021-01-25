@@ -222,27 +222,27 @@ def do_analysis(config, logger):
 
     try:
 
-    with AnalysisProcessor(executor, cache):
+        with AnalysisProcessor(executor, cache):
 
-        results = process_stack_analyses(workspace, trackers)
+            results = process_stack_analyses(workspace, trackers)
 
-        if results is None:
-            return
+            if results is None:
+                return
 
-        if config.name is None:
-            name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
-        else:
-            name = config.name
+            if config.name is None:
+                name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
+            else:
+                name = config.name
 
-        storage = workspace.storage.substorage("analysis").substorage(name)
+            storage = workspace.storage.substorage("analysis").substorage(name)
 
-        generate_document(config.format, workspace.report, trackers, workspace.dataset, results, storage)
+            generate_document(config.format, workspace.report, trackers, workspace.dataset, results, storage)
 
             logger.info("Analysis successful, report available as %s", name)
 
     finally:
 
-    executor.shutdown(wait=True)
+        executor.shutdown(wait=True)
 
 
 def do_pack(config, logger):
