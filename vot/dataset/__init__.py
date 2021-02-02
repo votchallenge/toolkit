@@ -208,6 +208,14 @@ class PatternFileListChannel(Channel):
     def size(self):
         return self._width, self._height
 
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def height(self):
+        return self._height
+
     def filename(self, index):
         if index < 0 or index >= self.length:
             return None
@@ -380,6 +388,14 @@ class BaseSequence(Sequence):
         return self.channel().size
 
     @property
+    def width(self):
+        return self.channel().width
+
+    @property
+    def height(self):
+        return self.channel().height
+
+    @property
     def length(self):
         self.__preload()
         return len(self._data[1])
@@ -431,6 +447,7 @@ class InMemorySequence(BaseSequence):
 
 
 from .vot import VOTDataset, VOTSequence
+from .got10k import GOT10kSequence, GOT10kDataset
 
 from .vot import download_dataset as download_vot_dataset
 
@@ -447,3 +464,23 @@ def download_dataset(identifier: str, path: str):
         download_vot_dataset(identifier, path)
     else:
         raise DatasetException("Unknown dataset domain: {}".format(domain))
+
+def load_dataset(path: str):
+
+    if not os.path.isdir(path):
+        raise DatasetException("Dataset directory does not exist")
+
+    if VOTDataset.check(path):
+        return VOTDataset(path)
+    elif GOT10kDataset.check(path):
+        return GOT10kDataset(path)
+    else:
+        raise DatasetException("Unsupported dataset type")
+
+def load_sequence(path: str):
+    if VOTSequence.check(path):
+        return VOTSequence(path)
+    elif GOT10kSequence.check(path):
+        return GOT10kSequence(path)
+    else:
+        raise DatasetException("Unsupported sequence type")
