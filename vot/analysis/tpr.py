@@ -129,7 +129,7 @@ class PrecisionRecallCurves(SeparableAnalysis):
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
 
-        thresholds = dependencies[0][0, 0]
+        thresholds = dependencies[0, 0][0][0] # dependencies[0][0, 0]
 
         trajectories = experiment.gather(tracker, sequence)
 
