@@ -165,7 +165,8 @@ class PrecisionRecallCurve(SequenceAggregator):
     def dependencies(self):
         return self.curves,
 
-    def collapse(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
+    # def collapse(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
+    def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
 
         curve = None
         thresholds = None
