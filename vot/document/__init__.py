@@ -384,7 +384,7 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
                     continue
                 if analysis.axes != Axes.TRACKERS:
                     continue
-                eresults[analysis] = [aresults[i] for i in order]
+                eresults[analysis] = [aresults[i, i] for i in order] # eresults[analysis] = [aresults[i] for i in order]
 
         with config.style:
             if format == "html":
