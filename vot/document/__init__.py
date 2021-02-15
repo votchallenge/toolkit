@@ -376,15 +376,6 @@ def generate_document(format: str, config: ReportConfiguration, trackers: typing
         order = config.sort(results.keys(), trackers, sequences)
         trackers = [trackers[i] for i in order]
 
-        for _, eresults in results.items():
-            for analysis, aresults in eresults.items():
-                if aresults is None:
-                    eresults[analysis] = [None] * len(order)
-                    continue
-                if analysis.axes != Axes.TRACKERS:
-                    continue
-                eresults[analysis] = [aresults[i, 0] for i in order]
-
         with config.style:
             if format == "html":
                 generate_html_document(trackers, sequences, results, storage)
