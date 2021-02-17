@@ -118,9 +118,9 @@ class Rectangle(Shape):
     def move(self, dx=0, dy=0):
         return Rectangle(self.x + dx, self.y + dy, self.width, self.height)
 
-    def rasterize(self, bounds):
+    def rasterize(self, bounds: Tuple[int, int, int, int]):
         from vot.region.raster import rasterize_rectangle
-        return rasterize_rectangle(self._data, bounds)
+        return rasterize_rectangle(self._data, np.array(bounds))
 
     def bounds(self):
         return int(round(self.x)), int(round(self.y)), int(round(self.width + self.x)), int(round(self.height + self.y))
@@ -200,7 +200,7 @@ class Polygon(Shape):
 
     def rasterize(self, bounds: Tuple[int, int, int, int]):
         from vot.region.raster import rasterize_polygon
-        return rasterize_polygon(self._points, bounds)
+        return rasterize_polygon(self._points, np.array(bounds))
 
     def bounds(self):
         top = np.min(self._points[:, 1])
@@ -277,9 +277,9 @@ class Mask(Shape):
     def draw(self, handle: DrawHandle):
         handle.mask(self._mask, self.offset)
 
-    def rasterize(self, bounds):
+    def rasterize(self, bounds: Tuple[int, int, int, int]):
         from vot.region.raster import copy_mask
-        return copy_mask(self._mask, self._offset, bounds)
+        return copy_mask(self._mask, self._offset, np.array(bounds))
 
     def is_empty(self):
         if self.mask.shape[1] > 0 and self.mask.shape[0] > 0:
