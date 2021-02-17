@@ -30,6 +30,10 @@ class VOTSequence(BaseSequence):
             name = os.path.basename(base)
         super().__init__(name, dataset)
 
+    @staticmethod
+    def check(path):
+        return os.path.isfile(os.path.join(path, 'sequence'))
+
     def _read_metadata(self):
         metadata = dict(fps=30, format="default")
         metadata["channel.default"] = "color"
@@ -122,6 +126,15 @@ class VOTDataset(Dataset):
                 self._sequences[name.strip()] = VOTSequence(os.path.join(path, name.strip()), dataset=self)
                 progress.relative(1)
 
+    @staticmethod
+    def check(path: str):
+        if not os.path.isfile(os.path.join(path, 'list.txt')):
+            return False
+
+        with open(os.path.join(path, 'list.txt'), 'r') as handle:
+            sequence = handle.readline().strip()
+            return VOTSequence.check(os.path.join(path, sequence))
+
     @property
     def path(self):
         return self._path
@@ -140,7 +153,7 @@ class VOTDataset(Dataset):
         return self._sequences.values().__iter__()
 
     def list(self):
-        return self._sequences.keys()
+        return list(self._sequences.keys())
 
     @classmethod
     def download(self, url, path="."):
@@ -164,7 +177,7 @@ class VOTDataset(Dataset):
 
             base_url = get_base_url(url) + "/"
 
-            with Progress("Donwloading", len(meta["sequences"])) as progress:
+            with Progress("Downloading", len(meta["sequences"])) as progress:
                 for sequence in meta["sequences"]:
                     sequence_directory = os.path.join(path, sequence["name"])
                     os.makedirs(sequence_directory, exist_ok=True)

@@ -3,7 +3,6 @@ import os
 import logging
 import typing
 from abc import ABC, abstractmethod
-from datetime import datetime
 import pickle
 import importlib
 
@@ -13,9 +12,9 @@ import cachetools
 from attributee import Attribute, Attributee, Nested, List, String
 
 from vot import VOTException
-from vot.dataset import VOTDataset, Sequence, Dataset
+from vot.dataset import Sequence, Dataset, load_dataset
 from vot.tracker import Tracker, Results
-from vot.experiment import Experiment, experiment_registry
+from vot.experiment import Experiment
 from vot.stack import Stack, resolve_stack
 from vot.utilities import normalize_path, class_fullname
 from vot.document import ReportConfiguration
@@ -315,7 +314,7 @@ class Workspace(Attributee):
         if not self.stack.dataset is None:
             Workspace.download_dataset(self.stack.dataset, dataset_directory)
 
-        self._dataset = VOTDataset(dataset_directory)
+        self._dataset = load_dataset(dataset_directory)
 
     @property
     def directory(self) -> str:

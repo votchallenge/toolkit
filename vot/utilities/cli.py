@@ -33,7 +33,7 @@ class EnvDefault(argparse.Action):
 
 def do_test(config, logger):
     from vot.dataset.dummy import DummySequence
-    from vot.dataset.vot import VOTSequence
+    from vot.dataset import load_sequence
     trackers = Registry(config.registry)
 
     if not config.tracker:
@@ -54,7 +54,7 @@ def do_test(config, logger):
     if config.sequence is None:
         sequence = DummySequence(50)
     else:
-        sequence = VOTSequence(normalize_path(config.sequence))
+        sequence = load_sequence(normalize_path(config.sequence))
 
     logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
