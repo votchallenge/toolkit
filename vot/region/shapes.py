@@ -200,7 +200,7 @@ class Polygon(Shape):
 
     def rasterize(self, bounds: Tuple[int, int, int, int]):
         from vot.region.raster import rasterize_polygon
-        return rasterize_polygon(self._points, np.array(bounds))
+        return rasterize_polygon(self._points, bounds)
 
     def bounds(self):
         top = np.min(self._points[:, 1])

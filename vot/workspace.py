@@ -100,6 +100,9 @@ class LocalStorage(Storage):
         self._root = root
         self._results = os.path.join(root, "results")
 
+    def __repr__(self) -> str:
+        return "<Local storage: {}>".format(self._root)
+
     @property
     def base(self) -> str:
         return self._root

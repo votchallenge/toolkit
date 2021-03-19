@@ -51,7 +51,7 @@ class Trajectory(object):
             return float(line.strip())
 
         if not results.exists(name + ".txt"):
-            raise FileNotFoundError("Trajectory data not found")
+            raise FileNotFoundError("Trajectory data not found: {}".format(name))
 
         with results.read(name + ".txt") as fp:
             regions = read_file(fp)

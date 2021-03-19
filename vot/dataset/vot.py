@@ -93,7 +93,7 @@ class VOTSequence(BaseSequence):
 
         for name, channel in channels.items():
             if not channel.length == len(groundtruth):
-                raise DatasetException("Length mismatch for channel %s" % name)
+                raise DatasetException("Length mismatch for channel %s (%d != %d)" % (name, channel.length, len(groundtruth)))
 
         for name, tag in tags.items():
             if not len(tag) == len(groundtruth):
