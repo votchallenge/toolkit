@@ -3,10 +3,7 @@ from typing import List, Tuple, Optional
 import numba
 import numpy as np
 
-#import llvmlite.binding as llvm
-#llvm.set_option('', '--debug-only=loop-vectorize')
-
-@numba.njit(inline='always')
+@numba.njit()
 def mask_bounds(mask: np.ndarray):
     """
     mask: 2-D array with a binary mask
@@ -29,7 +26,7 @@ def mask_bounds(mask: np.ndarray):
     return (left, top, right, bottom)
 
 
-@numba.njit(inline='always')
+@numba.njit()
 def rasterize_rectangle(data: np.ndarray, bounds: Tuple[int, int, int, int]):
     width = bounds[2] - bounds[0] + 1
     height = bounds[3] - bounds[1] + 1
@@ -49,7 +46,7 @@ def rasterize_rectangle(data: np.ndarray, bounds: Tuple[int, int, int, int]):
     return mask
 
 
-@numba.njit(numba.uint8[:, ::1](numba.float32[:, ::1], numba.types.UniTuple(numba.int64, 4)), inline='always')
+@numba.njit(numba.uint8[:, ::1](numba.float32[:, ::1], numba.types.UniTuple(numba.int64, 4)))
 def rasterize_polygon(data: np.ndarray, bounds: Tuple[int, int, int, int]):
 
     #int nodes, pixelY, i, j, swap;
@@ -124,7 +121,7 @@ def rasterize_polygon(data: np.ndarray, bounds: Tuple[int, int, int, int]):
     return mask
 
 
-@numba.njit(inline='always')
+@numba.njit()
 def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int, int, int]):
     tx = max(offset[0], bounds[0])
     ty = max(offset[1], bounds[1])
@@ -145,11 +142,11 @@ def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int,
 
     return copy
 
-@numba.njit(inline='always')
+@numba.njit()
 def _bounds_rectangle(a):
     return (int(round(a[0, 0])), int(round(a[1, 0])), int(round(a[0, 0] + a[2, 0] - 1)), int(round(a[1, 0] + a[3, 0] - 1)))
 
-@numba.njit(inline='always')
+@numba.njit()
 def _bounds_polygon(a):
     fi32 = np.finfo(np.float32)
     top = fi32.max
@@ -164,12 +161,12 @@ def _bounds_polygon(a):
         right = max(right, a[i, 0])
     return (int(round(left)), int(round(top)), int(round(right)), int(round(bottom)))
 
-@numba.njit(inline='always')
+@numba.njit()
 def _bounds_mask(a, o):
     bounds = mask_bounds(a)
     return (bounds[0] + o[0], bounds[1] + o[1], bounds[2] + o[0], bounds[3] + o[1])
 
-@numba.njit(inline='always')
+@numba.njit()
 def _region_bounds(a, o):
     if a.shape[0] == 4  and a.shape[1] == 1:
         return _bounds_rectangle(a)
@@ -179,7 +176,7 @@ def _region_bounds(a, o):
         return _bounds_mask(a, o)
     return (0, 0, 0, 0)
 
-@numba.njit(inline='always')
+@numba.njit()
 def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], o: Optional[Tuple[int, int]] = None):
 
     if a.shape[0] == 4  and a.shape[1] == 1:
@@ -189,7 +186,7 @@ def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], o: Optional
     elif not o is None:
         return copy_mask(a, o, bounds)
 
-@numba.njit(inline='always', cache=True)
+@numba.njit(cache=True)
 def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int]] = None,
         bo: Optional[Tuple[int, int]] = None, bounds: Optional[Tuple[int, int]] = None):
 

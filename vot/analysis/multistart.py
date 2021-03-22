@@ -9,10 +9,9 @@ from vot.tracker import Tracker, Trajectory
 from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
-from vot.experiment.multirun import SupervisedExperiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
-from vot.region import Region, Special, calculate_overlaps
-from vot.analysis import MissingResultsException, Measure, is_special, Plot, Analysis, Axes, \
+from vot.region import calculate_overlaps
+from vot.analysis import MissingResultsException, Measure, Plot, Analysis, Axes, \
     Sorting, SeparableAnalysis, Curve, Point, analysis_registry, SequenceAggregator
 from vot.utilities.data import Grid
 

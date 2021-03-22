@@ -36,6 +36,12 @@ def hashkey(analysis: Analysis, *args):
 
     return (analysis.identifier, *[transform(arg) for arg in args])
 
+def unwrap(arg):
+    if isinstance(arg, list) and len(arg) == 1:
+        return arg[0]
+    else:
+        return arg
+
 class AnalysisError(VOTException):
     def __init__(self, cause, task=None):
         self._tasks = []
@@ -321,7 +327,7 @@ class AnalysisPartTask(object):
         self._trackers = trackers
         self._experiment = experiment
         self._sequences = sequences
-        self._key = hashkey(analysis, experiment, trackers, sequences)
+        self._key = hashkey(analysis, experiment, unwrap(trackers), unwrap(sequences))
 
     def __call__(self, dependencies: List[Grid] = None):
         try:
@@ -356,6 +362,9 @@ class AnalysisFuture(Future):
     @property
     def key(self):
         return self._key
+
+    def __repr__(self) -> str:
+        return "<AnalysisFuture key={}>".format(self._key)
 
 class AnalysisProcessor(object):
 
@@ -401,7 +410,7 @@ class AnalysisProcessor(object):
                 partpromises = []
 
                 for part in parts:
-                    partkey = hashkey(analysis, experiment, part.trackers, part.sequences)
+                    partkey = hashkey(analysis, experiment, unwrap(part.trackers), unwrap(part.sequences))
                 
                     partpromise = self._exists(partkey)
                     if not partpromise is None:

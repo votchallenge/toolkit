@@ -415,7 +415,7 @@ class SequenceSeparableAnalysis(SeparableAnalysis):
     """
 
     @abstractmethod
-    def subcompute(self, experiment: Experiment, trackers: [Tracker], sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+    def subcompute(self, experiment: Experiment, trackers: List[Tracker], sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
         raise NotImplementedError
 
     @property
