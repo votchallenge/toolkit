@@ -3,6 +3,10 @@ from typing import List, Tuple, Optional
 import numba
 import numpy as np
 
+_TYPE_RECTANGLE = 1
+_TYPE_POLYGON = 2
+_TYPE_MASK = 3
+
 @numba.njit()
 def mask_bounds(mask: np.ndarray):
     """
@@ -46,7 +50,8 @@ def rasterize_rectangle(data: np.ndarray, bounds: Tuple[int, int, int, int]):
     return mask
 
 
-@numba.njit(numba.uint8[:, ::1](numba.float32[:, ::1], numba.types.UniTuple(numba.int64, 4)))
+#@numba.njit(numba.uint8[:, ::1](numba.float32[:, ::1], numba.types.UniTuple(numba.int64, 4)))
+@numba.njit()
 def rasterize_polygon(data: np.ndarray, bounds: Tuple[int, int, int, int]):
 
     #int nodes, pixelY, i, j, swap;
@@ -167,31 +172,31 @@ def _bounds_mask(a, o):
     return (bounds[0] + o[0], bounds[1] + o[1], bounds[2] + o[0], bounds[3] + o[1])
 
 @numba.njit()
-def _region_bounds(a, o):
-    if a.shape[0] == 4  and a.shape[1] == 1:
+def _region_bounds(a: np.ndarray, t: int, o: Optional[Tuple[int, int]] = None):
+    if t == _TYPE_RECTANGLE:
         return _bounds_rectangle(a)
-    elif a.shape[0] > 3 and a.shape[1] == 2:
+    elif t == _TYPE_POLYGON:
         return _bounds_polygon(a)
-    elif not o is None:
+    elif t == _TYPE_MASK:
         return _bounds_mask(a, o)
     return (0, 0, 0, 0)
 
 @numba.njit()
-def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], o: Optional[Tuple[int, int]] = None):
+def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], t: int, o: Optional[Tuple[int, int]] = None):
 
-    if a.shape[0] == 4  and a.shape[1] == 1:
+    if t == _TYPE_RECTANGLE:
         return rasterize_rectangle(a, bounds)
-    elif a.shape[0] > 3 and a.shape[1] == 2:
+    elif t == _TYPE_POLYGON:
         return rasterize_polygon(a, bounds)
-    elif not o is None:
+    elif t == _TYPE_MASK:
         return copy_mask(a, o, bounds)
 
 @numba.njit(cache=True)
-def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int]] = None,
+def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optional[Tuple[int, int]] = None,
         bo: Optional[Tuple[int, int]] = None, bounds: Optional[Tuple[int, int]] = None):
 
-    bounds1 = _region_bounds(a, ao)
-    bounds2 = _region_bounds(b, bo)
+    bounds1 = _region_bounds(a, at, ao)
+    bounds2 = _region_bounds(b, bt, bo)
 
     union = (min(bounds1[0], bounds2[0]), min(bounds1[1], bounds2[1]), max(bounds1[2], bounds2[2]), max(bounds1[3], bounds2[3]))
 
@@ -203,8 +208,8 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, ao: Optional[Tuple[int, int
     if raster_bounds[0] >= raster_bounds[2] or raster_bounds[1] >= raster_bounds[3]:
         return float(0)
 
-    m1 = _region_raster(a, raster_bounds, ao)
-    m2 = _region_raster(b, raster_bounds, bo)
+    m1 = _region_raster(a, raster_bounds, at, ao)
+    m2 = _region_raster(b, raster_bounds, bt, bo)
 
     a1 = m1.ravel()
     a2 = m2.ravel()
@@ -236,24 +241,30 @@ def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Tuple[int, int]
     if isinstance(reg1, Rectangle):
         data1 = np.round(reg1._data)
         offset1 = None
+        type1 = _TYPE_RECTANGLE
     elif isinstance(reg1, Polygon):
         data1 = np.round(reg1._points)
         offset1 = None
+        type1 = _TYPE_POLYGON
     elif isinstance(reg1, Mask):
         data1 = reg1.mask
         offset1 = reg1.offset
+        type1 = _TYPE_MASK
 
     if isinstance(reg2, Rectangle):
         data2 = np.round(reg2._data)
         offset2 = None
+        type2 = _TYPE_RECTANGLE
     elif isinstance(reg2, Polygon):
         data2 = np.round(reg2._points)
         offset2 = None
+        type2 = _TYPE_POLYGON
     elif isinstance(reg2, Mask):
         data2 = reg2.mask
         offset2 = reg2.offset
+        type2 = _TYPE_MASK
 
-    return _calculate_overlap(data1, data2, offset1, offset2, bounds)
+    return _calculate_overlap(data1, data2, type1, type2, offset1, offset2, bounds)
 
 def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Tuple[int, int]]):
     """
