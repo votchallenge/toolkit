@@ -68,7 +68,6 @@ else:
     from tqdm import tqdm
 
 class Progress(object):
-
     class StreamProxy(object):
 
         def write(self, x):
@@ -101,7 +100,7 @@ class Progress(object):
             prev = self._value
             self._value = max(0, min(value, self._total))
             if self._percent(prev) != self._percent(self._value):
-                print("%d %%" % self._percent(self._value))
+                print("%d %%" % self._percent(self._value), end=' ')
         else:
             self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
         
@@ -110,7 +109,7 @@ class Progress(object):
             prev = self._value
             self._value = max(0, min(self._value + n, self._total))
             if self._percent(prev) != self._percent(self._value):
-                print("%d %%" % self._percent(self._value))
+                print("%d %%" % self._percent(self._value), end=' ')
         else:
             self._tqdm.update(n)  # will also set self.n = b * bsize 
 
@@ -132,6 +131,8 @@ class Progress(object):
     def close(self):
         if self._tqdm:
             self._tqdm.close()
+        else:
+            print("")
 
 def extract_files(archive, destination, callback = None):
     from zipfile import ZipFile
