@@ -109,8 +109,6 @@ class GOT10kDataset(Dataset):
         if not os.path.isabs(sequence_list):
             sequence_list = os.path.join(path, sequence_list)
 
-        print(sequence_list)
-
         if not os.path.isfile(sequence_list):
             raise DatasetException("Sequence list does not exist")
 
