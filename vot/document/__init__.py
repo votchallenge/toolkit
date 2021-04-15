@@ -154,7 +154,6 @@ def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[S
 
     if serializer == "json":
         with storage.write("results.json") as handle:
-            print(doc)
             json.dump(doc, handle, indent=2, cls=ResultsJSONEncoder)
     elif serializer == "yaml":
         with storage.write("results.yaml") as handle:
