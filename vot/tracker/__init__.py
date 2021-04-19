@@ -10,14 +10,14 @@ from abc import abstractmethod, ABC
 
 import yaml
 
-from vot import VOTException
+from vot import ToolkitException
 from vot.dataset import Frame
 from vot.region import Region
 from vot.utilities import to_string
 
 logger = logging.getLogger("vot")
 
-class TrackerException(VOTException):
+class TrackerException(ToolkitException):
     def __init__(self, *args, tracker, tracker_log=None):
         super().__init__(*args)
         self._tracker_log = tracker_log
@@ -138,7 +138,7 @@ class Registry(object):
 
             if not identifier in self._trackers:
                 if not skip_unknown:
-                    raise VOTException("Unable to resolve tracker reference: {}".format(reference))
+                    raise ToolkitException("Unable to resolve tracker reference: {}".format(reference))
                 else:
                     continue
 

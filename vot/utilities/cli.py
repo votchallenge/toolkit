@@ -1,19 +1,22 @@
 import os
 import sys
 import argparse
-import traceback
 import logging
 import yaml
 from datetime import datetime
-import colorama
 
-from vot import check_updates, check_debug, __version__
-from vot.tracker import Registry, TrackerException
-from vot.stack import resolve_stack, list_integrated_stacks
-from vot.workspace import Workspace, Cache
-from vot.utilities import Progress, normalize_path, ColoredFormatter
+from .. import check_updates, check_debug, toolkit_version, get_logger
+from ..tracker import Registry, TrackerException
+from ..stack import resolve_stack, list_integrated_stacks
+from ..workspace import Workspace
+from ..workspace.storage import Cache
+from . import Progress, normalize_path, ColoredFormatter
+
+logger = get_logger()
 
 class EnvDefault(argparse.Action):
+    """Argparse action that resorts to a value in a specified envvar if no value is provided via program arguments.
+    """
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
         if not default and envvar:
             if envvar in os.environ:
@@ -31,7 +34,12 @@ class EnvDefault(argparse.Action):
             values = values.split(self.separator)
         setattr(namespace, self.dest, values)
 
-def do_test(config, logger):
+def do_test(config: argparse.Namespace):
+    """Run a test for a tracker
+
+    Args:
+        config (argparse.Namespace): Configuration
+    """
     from vot.dataset.dummy import DummySequence
     from vot.dataset import load_sequence
     trackers = Registry(config.registry)
@@ -113,7 +121,7 @@ def do_test(config, logger):
         if runtime:
             runtime.stop()
 
-def do_workspace(config, logger):
+def do_workspace(config: argparse.Namespace):
 
     from vot.workspace import WorkspaceException
 
@@ -144,7 +152,7 @@ def do_workspace(config, logger):
     except WorkspaceException as we:
         logger.error("Error during workspace initialization: %s", we)
 
-def do_evaluate(config, logger):
+def do_evaluate(config: argparse.Namespace):
 
     from vot.experiment import run_experiment
 
@@ -180,7 +188,7 @@ def do_evaluate(config, logger):
     except TrackerException as te:
         logger.error("Evaluation interrupted by tracker error: {}".format(te))
 
-def do_analysis(config, logger):
+def do_analysis(config: argparse.Namespace):
 
     from vot.analysis import AnalysisProcessor, process_stack_analyses
     from vot.document import generate_document
@@ -224,7 +232,7 @@ def do_analysis(config, logger):
         from cachetools import LRUCache
         cache = LRUCache(1000)
     else:
-        cache = Cache(workspace.cache("analysis"))
+        cache = Cache(workspace.storage.substorage("cache").substorage("analysis"))
 
     try:
 
@@ -251,7 +259,12 @@ def do_analysis(config, logger):
         executor.shutdown(wait=True)
 
     
-def do_pack(config, logger):
+def do_pack(config: argparse.Namespace):
+    """Package results to a ZIP file so that they can be submitted to a challenge.
+
+    Args:
+        config ([type]): [description]
+    """
 
     import zipfile, io
     from shutil import copyfileobj
@@ -297,7 +310,7 @@ def do_pack(config, logger):
 
         manifest = dict(identifier=tracker.identifier, configuration=tracker.configuration(),
             timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform,
-            python=sys.version, toolkit=__version__)
+            python=sys.version, toolkit=toolkit_version())
 
         with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True)) as archive:
             for f in all_files:
@@ -313,7 +326,8 @@ def do_pack(config, logger):
     logger.info("Result packaging successful, archive available in %s", archive_name)
 
 def main():
-    logger = logging.getLogger("vot")
+    """Entrypoint to the VOT Command Line Interface utility, should be executed as a program and provided with arguments.
+    """
     stream = logging.StreamHandler()
     stream.setFormatter(ColoredFormatter())
     logger.addHandler(stream)
@@ -364,18 +378,18 @@ def main():
 
         update, version = check_updates()
         if update:
-            logger.warning("A newer version of VOT toolkit is available (%s), please update.", version)
+            logger.warning("A newer version of the VOT toolkit is available (%s), please update.", version)
 
         if args.action == "test":
-            do_test(args, logger)
+            do_test(args)
         elif args.action == "initialize":
-            do_workspace(args, logger)
+            do_workspace(args)
         elif args.action == "evaluate":
-            do_evaluate(args, logger)
+            do_evaluate(args)
         elif args.action == "analysis":
-            do_analysis(args, logger)
+            do_analysis(args)
         elif args.action == "pack":
-            do_pack(args, logger)
+            do_pack(args)
         else:
             parser.print_help()
 

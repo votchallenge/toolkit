@@ -11,7 +11,7 @@ from queue import Queue, Empty
 from cachetools import Cache
 from bidict import bidict
 
-from vot import VOTException
+from vot import ToolkitException
 from vot.dataset import Sequence
 from vot.tracker import Tracker
 from vot.experiment import Experiment
@@ -42,7 +42,7 @@ def unwrap(arg):
     else:
         return arg
 
-class AnalysisError(VOTException):
+class AnalysisError(ToolkitException):
     def __init__(self, cause, task=None):
         self._tasks = []
         self._cause = cause

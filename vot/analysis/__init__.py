@@ -13,7 +13,7 @@ from class_registry import ClassRegistry
 
 from attributee import Attributee, String
 
-from vot import VOTException
+from vot import ToolkitException
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.experiment import Experiment
@@ -23,7 +23,7 @@ from vot.utilities.data import Grid
 
 analysis_registry = ClassRegistry("vot_analysis")
 
-class MissingResultsException(VOTException):
+class MissingResultsException(ToolkitException):
     """Exception class that denotes missing results during analysis
     """
     pass
