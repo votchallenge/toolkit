@@ -151,12 +151,12 @@ class InMemoryChannel(Channel):
 
 class PatternFileListChannel(Channel):
 
-    def __init__(self, path, start=1, step=1):
+    def __init__(self, path, start=1, step=1, end=None):
         super().__init__()
         base, pattern = os.path.split(path)
         self._base = base
         self._pattern = pattern
-        self.__scan(pattern, start, step)
+        self.__scan(pattern, start, step, end)
 
     @property
     def base(self):
@@ -166,7 +166,7 @@ class PatternFileListChannel(Channel):
     def pattern(self):
         return self._pattern
 
-    def __scan(self, pattern, start, step):
+    def __scan(self, pattern, start, step, end):
 
         extension = os.path.splitext(pattern)[1]
         if not extension in {'.jpg', '.png'}:
@@ -184,6 +184,9 @@ class PatternFileListChannel(Channel):
                 break
             self._files.append(os.path.basename(image_file))
             i = i + step
+
+            if end is not None and i > end:
+                break
 
         if i <= start:
             raise DatasetException("Empty sequence, no frames found.")
@@ -449,8 +452,6 @@ class InMemorySequence(BaseSequence):
 from .vot import VOTDataset, VOTSequence
 from .got10k import GOT10kSequence, GOT10kDataset
 
-from .vot import download_dataset as download_vot_dataset
-
 def download_dataset(identifier: str, path: str):
 
     split = identifier.find(":")
@@ -461,7 +462,11 @@ def download_dataset(identifier: str, path: str):
         identifier = identifier[split+1:]
 
     if domain == "vot":
-        download_vot_dataset(identifier, path)
+        from .vot import download_dataset
+        download_dataset(identifier, path)
+    elif domain == "otb":
+        from .otb import download_dataset
+        download_dataset(path, identifier == "otb50")
     else:
         raise DatasetException("Unknown dataset domain: {}".format(domain))
 

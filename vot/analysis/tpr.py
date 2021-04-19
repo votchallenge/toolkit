@@ -145,7 +145,8 @@ class PrecisionRecallCurves(SeparableAnalysis):
                 precision[i] += pr[i]
                 recall[i] += re[i]
 
-        return [(re / len(trajectories), pr / len(trajectories)) for pr, re in zip(precision, recall)], thresholds
+#         return [(re / len(trajectories), pr / len(trajectories)) for pr, re in zip(precision, recall)], thresholds
+        return [(pr / len(trajectories), re / len(trajectories)) for pr, re in zip(precision, recall)], thresholds
 
 @analysis_registry.register("pr_curve")
 class PrecisionRecallCurve(SequenceAggregator):
