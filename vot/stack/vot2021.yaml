@@ -1,0 +1,37 @@
+title: VOT-ST2021 challenge
+dataset: vot:vot-st2021
+url: http://www.votchallenge.net/vot2021/
+experiments:
+  baseline:
+    type: multistart
+    analyses:
+      - type: multistart_eao_score
+        name: eaoscore
+        low: 115
+        high: 755
+      - type: multistart_eao_curve
+        name: eaocurve
+        high: 755
+      - type: multistart_average_ar
+        name: ar
+  realtime:
+    type: multistart
+    realtime:
+      grace: 3
+    analyses:
+      - type: multistart_eao_score
+        name: eaoscore
+        low: 115
+        high: 755
+      - type: multistart_eao_curve
+        name: eaocurve
+        high: 755
+      - type: multistart_average_ar
+        name: ar
+  unsupervised:
+    type: unsupervised
+    repetitions: 1
+    analyses:
+      - type: average_accuracy
+        name: accuracy
+        burnin: 1
