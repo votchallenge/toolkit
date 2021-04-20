@@ -459,18 +459,17 @@ def trax_python_adapter(tracker, command, envvars, paths="", log: bool = False, 
         paths = paths.split(os.pathsep)
 
     pathimport = " ".join(["sys.path.insert(0, '{}');".format(escape_path(x)) for x in normalize_paths(paths[::-1], tracker)])
-
     interpreter = sys.executable if python is None else python
 
     # simple check if the command is only a package name to be imported or a script
-    if re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", command) is None:
+    if re.match("^[a-zA-Z_][a-zA-Z0-9_\\.]*$", command) is None:
         # We have to escape all double quotes
         command = command.replace("\"", "\\\"")
+        command = '{} -c "import sys;{} {}"'.format(interpreter, pathimport, command)
     else:
-        command = "import " + command
+        command = '{} -m {}'.format(interpreter, command)
 
-    command = '{} -c "import sys;{} {}"'.format(interpreter, pathimport, command)
-
+    envvars["PYTHONPATH"] = os.pathsep.join(normalize_paths(paths[::-1], tracker))   
     envvars["PYTHONUNBUFFERED"] = "1"
 
     return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
