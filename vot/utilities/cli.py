@@ -133,7 +133,7 @@ def do_workspace(config: argparse.Namespace):
         stacks = list_integrated_stacks()
         logger.error("Unable to continue without a stack")
         logger.error("List of available integrated stacks: ")
-        for k, v in stacks.items():
+        for k, v in sorted(stacks.items(), key=lambda x: x[0]):
             logger.error(" * %s - %s", k, v)
 
         return
