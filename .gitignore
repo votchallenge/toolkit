@@ -5,3 +5,4 @@ venv/
 MANIFEST
 *.pyc
 dist/
+*.egg-info
