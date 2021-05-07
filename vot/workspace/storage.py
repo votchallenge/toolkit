@@ -185,9 +185,6 @@ class LocalStorage(Storage):
         return [name for name in os.listdir(self._root) if os.path.isdir(os.path.join(self._root, name))]
 
     def write(self, name: str, binary: bool = False):
-        if os.path.isabs(name):
-            raise IOError("Only relative paths allowed")
-
         full = os.path.join(self.base, name)
         os.makedirs(os.path.dirname(full), exist_ok=True)
 
@@ -196,11 +193,7 @@ class LocalStorage(Storage):
         else:
             return open(full, mode="w", newline="")
 
-    
     def read(self, name, binary=False):
-        if os.path.isabs(name):
-            raise IOError("Only relative paths allowed")
-
         full = os.path.join(self.base, name)
 
         if binary:
