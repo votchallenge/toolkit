@@ -106,10 +106,10 @@ class Registry(object):
         self._trackers = OrderedDict(sorted(trackers.items(), key=lambda t: t[0]))
         logger.debug("Found %d trackers", len(self._trackers))
 
-    def __getitem__(self, reference):
+    def __getitem__(self, reference) -> "Tracker":
         return self.resolve(reference, skip_unknown=False, resolve_plural=False)[0]
 
-    def __contains__(self, reference):
+    def __contains__(self, reference) -> bool:
         identifier, _ = parse_reference(reference)
         return identifier in self._trackers
 
