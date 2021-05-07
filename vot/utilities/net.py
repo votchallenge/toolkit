@@ -7,9 +7,9 @@ from urllib.parse import urlparse, urljoin
 
 import requests
 
-from vot import VOTException
+from vot import ToolkitException
 
-class NetworkException(VOTException):
+class NetworkException(ToolkitException):
     pass
 
 def get_base_url(url):
@@ -56,69 +56,69 @@ def download_json(url):
 
 
 def download(url, output, callback=None, chunk_size=1024*32):
-    sess = requests.session()
+    with requests.session() as sess:
 
-    is_gdrive = is_google_drive_url(url)
-    
-    while True:
-        res = sess.get(url, stream=True)
+        is_gdrive = is_google_drive_url(url)
         
-        if not res.status_code == 200:
-            raise NetworkException("File not available")
-        
-        if 'Content-Disposition' in res.headers:
-            # This is the file
-            break
-        if not is_gdrive:
-            break
+        while True:
+            res = sess.get(url, stream=True)
+            
+            if not res.status_code == 200:
+                raise NetworkException("File not available")
+            
+            if 'Content-Disposition' in res.headers:
+                # This is the file
+                break
+            if not is_gdrive:
+                break
 
-        # Need to redirect with confiramtion
-        gurl = get_url_from_gdrive_confirmation(res.text)
+            # Need to redirect with confiramtion
+            gurl = get_url_from_gdrive_confirmation(res.text)
 
-        if gurl is None:
-            raise NetworkException("Permission denied for {}".format(gurl))
-        url = gurl
+            if gurl is None:
+                raise NetworkException("Permission denied for {}".format(gurl))
+            url = gurl
 
-    if output is None:
-        if is_gdrive:
-            m = re.search('filename="(.*)"',
-                          res.headers['Content-Disposition'])
-            output = m.groups()[0]
+        if output is None:
+            if is_gdrive:
+                m = re.search('filename="(.*)"',
+                            res.headers['Content-Disposition'])
+                output = m.groups()[0]
+            else:
+                output = os.path.basename(url)
+
+        output_is_path = isinstance(output, str)
+
+        if output_is_path:
+            tmp_file = tempfile.mktemp()
+            filehandle = open(tmp_file, 'wb')
         else:
-            output = os.path.basename(url)
+            tmp_file = None
+            filehandle = output
 
-    output_is_path = isinstance(output, str)
-
-    if output_is_path:
-        tmp_file = tempfile.mktemp()
-        filehandle = open(tmp_file, 'wb')
-    else:
-        tmp_file = None
-        filehandle = output
-
-    try:
-        total = res.headers.get('Content-Length')
-
-        if total is not None:
-            total = int(total)
-
-        for chunk in res.iter_content(chunk_size=chunk_size):
-            filehandle.write(chunk)
-            if callback:
-                callback(len(chunk), total)
-        if tmp_file:
-            filehandle.close()
-            shutil.copy(tmp_file, output)
-    except IOError:
-        raise NetworkException("Error when downloading file")
-    finally:
         try:
-            if tmp_file:
-                os.remove(tmp_file)
-        except OSError:
-            pass
+            total = res.headers.get('Content-Length')
 
-    return output
+            if total is not None:
+                total = int(total)
+
+            for chunk in res.iter_content(chunk_size=chunk_size):
+                filehandle.write(chunk)
+                if callback:
+                    callback(len(chunk), total)
+            if tmp_file:
+                filehandle.close()
+                shutil.copy(tmp_file, output)
+        except IOError:
+            raise NetworkException("Error when downloading file")
+        finally:
+            try:
+                if tmp_file:
+                    os.remove(tmp_file)
+            except OSError:
+                pass
+
+        return output
 
 def download_uncompress(url, path):
     from vot.utilities import extract_files

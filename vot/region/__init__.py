@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from typing import Tuple
 from enum import Enum
 
-from vot import VOTException
+from vot import ToolkitException
 from vot.utilities.draw import DrawHandle
 
 class RegionException(Exception):

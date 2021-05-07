@@ -11,6 +11,8 @@ from logging import Formatter, LogRecord
 
 from numbers import Number
 from typing import Tuple
+import typing
+from vot import get_logger
 
 import six
 import colorama
@@ -68,6 +70,7 @@ else:
     from tqdm import tqdm
 
 class Progress(object):
+
     class StreamProxy(object):
 
         def write(self, x):
@@ -83,38 +86,47 @@ class Progress(object):
         return Progress.StreamProxy()
 
     def __init__(self, description="Processing", total=100):
-        self._tqdm = tqdm(disable=False if is_notebook() else None,
-            bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
-        self._tqdm.desc = description
-        self._tqdm.total = total
-        if self._tqdm.disable:
+        silent = get_logger().level > logging.INFO
+
+        if not silent:
+            self._tqdm = tqdm(disable=False if is_notebook() else None,
+                bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
+            self._tqdm.desc = description
+            self._tqdm.total = total
+        if silent or self._tqdm.disable:
             self._tqdm = None
             self._value = 0
-            self._total = total
+            self._total = total if not silent else 0
 
     def _percent(self, n):
         return int((n * 100) / self._total)
 
     def absolute(self, value):
         if self._tqdm is None:
+            if self._total == 0:
+                return
             prev = self._value
             self._value = max(0, min(value, self._total))
             if self._percent(prev) != self._percent(self._value):
-                print("%d %%" % self._percent(self._value), end=' ')
+                print("%d %%" % self._percent(self._value))
         else:
             self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
         
     def relative(self, n):
         if self._tqdm is None:
+            if self._total == 0:
+                return
             prev = self._value
             self._value = max(0, min(self._value + n, self._total))
             if self._percent(prev) != self._percent(self._value):
-                print("%d %%" % self._percent(self._value), end=' ')
+                print("%d %%" % self._percent(self._value))
         else:
             self._tqdm.update(n)  # will also set self.n = b * bsize 
 
     def total(self, t):
         if self._tqdm is None:
+            if self._total == 0:
+                return
             self._total = t
         else:
             if self._tqdm.total == t:
@@ -131,8 +143,6 @@ class Progress(object):
     def close(self):
         if self._tqdm:
             self._tqdm.close()
-        else:
-            print("")
 
 def extract_files(archive, destination, callback = None):
     from zipfile import ZipFile
@@ -148,11 +158,16 @@ def extract_files(archive, destination, callback = None):
             if callback:
                 callback(1, total)
 
-def read_properties(filename, delimiter='='):
-    ''' Reads a given properties file with each line of the format key=value.
-        Returns a dictionary containing the pairs.
-            filename -- the name of the file to be read
-    '''
+def read_properties(filename: str, delimiter: str = '=') -> typing.Dict[str, str]:
+    """Reads a given properties file with each line of the format key=value. Returns a dictionary containing the pairs.
+
+    Args:
+        filename (str): The name of the file to be read.
+        delimiter (str, optional): Key-value delimiter. Defaults to '='.
+
+    Returns:
+        [typing.Dict[str, str]]: Resuting properties as a dictionary
+    """
     if not os.path.exists(filename):
         return {}
     open_kwargs = {'mode': 'r', 'newline': ''} if six.PY3 else {'mode': 'rb'}

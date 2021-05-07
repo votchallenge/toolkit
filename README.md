@@ -2,20 +2,27 @@
 The VOT evaluation toolkit
 ==========================
 
-This repository contains the official evaluation toolkit for the [Visual Object Tracking (VOT) challenge](http://votchallenge.net/). This is the new version of the toolkit, implemented in Python 3 language, if you are looking for the old Matlab version, you can find it [here](https://github.com/vicoslab/vot-toolkit).
+This repository contains the official evaluation toolkit for the [Visual Object Tracking (VOT) challenge](http://votchallenge.net/). This is the official version of the toolkit, implemented in Python 3 language. If you are looking for the old Matlab version, you can find an archived repository [here](https://github.com/vicoslab/toolkit-legacy).
 
 For more detailed informations consult the documentation available in the source or a compiled version of the documentation [here](http://www.votchallenge.net/howto/). You can also subscribe to the VOT [mailing list](https://service.ait.ac.at/mailman/listinfo/votchallenge) to receive news about challenges and important software updates or join our [support form](https://groups.google.com/forum/?hl=en#!forum/votchallenge-help) to ask questions.
 
 Developers
 ----------
 
-* Luka Čehovin (lead developer)
-* Alan Lukežič
+* Luka Čehovin Zajc, University of Ljubljana (lead developer)
+* Alan Lukežič, University of Ljubljana
+* Yan Song, Tampere University
 
 License
 -------
 
-The evaluation toolkit code and the documentation is available under GPL 3 license. The tracker examples are available under various licenses.
+Copyright (C) 2021 Luka Čehovin Zajc and the [VOT Challenge innitiative](http://votchallenge.net/).
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Enquiries, Question and Comments
 --------------------------------

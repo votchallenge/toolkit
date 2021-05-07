@@ -7,13 +7,13 @@ from abc import abstractmethod, ABC
 from PIL.Image import Image
 import numpy as np
 
-from vot import VOTException
+from vot import ToolkitException
 from vot.utilities import read_properties
 from vot.region import parse
 
 import cv2
 
-class DatasetException(VOTException):
+class DatasetException(ToolkitException):
     pass
 
 class Channel(ABC):

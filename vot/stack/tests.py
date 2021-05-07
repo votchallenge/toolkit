@@ -2,14 +2,14 @@ import os
 import unittest
 import yaml
 
-from vot.workspace import Workspace, VoidStorage
+from vot.workspace import Workspace, NullStorage
 from vot.stack import Stack, list_integrated_stacks, resolve_stack
 
 class NoWorkspace:
 
     @property
     def storage(self):
-        return VoidStorage()
+        return NullStorage()
 
 class TestStacks(unittest.TestCase):
 
