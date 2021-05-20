@@ -312,7 +312,7 @@ def do_pack(config: argparse.Namespace):
             timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform,
             python=sys.version, toolkit=toolkit_version())
 
-        with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True)) as archive:
+        with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True), mode="w") as archive:
             for f in all_files:
                 info = zipfile.ZipInfo(filename=os.path.join(f[1], f[2], f[0]), date_time=timestamp.timetuple())
                 with io.TextIOWrapper(archive.open(info, mode="w")) as fout, f[3].read(f[0]) as fin:
