@@ -267,7 +267,7 @@ class Tracker(object):
         return tracker
 
     def runtime(self, log=False) -> "TrackerRuntime":
-        if not self._protocol:
+        if not self._command:
             raise TrackerException("Tracker does not have an attached executable", tracker=self)
 
         if not self._protocol in _runtime_protocols:
