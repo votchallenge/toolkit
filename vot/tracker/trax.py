@@ -474,13 +474,11 @@ def trax_python_adapter(tracker, command, envvars, paths="", log: bool = False, 
 
     return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
 
-def trax_matlab_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
+def trax_matlab_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, matlab=None, socket=False, restart=False, **kwargs):
     if not isinstance(paths, list):
         paths = paths.split(os.pathsep)
 
     pathimport = " ".join(["addpath('{}');".format(x) for x in normalize_paths(paths, tracker)])
-
-    matlabroot = os.getenv("MATLAB_ROOT", None)
 
     if sys.platform.startswith("win"):
         matlabname = "matlab.exe"
@@ -488,20 +486,25 @@ def trax_matlab_adapter(tracker, command, envvars, paths="", log: bool = False, 
     else:
         matlabname = "matlab"
 
-    if matlabroot is None:
-        testdirs = os.getenv("PATH", "").split(os.pathsep)
-        for testdir in testdirs:
-            if os.path.isfile(os.path.join(testdir, matlabname)):
-                matlabroot = os.path.dirname(testdir)
-                break
+
+    if matlab is None:
+        matlabroot = os.getenv("MATLAB_ROOT", None)
         if matlabroot is None:
-            raise RuntimeError("Matlab executable not found, set MATLAB_ROOT environmental variable manually.")
+            testdirs = os.getenv("PATH", "").split(os.pathsep)
+            for testdir in testdirs:
+                if os.path.isfile(os.path.join(testdir, matlabname)):
+                    matlabroot = os.path.dirname(testdir)
+                    break
+            if matlabroot is None:
+                raise RuntimeError("Matlab executable not found, set MATLAB_ROOT environmental variable manually.")
+        matlab_executable = os.path.join(matlabroot, 'bin', matlabname)
+    else:
+        matlab_executable = matlab
 
     if sys.platform.startswith("win"):
-        matlab_executable = '"' + os.path.join(matlabroot, 'bin', matlabname) + '"'
+        matlab_executable = '"' + matlab_executable + '"'
         matlab_flags = ['-nodesktop', '-nosplash', '-wait', '-minimize']
     else:
-        matlab_executable = os.path.join(matlabroot, 'bin', matlabname)
         matlab_flags = ['-nodesktop', '-nosplash']
 
     matlab_script = 'try; diary ''runtime.log''; {}{}; catch ex; disp(getReport(ex)); end; quit;'.format(pathimport, command)
