@@ -2,7 +2,7 @@ import os
 import json
 import glob
 import collections
-from typing import List
+from typing import List, Mapping
 
 import yaml
 
@@ -65,7 +65,17 @@ class Stack(Attributee):
     def __getitem__(self, identifier):
         return self.experiments[identifier]
 
-def resolve_stack(name, *directories):
+def resolve_stack(name: str, *directories: List[str]) -> str:
+    """Searches for stack file in the given directories and returns its absolute path. If given an absolute path as input
+    it simply returns it.
+
+    Args:
+        name (str): Name of the stack
+        directories (List[str]): Directories that will be used
+
+    Returns:
+        str: Absolute path to stack file
+    """
     if os.path.isabs(name):
         return name if os.path.isfile(name) else None
     for directory in directories:
@@ -77,7 +87,12 @@ def resolve_stack(name, *directories):
         return full
     return None
 
-def list_integrated_stacks():
+def list_integrated_stacks() -> Mapping[str, str]:
+    """List stacks that come with the toolkit
+
+    Returns:
+        Map[str, str]: A mapping of stack ids and stack title pairs
+    """
     stacks = {}
     for stack_file in glob.glob(os.path.join(os.path.dirname(__file__), "*.yaml")):
         with open(stack_file, 'r') as fp:

@@ -18,6 +18,8 @@ from .storage import LocalStorage, Storage, NullStorage
 _logger = get_logger()
 
 class WorkspaceException(ToolkitException):
+    """Errors related to workspace raise this exception
+    """
     pass
 
 class StackLoader(Attribute):
@@ -58,7 +60,7 @@ class Workspace(Attributee):
 
     @staticmethod
     def initialize(directory: str, config: typing.Optional[typing.Dict] = None, download: bool = True) -> None:
-        """[summary]
+        """Initialize a new workspace in a given directory with the given config
 
         Args:
             directory (str): Root for workspace storage
