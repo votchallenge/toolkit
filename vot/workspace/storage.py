@@ -123,39 +123,49 @@ class NullStorage(Storage):
     """An implementation of dummy storage that does not save anything
     """
 
+    #docstr_coverage:inherited
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
         return Results(self)
 
     def __repr__(self) -> str:
         return "<Null storage: {}>".format(self._root)
 
+    #docstr_coverage:inherited
     def write(self, name, binary=False):
         if binary:
             return open(os.devnull, "wb")
         else:
             return open(os.devnull, "w")
 
+    #docstr_coverage:inherited
     def documents(self):
         return []
 
+    #docstr_coverage:inherited
     def folders(self):
         return []
 
+    #docstr_coverage:inherited
     def read(self, name, binary=False):
         return None
 
+    #docstr_coverage:inherited
     def isdocument(self, name):
         return False
 
+    #docstr_coverage:inherited
     def isfolder(self, name):
         return False
 
+    #docstr_coverage:inherited
     def delete(self, name) -> bool:
         return False
 
+    #docstr_coverage:inherited
     def substorage(self, name):
         return NullStorage()
 
+    #docstr_coverage:inherited
     def copy(self, localfile, destination):
         return
 
@@ -278,7 +288,19 @@ class Cache(cachetools.Cache):
             directory = ""
         return os.path.join(directory, filename)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> typing.Any:
+        """Retrieves an image from cache. If it does not exist, a KeyError is raised
+
+        Args:
+            key (str): Key of the item
+
+        Raises:
+            KeyError: Entry does not exist or cannot be retrieved
+            PickleError: Unable to 
+
+        Returns:
+            typing.Any: item value
+        """
         try:
             return super().__getitem__(key)
         except KeyError as e:
@@ -290,20 +312,32 @@ class Cache(cachetools.Cache):
                     data = pickle.load(filehandle)
                     super().__setitem__(key, data)
                     return data
-            except pickle.PickleError:
-                raise e
+            except pickle.PickleError as e:
+                raise KeyError(e)
 
-    def __setitem__(self, key: str, value: typing.Any):
+    def __setitem__(self, key: str, value: typing.Any) -> None:
+        """Sets an item for given key
+
+        Args:
+            key (str): Item key
+            value (typing.Any): Item value
+
+        """
         super().__setitem__(key, value)
 
         filename = self._filename(key)
         try:
             with self._storage.write(filename, binary=True) as filehandle:
-                return pickle.dump(value, filehandle)
+                pickle.dump(value, filehandle)
         except pickle.PickleError:
             pass
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str) -> None:
+        """Operator for item deletion.
+
+        Args:
+            key (str): Key of object to remove
+        """
         try:
             super().__delitem__(key)
             filename = self._filename(key)
@@ -314,6 +348,14 @@ class Cache(cachetools.Cache):
         except KeyError:
             pass
 
-    def __contains__(self, key: str):
+    def __contains__(self, key: str) -> bool:
+        """Magic method, does the cache include an item for a given key.
+
+        Args:
+            key (str): Item key
+
+        Returns:
+            bool: True if object exists for a given key
+        """
         filename = self._filename(key)
         return self._storage.isdocument(filename)
