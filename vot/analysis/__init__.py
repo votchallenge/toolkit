@@ -207,10 +207,11 @@ class Analysis(Attributee):
 
         params = self.dump()
         del params["name"]
+
         confighash = arg_hash(**params)
 
         self._identifier_cache = class_fullname(self) + "@" + confighash
-
+        
         return self._identifier_cache
 
     def describe(self) -> Tuple["Result"]:

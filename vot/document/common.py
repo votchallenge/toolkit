@@ -66,9 +66,7 @@ def extract_measures_table(trackers, results):
 
     return table_header, table_data, table_order
 
-
-
-def extract_plots(trackers, results):
+def extract_plots(trackers, results, order=None):
     plots = dict()
     j = 0
 
@@ -106,7 +104,10 @@ def extract_plots(trackers, results):
                 else:
                     continue
 
-                for tracker, values in zip(trackers, aresults):
+                for t in order if order is not None else range(len(trackers)):
+                    
+                    tracker = trackers[t]
+                    values = aresults[t, 0]
                     data = values[i] if not values is None else None
                     plot(tracker, data)
 
