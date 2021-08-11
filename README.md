@@ -9,8 +9,8 @@ For more detailed informations consult the documentation available in the source
 Developers
 ----------
 
-* Luka Čehovin Zajc, University of Ljubljana (lead developer)
-* Alan Lukežič, University of Ljubljana
+* [Luka Čehovin Zajc](https://vicos.si/lukacu), University of Ljubljana (lead developer)
+* [Alan Lukežič](https://vicos.si/people/alan_lukezic/), University of Ljubljana
 * Yan Song, Tampere University
 
 License
