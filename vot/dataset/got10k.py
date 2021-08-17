@@ -7,11 +7,12 @@ import configparser
 
 import six
 
+from vot import get_logger
 from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel
-from vot.region import parse
+from vot.region import Special, parse
 from vot.utilities import Progress
 
-logger = logging.getLogger("vot")
+logger = get_logger()
 
 def load_channel(source):
 
@@ -62,6 +63,11 @@ class GOT10kSequence(BaseSequence):
         with open(groundtruth_file, 'r') as filehandle:
             for region in filehandle.readlines():
                 groundtruth.append(parse(region))
+
+        if len(groundtruth) == 1 and channels["color"].length > 1:
+            # We are dealing with testing dataset, only first frame is available, so we pad the
+            # groundtruth with unknowns. Only unsupervised experiment will work, but it is ok
+            groundtruth.extend([Special(Special.UNKNOWN)] * (channels["color"].length - 1))
 
         self._metadata["length"] = len(groundtruth)
 

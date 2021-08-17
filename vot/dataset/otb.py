@@ -4,12 +4,12 @@ import os
 import logging
 import six
 
+from vot import get_logger
 from vot.dataset import BaseSequence, Dataset, DatasetException, PatternFileListChannel
 from vot.utilities import Progress
 from vot.region import parse
 
-logger = logging.getLogger("vot")
-
+logger = get_logger()
 
 _BASE_URL = "http://cvlab.hanyang.ac.kr/tracker_benchmark/seq/"
 
@@ -17,7 +17,7 @@ _OTB50_SUBSET = ["Basketball", "Biker", "Bird1", "BlurBody", "BlurCar2", "BlurFa
     "Car1", "Car4", "CarDark", "CarScale", "ClifBar", "Couple", "Crowds", "David", "Deer", "Diving",
     "DragonBaby", "Dudek", "Football", "Freeman4", "Girl", "Human3", "Human4", "Human6", "Human9",
     "Ironman", "Jump", "Jumping", "Liquor", "Matrix", "MotorRolling", "Panda", "RedTeam", "Shaking",
-    "Singer2", "Skating1", "Skating2", "Skiing", "Soccer", "Surfer", "Sylvester", "Tiger2",
+    "Singer2", "Skating1", "Skating2_1", "Skating2_2", "Skiing", "Soccer", "Surfer", "Sylvester", "Tiger2",
     "Trellis", "Walking", "Walking2", "Woman" ]
 
 _SEQUENCES = {
@@ -60,7 +60,8 @@ _SEQUENCES = {
     "Shaking": {"attributes": ["IV", "SV", "IPR", "OPR", "BC"]},
     "Singer2": {"attributes": ["IV", "DEF", "IPR", "OPR", "BC"]},
     "Skating1": {"attributes": ["IV", "SV", "OCC", "DEF", "OPR", "BC"]},
-    "Skating2": {"objects": 2, "attributes": ["SV", "OCC", "DEF", "FM", "OPR"]},
+    "Skating2_1": {"attributes": ["SV", "OCC", "DEF", "FM", "OPR"], "base": "Skating2"},
+    "Skating2_2": {"attributes": ["SV", "OCC", "DEF", "FM", "OPR"], "base": "Skating2"},
     "Skiing": {"attributes": ["IV", "SV", "DEF", "IPR", "OPR"]},
     "Soccer": {"attributes": ["IV", "SV", "OCC", "MB", "FM", "IPR", "OPR", "BC"]},
     "Surfer": {"attributes": ["SV", "FM", "IPR", "OPR", "LR"]},
@@ -126,11 +127,10 @@ _SEQUENCES = {
 class OTBSequence(BaseSequence):
 
     def __init__(self, root, name=None, dataset=None):
+        super().__init__(name, dataset)
 
         metadata = _SEQUENCES[self.name]
         self._base = os.path.join(root, metadata.get("base", name))
-
-        super().__init__(name, dataset)
 
     @staticmethod
     def check(path: str):
@@ -168,12 +168,24 @@ class OTBSequence(BaseSequence):
 
         return channels, groundtruth, {}, {}
 
-class GOT10kDataset(Dataset):
+class OTBDataset(Dataset):
 
-    def __init__(self, path, otb50: bool = False):
+    def __init__(self, path):
         super().__init__(path)
 
         dataset = _SEQUENCES
+
+        print(len(_OTB50_SUBSET))
+
+        if not OTBDataset.check(path):
+            raise DatasetException("Unknown dataset format, expected OTB")
+
+        otb50 = all([not OTBSequence.check(os.path.join(path, sequence)) for sequence in dataset.keys() - _OTB50_SUBSET])
+
+        if otb50:
+            logger.debug("Loading OTB-50 dataset")
+        else:
+            logger.debug("Loading OTB-100 dataset")
 
         if otb50:
             dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
@@ -188,11 +200,9 @@ class GOT10kDataset(Dataset):
 
     @staticmethod
     def check(path: str):
-        if os.path.isfile(os.path.join(path, 'list.txt')):
-            return False
-
         for sequence in _OTB50_SUBSET:
             return OTBSequence.check(os.path.join(path, sequence))
+
 
     @property
     def path(self):

@@ -60,19 +60,19 @@ class Rectangle(Shape):
 
     @property
     def x(self):
-        return self._data[0, 0]
+        return float(self._data[0, 0])
 
     @property
     def y(self):
-        return self._data[1, 0]
+        return float(self._data[1, 0])
 
     @property
     def width(self):
-        return self._data[2, 0]
+        return float(self._data[2, 0])
 
     @property
     def height(self):
-        return self._data[3, 0]
+        return float(self._data[3, 0])
 
     @property
     def type(self):
