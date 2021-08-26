@@ -127,19 +127,15 @@ _SEQUENCES = {
 class OTBSequence(BaseSequence):
 
     def __init__(self, root, name=None, dataset=None):
-        super().__init__(name, dataset)
-
-        metadata = _SEQUENCES[self.name]
-        self._base = os.path.join(root, metadata.get("base", name))
+        super().__init__(name or os.path.basename(root), dataset)
+        self._base = root
 
     @staticmethod
     def check(path: str):
         return os.path.isfile(os.path.join(path, 'groundtruth_rect.txt'))
 
     def _read_metadata(self):
-        
         metadata = _SEQUENCES[self.name]
-
         return {"attributes": metadata["attributes"]}
 
     def _read(self):
@@ -193,7 +189,7 @@ class OTBDataset(Dataset):
         with Progress("Loading dataset", len(dataset)) as progress:
 
             for name in sorted(list(dataset.keys())):
-                self._sequences[name.strip()] = OTBSequence(path, name, dataset=self)
+                self._sequences[name.strip()] = OTBSequence(os.path.join(path, name), name, dataset=self)
                 progress.relative(1)
 
     @staticmethod
