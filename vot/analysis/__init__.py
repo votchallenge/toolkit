@@ -207,10 +207,11 @@ class Analysis(Attributee):
 
         params = self.dump()
         del params["name"]
+
         confighash = arg_hash(**params)
 
         self._identifier_cache = class_fullname(self) + "@" + confighash
-
+        
         return self._identifier_cache
 
     def describe(self) -> Tuple["Result"]:
@@ -356,7 +357,7 @@ class SeparableAnalysis(Analysis):
             return Grid.scalar(self.subcompute(experiment, trackers[0], sequences[0], dependencies))
         elif self.axes == Axes.TRACKERS and len(trackers) == 1:
             return Grid.scalar(self.subcompute(experiment, trackers[0], sequences, dependencies))
-        elif self.axes == Axes.BOTH and len(sequences) == 1:
+        elif self.axes == Axes.SEQUENCES and len(sequences) == 1:
             return Grid.scalar(self.subcompute(experiment, trackers, sequences[0], dependencies))
         else:
             parts = self.separate(trackers, sequences)

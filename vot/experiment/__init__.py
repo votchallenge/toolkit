@@ -32,10 +32,7 @@ class InjectConfig(Attributee):
 def transformer_resolver(typename, context, **kwargs):
     from vot.experiment.transformer import Transformer
 
-    if "parent" in context:
-        storage = context["parent"].storage.substorage("cache").substorage("transformer")
-    else:
-        storage = None
+    storage = context.parent.storage.substorage("cache").substorage("transformer")
 
     if typename in transformer_registry:
         transformer = transformer_registry.get(typename, cache=storage, **kwargs)
@@ -57,8 +54,7 @@ def analysis_resolver(typename, context, **kwargs):
         assert issubclass(analysis_class, Analysis)
         analysis = analysis_class(**kwargs)
 
-    if "parent" in context:
-        assert analysis.compatible(context["parent"])
+    assert analysis.compatible(context.parent)
 
     return analysis
 

@@ -5,7 +5,7 @@ import importlib
 
 import yaml
 
-from attributee import Attribute, Attributee, Nested, List, String
+from attributee import Attribute, Attributee, Nested, List, String, CoerceContext
 
 from .. import ToolkitException, get_logger
 from ..dataset import Dataset, load_dataset
@@ -18,27 +18,29 @@ from .storage import LocalStorage, Storage, NullStorage
 _logger = get_logger()
 
 class WorkspaceException(ToolkitException):
+    """Errors related to workspace raise this exception
+    """
     pass
 
 class StackLoader(Attribute):
     """Special attribute that converts a string or a dictionary input to a Stack object.
     """
 
-    def coerce(self, value, ctx):
+    def coerce(self, value, context: typing.Optional[CoerceContext]):
         importlib.import_module("vot.analysis")
         importlib.import_module("vot.experiment")
         if isinstance(value, str):
 
-            stack_file = resolve_stack(value, ctx["parent"].directory)
+            stack_file = resolve_stack(value, context.parent.directory)
 
             if stack_file is None:
                 raise WorkspaceException("Experiment stack does not exist")
 
             with open(stack_file, 'r') as fp:
                 stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-                return Stack(value, ctx["parent"], **stack_metadata)
+                return Stack(value, context.parent, **stack_metadata)
         else:
-            return Stack(None, ctx["parent"], **value)
+            return Stack(None, context.parent, **value)
 
     def dump(self, value):
         if value.name is None:
@@ -51,14 +53,14 @@ class Workspace(Attributee):
     given experiments on a provided dataset.
     """
 
-    registry = List(String(transformer=lambda x, ctx: normalize_path(x, ctx["parent"].directory)))
+    registry = List(String(transformer=lambda x, ctx: normalize_path(x, ctx.parent.directory)))
     stack = StackLoader()
     sequences = String(default="sequences")
     report = Nested(ReportConfiguration)
 
     @staticmethod
     def initialize(directory: str, config: typing.Optional[typing.Dict] = None, download: bool = True) -> None:
-        """[summary]
+        """Initialize a new workspace in a given directory with the given config
 
         Args:
             directory (str): Root for workspace storage

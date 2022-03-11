@@ -1,6 +1,4 @@
 import os
-import json
-import glob
 
 from abc import abstractmethod, ABC
 
@@ -8,8 +6,6 @@ from PIL.Image import Image
 import numpy as np
 
 from vot import ToolkitException
-from vot.utilities import read_properties
-from vot.region import parse
 
 import cv2
 
@@ -451,6 +447,8 @@ class InMemorySequence(BaseSequence):
 
 from .vot import VOTDataset, VOTSequence
 from .got10k import GOT10kSequence, GOT10kDataset
+from .otb import OTBDataset, OTBSequence
+from .trackingnet import TrackingNetDataset, TrackingNetSequence
 
 def download_dataset(identifier: str, path: str):
 
@@ -479,6 +477,10 @@ def load_dataset(path: str):
         return VOTDataset(path)
     elif GOT10kDataset.check(path):
         return GOT10kDataset(path)
+    elif OTBDataset.check(path):
+        return OTBDataset(path)
+    elif TrackingNetDataset.check(path):
+        return TrackingNetDataset(path)
     else:
         raise DatasetException("Unsupported dataset type")
 
@@ -487,5 +489,9 @@ def load_sequence(path: str):
         return VOTSequence(path)
     elif GOT10kSequence.check(path):
         return GOT10kSequence(path)
+    elif OTBSequence.check(path):
+        return OTBSequence(path)
+    elif TrackingNetSequence.check(path):
+        return TrackingNetSequence(path)
     else:
         raise DatasetException("Unsupported sequence type")
