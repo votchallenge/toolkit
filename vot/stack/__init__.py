@@ -15,15 +15,11 @@ from vot.analysis import Analysis
 
 def experiment_resolver(typename, context, **kwargs):
 
-    if "key" in context:
-        identifier = context["key"]
-    else:
-        identifier = None
-
+    identifier = context.key
     storage = None
-    if "parent" in context:
-        if getattr(context["parent"], "workspace", None) is not None:
-            storage = context["parent"].workspace.storage
+
+    if getattr(context.parent, "workspace", None) is not None:
+        storage = context.parent.workspace.storage
 
     if typename in experiment_registry:
         experiment = experiment_registry.get(typename, _identifier=identifier, _storage=storage, **kwargs)

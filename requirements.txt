@@ -16,4 +16,4 @@ dominate>=2.5
 cachetools>=4.1
 bidict>=0.19
 phx-class-registry>=3.0
-attributee>=0.1.3
+attributee>=0.1.7
