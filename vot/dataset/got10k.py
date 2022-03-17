@@ -9,7 +9,8 @@ import six
 
 from vot import get_logger
 from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel
-from vot.region import Special, parse
+from vot.region import Special
+from vot.region.io import read_trajectory
 from vot.utilities import Progress
 
 logger = get_logger()
@@ -59,10 +60,7 @@ class GOT10kSequence(BaseSequence):
         self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
 
         groundtruth_file = os.path.join(self._base, self.metadata("groundtruth", "groundtruth.txt"))
-
-        with open(groundtruth_file, 'r') as filehandle:
-            for region in filehandle.readlines():
-                groundtruth.append(parse(region))
+        groundtruth = read_trajectory(groundtruth_file)
 
         if len(groundtruth) == 1 and channels["color"].length > 1:
             # We are dealing with testing dataset, only first frame is available, so we pad the

@@ -9,7 +9,7 @@ import six
 import cv2
 
 from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel
-from vot.region import parse, write_file
+from vot.region.io import write_trajectory, read_trajectory
 from vot.utilities import Progress, localize_path, read_properties, write_properties
 
 logger = logging.getLogger("vot")
@@ -64,10 +64,7 @@ class VOTSequence(BaseSequence):
         self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
 
         groundtruth_file = os.path.join(self._base, self.metadata("groundtruth", "groundtruth.txt"))
-
-        with open(groundtruth_file, 'r') as filehandle:
-            for region in filehandle.readlines():
-                groundtruth.append(parse(region))
+        groundtruth = read_trajectory(groundtruth_file)
 
         self._metadata["length"] = len(groundtruth)
 
@@ -247,7 +244,7 @@ def write_sequence(directory: str, sequence: Sequence):
         with open(os.path.join(directory, "%s.value" % value), "w") as fp:
             fp.write(data)
 
-    write_file(os.path.join(directory, "groundtruth.txt"), [f.groundtruth() for f in sequence])
+    write_trajectory(os.path.join(directory, "groundtruth.txt"), [f.groundtruth() for f in sequence])
     write_properties(os.path.join(directory, "sequence"), metadata)
 
 

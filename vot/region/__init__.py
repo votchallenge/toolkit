@@ -5,7 +5,7 @@ from enum import Enum
 from vot import ToolkitException
 from vot.utilities.draw import DrawHandle
 
-class RegionException(Exception):
+class RegionException(ToolkitException):
     """General region exception"""
 
 class ConversionException(RegionException):
@@ -105,7 +105,5 @@ class Special(Region):
     def is_empty(self):
         return False
 
-from vot.region.io import read_file, write_file
-from .shapes import Rectangle, Polygon, Mask
-from .io import read_file, write_file, parse
 from .raster import calculate_overlap, calculate_overlaps
+from .shapes import Rectangle, Polygon, Mask

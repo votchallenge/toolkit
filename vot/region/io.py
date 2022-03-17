@@ -1,10 +1,10 @@
 import math
-from typing import Union, TextIO
+from typing import List, Union, TextIO
+import struct
+import io
 
 import numpy as np
 from numba import jit
-
-from vot.region import Special
 
 @jit(nopython=True)
 def mask_to_rle(m):
@@ -113,12 +113,18 @@ def encode_mask(mask):
 
         return (tl_x, tl_y, region_w, region_h), rle
 
-def parse(string):
-    """
-    parse string to the appropriate region format and return region object
-    """
-    from vot.region.shapes import Rectangle, Polygon, Mask
+def parse_region(string: str) -> "Region":
+    """   
+        Parse input string to the appropriate region format and return Region object
 
+    Args:
+        string (str): comma separated list of values
+
+    Returns:
+        Region: resulting region
+    """
+    from vot.region import Special
+    from vot.region.shapes import Rectangle, Polygon, Mask
 
     if string[0] == 'm':
         # input is a mask - decode it
@@ -139,30 +145,60 @@ def parse(string):
                 return Special(0)
             else:
                 return Polygon([(x_, y_) for x_, y_ in zip(tokens[::2], tokens[1::2])])
-    print('Unknown region format.')
     return None
 
-def read_file(fp: Union[str, TextIO]):
+def read_trajectory(fp: Union[str, TextIO]):
     if isinstance(fp, str):
-        with open(fp) as file:
-            lines = file.readlines()
+        binary = fp.endswith(".tra")
+        fp = open(fp, "rb" if binary else "r")
+        close = True
     else:
-        lines = fp.readlines()
+        binary = isinstance(fp, (io.RawIOBase, io.BufferedIOBase)) 
+        close = False
 
-    regions = [0] * len(lines)
+    regions = []
     # iterate over all lines in the file
-    for i, line in enumerate(lines):
-        regions[i] = parse(line.strip())
+
+    from vot.region import RegionException
+
+    if binary:
+        raise RegionException("Binary format not supported at the moment")
+    else:
+        for line in fp.readlines():
+            regions.append(parse_region(line.strip()))
+
+    if close:
+        fp.close()
+
     return regions
 
-def write_file(fp: Union[str, TextIO], data):
+def write_trajectory(fp: Union[str, TextIO], data: List["Region"]):
+    """ Write a trajectory to a file handle or a file with a given name.
+
+    Based on the suffix of a file or properties of a file handle, the output may be either text based
+    or binary.
+
+    Args:
+        fp (Union[str, TextIO]): File handle or file name
+        data (List[Region]): Trajectory, a list of region objects
+
     """
-    data is a list where each element is a region
-    """
+
     if isinstance(fp, str):
-        with open(fp, 'w') as file:
-            for region in data:
-                file.write('%s\n' % str(region))
+        binary = fp.endswith(".tra")
+        close = True
+        fp = open(fp, "wb" if binary else "w")
+    else:
+        binary = isinstance(fp, (io.RawIOBase, io.BufferedIOBase)) 
+        close = False
+
+    from vot.region import RegionException
+
+    if binary:
+        raise RegionException("Binary format not supported at the moment")
     else:
         for region in data:
             fp.write('%s\n' % str(region))
+    
+    if close:
+        fp.close()

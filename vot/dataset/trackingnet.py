@@ -3,12 +3,12 @@ import os
 import glob
 import logging
 from collections import OrderedDict
-import configparser
 
 import six
 
 from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel
-from vot.region import Special, parse
+from vot.region import Special
+from vot.region.io import read_trajectory
 from vot.utilities import Progress
 
 logger = logging.getLogger("vot")
@@ -52,9 +52,7 @@ class TrackingNetSequence(BaseSequence):
         self._metadata["channel.default"] = "color"
         self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
 
-        with open(self._base, 'r') as filehandle:
-            for region in filehandle.readlines():
-                groundtruth.append(parse(region))
+        groundtruth = read_trajectory(self._base)
 
         if len(groundtruth) == 1 and channels["color"].length > 1:
             # We are dealing with testing dataset, only first frame is available, so we pad the

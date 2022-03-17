@@ -4,7 +4,8 @@ import math
 import tempfile
 
 from vot.dataset import VOTSequence
-from vot.region import Rectangle, write_file
+from vot.region import Rectangle
+from vot.region.io import write_trajectory
 from vot.utilities import write_properties
 
 from PIL import Image
@@ -66,7 +67,7 @@ class DummySequence(VOTSequence):
 
             groundtruth.append(Rectangle(x, y, template.size[0], template.size[1]))
 
-        write_file(os.path.join(base, "groundtruth.txt"), groundtruth)
+        write_trajectory(os.path.join(base, "groundtruth.txt"), groundtruth)
         metadata = {"name": "dummy", "fps" : 30, "format" : "dummy",
                           "channel.default": "color"}
         write_properties(os.path.join(base, "sequence"), metadata)

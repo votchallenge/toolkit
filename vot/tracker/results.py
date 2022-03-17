@@ -3,7 +3,8 @@ import os
 import fnmatch
 from typing import List
 from copy import copy
-from vot.region import Region, RegionType, Special, write_file, read_file, calculate_overlap
+from vot.region import Region, RegionType, Special, calculate_overlap
+from vot.region.io import write_trajectory, read_trajectory
 from vot.utilities import to_string
 
 class Results(object):
@@ -27,15 +28,17 @@ class Trajectory(object):
 
     @classmethod
     def exists(cls, results: Results, name: str) -> bool:
-        return results.exists(name + ".txt")
+        return results.exists(name + ".bin") or results.exists(name + ".txt")
 
     @classmethod
     def gather(cls, results: Results, name: str) -> list:
 
-        if not Trajectory.exists(results, name):
+        if results.exists(name + ".bin"):
+            files = [name + ".bin"]
+        elif results.exists(name + ".txt"):
+            files = [name + ".txt"]
+        else:
             return []
-
-        files = [name + ".txt"]
 
         for propertyfile in results.find(name + "_*.value"):
             files.append(propertyfile)
@@ -54,7 +57,7 @@ class Trajectory(object):
             raise FileNotFoundError("Trajectory data not found: {}".format(name))
 
         with results.read(name + ".txt") as fp:
-            regions = read_file(fp)
+            regions = read_trajectory(fp)
 
         trajectory = Trajectory(len(regions))
         trajectory._regions = regions
@@ -70,7 +73,7 @@ class Trajectory(object):
                     
         return trajectory
 
-    def __init__(self, length:int):
+    def __init__(self, length: int):
         self._regions = [Special(Special.UNKNOWN)] * length
         self._properties = dict()
 
@@ -112,7 +115,7 @@ class Trajectory(object):
     def write(self, results: Results, name: str):
 
         with results.write(name + ".txt") as fp:
-            write_file(fp, self._regions)
+            write_trajectory_file(fp, self._regions)
 
         for k, v in self._properties.items():
             with results.write(name + "_" + k + ".value") as fp:

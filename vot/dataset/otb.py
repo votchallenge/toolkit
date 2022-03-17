@@ -7,7 +7,7 @@ import six
 from vot import get_logger
 from vot.dataset import BaseSequence, Dataset, DatasetException, PatternFileListChannel
 from vot.utilities import Progress
-from vot.region import parse
+from vot.region.io import parse_region
 
 logger = get_logger()
 
@@ -155,7 +155,7 @@ class OTBSequence(BaseSequence):
 
         with open(groundtruth_file, 'r') as filehandle:
             for region in filehandle.readlines():
-                groundtruth.append(parse(region.replace("\t", ",").replace(" ", ",")))
+                groundtruth.append(parse_region(region.replace("\t", ",").replace(" ", ",")))
 
         self._metadata["length"] = len(groundtruth)
 
