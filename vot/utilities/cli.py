@@ -162,7 +162,7 @@ def do_evaluate(config: argparse.Namespace):
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
-    registry = Registry(workspace.registry + global_registry, root=config.workspace)
+    registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
@@ -199,7 +199,7 @@ def do_analysis(config: argparse.Namespace):
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
-    registry = Registry(workspace.registry + global_registry, root=config.workspace)
+    registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
@@ -273,7 +273,7 @@ def do_pack(config: argparse.Namespace):
 
     logger.info("Loaded workspace in '%s'", config.workspace)
 
-    registry = Registry(workspace.registry + config.registry, root=config.workspace)
+    registry = Registry(list(workspace.registry) + config.registry, root=config.workspace)
 
     logger.info("Found data for %d trackers", len(registry))
 
