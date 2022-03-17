@@ -89,10 +89,16 @@ def list_integrated_stacks() -> Mapping[str, str]:
     Returns:
         Map[str, str]: A mapping of stack ids and stack title pairs
     """
+
+    from pathlib import Path
+
     stacks = {}
-    for stack_file in glob.glob(os.path.join(os.path.dirname(__file__), "*.yaml")):
-        with open(stack_file, 'r') as fp:
+    root = Path(os.path.join(os.path.dirname(__file__)))
+
+    for stack_path in root.rglob("*.yaml"):
+        with open(stack_path, 'r') as fp:
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-        stacks[os.path.splitext(os.path.basename(stack_file))[0]] = stack_metadata.get("title", "")
+        key = str(stack_path.relative_to(root).with_name(os.path.splitext(stack_path.name)[0]))
+        stacks[key] = stack_metadata.get("title", "")
 
     return stacks
