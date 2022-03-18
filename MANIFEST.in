@@ -1,7 +1,6 @@
 include requirements.txt
 include README.md
-include vot/stack/*.yaml
-include vot/stack/*/*.yaml
+recursive-include vot/stack/ *.yaml
 include vot/dataset/*.png
 include vot/dataset/*.jpg
 include vot/document/*.css
