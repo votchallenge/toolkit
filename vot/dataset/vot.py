@@ -264,6 +264,7 @@ VOT_DATASETS = {
     "vot-st2019" : "http://data.votchallenge.net/vot2019/main/description.json",
     "vot-lt2019" : "http://data.votchallenge.net/vot2019/longterm/description.json",
     "vot-rgbd2019" : "http://data.votchallenge.net/vot2019/rgbd/description.json",
+    "vot-rgbd2022" : "http://data.votchallenge.net/vot2022/rgbd/description.json",
     "vot-rgbt2019" : "http://data.votchallenge.net/vot2019/rgbtir/meta/description.json",
     "vot-st2020" : "https://data.votchallenge.net/vot2020/shortterm/description.json",
     "vot-rgbt2020" : "http://data.votchallenge.net/vot2020/rgbtir/meta/description.json",
