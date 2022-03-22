@@ -1,38 +1,59 @@
 import os
+import logging
 
+from numbers import Number
 from abc import abstractmethod, ABC
+from typing import List, Mapping, Optional, Set, Tuple
 
 from PIL.Image import Image
 import numpy as np
+from trax import Region
 
 from vot import ToolkitException
 
 import cv2
 
+logger = logging.getLogger("vot")
+
 class DatasetException(ToolkitException):
+    """Dataset and sequence related exceptions
+    """
     pass
 
 class Channel(ABC):
+    """Abstract representation of individual image channel, a sequence of images
+
+    """
 
     def __init__(self):
         pass
 
     @property
     @abstractmethod
-    def length(self):
+    def length(self) -> int:
+        """Returns the length of channel
+        """
         pass
 
     @abstractmethod
-    def frame(self, index):
+    def frame(self, index: int) -> "Frame":
+        """Returns frame object for the given index
+
+        Args:
+            index (int): _description_
+
+        Returns:
+            Frame: _description_
+        """
         pass
 
     @abstractmethod
-    def filename(self, index):
+    def filename(self, index: int) -> str:
         pass
 
     @property
     @abstractmethod
-    def size(self):
+    def size(self) -> int:
         pass
 
 class Frame(object):
@@ -52,19 +73,19 @@ class Frame(object):
     def channels(self):
         return self._sequence.channels()
 
-    def channel(self, channel=None):
+    def channel(self, channel: Optional[str] = None):
         channelobj = self._sequence.channel(channel)
         if channelobj is None:
             return None
         return channelobj.frame(self._index)
 
-    def filename(self, channel=None):
+    def filename(self, channel: Optional[str] = None):
         channelobj = self._sequence.channel(channel)
         if channelobj is None:
             return None
         return channelobj.filename(self._index)
 
-    def image(self, channel=None):
+    def image(self, channel: Optional[str] = None):
         channelobj = self._sequence.channel(channel)
         if channelobj is None:
             return None
@@ -81,14 +102,14 @@ class Frame(object):
 
 class SequenceIterator(object):
 
-    def __init__(self, sequence):
+    def __init__(self, sequence: "Sequence"):
         self._position = 0
         self._sequence = sequence
 
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self) -> Frame:
         if self._position >= len(self._sequence):
             raise StopIteration()
         index = self._position
@@ -146,6 +167,9 @@ class InMemoryChannel(Channel):
         raise DatasetException("Sequence is available in memory, image files not available")
 
 class PatternFileListChannel(Channel):
+    """Sequence channel implementation where each frame is stored in a file and all file names
+    follow a specific pattern.
+    """
 
     def __init__(self, path, start=1, step=1, end=None):
         super().__init__()
@@ -155,7 +179,12 @@ class PatternFileListChannel(Channel):
         self.__scan(pattern, start, step, end)
 
     @property
-    def base(self):
+    def base(self) -> str:
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
         return self._base
 
     @property
@@ -222,6 +251,8 @@ class PatternFileListChannel(Channel):
         return os.path.join(self.base, self._files[index])
 
 class FrameList(ABC):
+    """Abstract base for all sequences, just a list of frame objects
+    """
 
     def __iter__(self):
         return SequenceIterator(self)
@@ -231,10 +262,13 @@ class FrameList(ABC):
         pass
 
     @abstractmethod
-    def frame(self, index) -> Frame:
+    def frame(self, index: int) -> Frame:
         pass
 
 class Sequence(FrameList):
+    """_summary_
+
+    """
 
     def __init__(self, name: str, dataset: "Dataset" = None):
         self._name = name
@@ -260,33 +294,33 @@ class Sequence(FrameList):
         pass
 
     @abstractmethod
-    def channel(self, channel=None):
+    def channel(self, channel=None) -> Channel:
         pass
 
     @abstractmethod
-    def channels(self):
+    def channels(self) -> Set[str]:
         pass
 
     @abstractmethod
-    def groundtruth(self, index: int):
+    def groundtruth(self, index: int) -> Region:
         pass
 
     @abstractmethod
-    def tags(self, index=None):
+    def tags(self, index=None) -> List[str]:
         pass
 
     @abstractmethod
-    def values(self, index=None):
-        pass
-
-    @property
-    @abstractmethod
-    def size(self):
+    def values(self, index=None) -> Mapping[str, Number]:
         pass
 
     @property
     @abstractmethod
-    def length(self):
+    def size(self) -> Tuple[int, int]:
+        pass
+
+    @property
+    @abstractmethod
+    def length(self) -> int:
         pass
 
     def describe(self):
@@ -294,6 +328,8 @@ class Sequence(FrameList):
         return data
 
 class Dataset(ABC):
+    """Base class for a tracking dataset, a list of image sequences addressable by their names.
+    """
 
     def __init__(self, path):
         self._path = path
@@ -323,10 +359,20 @@ class Dataset(ABC):
         pass
 
     @abstractmethod
-    def list(self):
+    def list(self) -> List[str]:
+        """Returns a list of unique sequence names
+
+        Returns:
+            List[str]: List of sequence names
+        """
         return []
 
-    def keys(self):
+    def keys(self) -> List[str]:
+        """Returns a list of unique sequence names
+
+        Returns:
+            List[str]: List of sequence names
+        """
         return self.list()
 
 class BaseSequence(Sequence):
@@ -444,31 +490,82 @@ class InMemorySequence(BaseSequence):
 
         self._groundtruth.append(region)
 
+def download_bundle(url: str, path: str = "."):
+    """Downloads a dataset bundle as a ZIP file and decompresses it.
+
+    Args:
+        url (str): Source bundle URL
+        path (str, optional): Destination directory. Defaults to ".".
+
+    Raises:
+        DatasetException: If the bundle cannot be downloaded or is not supported.
+    """
+
+    from vot.utilities.net import download_uncompress, NetworkException
+
+    if not url.endswith(".zip"):
+        raise DatasetException("Unknown bundle format")
+
+    logger.info('Downloading sequence bundle from "%s". This may take a while ...', url)
+
+    try:
+        download_uncompress(url, path)
+    except NetworkException as e:
+        raise DatasetException("Unable do download dataset bundle, Please try to download the bundle manually from {} and uncompress it to {}'".format(url, path))
+    except IOError as e:
+        raise DatasetException("Unable to extract dataset bundle, is the target directory writable and do you have enough space?")
 
 from .vot import VOTDataset, VOTSequence
 from .got10k import GOT10kSequence, GOT10kDataset
 from .otb import OTBDataset, OTBSequence
 from .trackingnet import TrackingNetDataset, TrackingNetSequence
 
-def download_dataset(identifier: str, path: str):
+def download_dataset(url: str, path: str):
+    """Downloads a dataset from a given url or an alias.
 
-    split = identifier.find(":")
-    domain = "vot"
+    Args:
+        url (str): URL to the data bundle or metadata description file
+        path (str): Destination directory
 
-    if split > 0:
-        domain = identifier[0:split].lower()
-        identifier = identifier[split+1:]
+    Raises:
+        DatasetException: If the dataset is not found or a network error occured
+    """
+    from urllib.parse import urlsplit
 
-    if domain == "vot":
-        from .vot import download_dataset
-        download_dataset(identifier, path)
-    elif domain == "otb":
-        from .otb import download_dataset
-        download_dataset(path, identifier == "otb50")
-    else:
-        raise DatasetException("Unknown dataset domain: {}".format(domain))
+    try:
+        res = urlsplit(url)
 
-def load_dataset(path: str):
+        if not res.scheme or res.scheme == "vot":
+            from .vot import resolve_dataset_alias
+            download_dataset(resolve_dataset_alias(res.path), path)
+        elif res.scheme in ["http", "https"]:
+            if res.path.endswith(".json"):
+                from .vot import download_dataset_meta
+                download_dataset_meta(url, path)
+            else:
+                download_bundle(url, path)
+        elif res.scheme == "otb":
+            from .otb import download_dataset as download_otb
+            download_otb(path, res.path == "otb50")
+        else:
+            raise DatasetException("Unknown dataset domain: {}".format(res.scheme))
+
+    except ValueError:
+        raise DatasetException("Illegal dataset URI format")
+
+
+def load_dataset(path: str) -> Dataset:
+    """Loads a dataset from a local directory
+
+    Args:
+        path (str): The path to the local dataset data
+
+    Raises:
+        DatasetException: When a folder does not exist or the format is not recognized.
+
+    Returns:
+        Dataset: Dataset object
+    """
 
     if not os.path.isdir(path):
         raise DatasetException("Dataset directory does not exist")
@@ -484,7 +581,19 @@ def load_dataset(path: str):
     else:
         raise DatasetException("Unsupported dataset type")
 
-def load_sequence(path: str):
+def load_sequence(path: str) -> Sequence:
+    """Loads a sequence from a given path (directory), tries to guess the format of the sequence.
+
+    Args:
+        path (str): The path to the local sequence data
+
+    Raises:
+        DatasetException: If an loading error occures, unsupported format or other issues.
+
+    Returns:
+        Sequence: Sequence object
+    """
+
     if VOTSequence.check(path):
         return VOTSequence(path)
     elif GOT10kSequence.check(path):
