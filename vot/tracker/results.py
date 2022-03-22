@@ -70,7 +70,7 @@ class Trajectory(object):
                     trajectory._properties[propertyname] = [parse_float(line) for line in lines]
                 except ValueError:
                     trajectory._properties[propertyname] = [line.strip() for line in lines]
-                    
+
         return trajectory
 
     def __init__(self, length: int):
@@ -115,7 +115,8 @@ class Trajectory(object):
     def write(self, results: Results, name: str):
 
         with results.write(name + ".txt") as fp:
-            write_trajectory_file(fp, self._regions)
+            # write_trajectory_file(fp, self._regions)
+            write_trajectory(fp, self._regions)
 
         for k, v in self._properties.items():
             with results.write(name + "_" + k + ".value") as fp:
