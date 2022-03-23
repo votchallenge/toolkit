@@ -92,9 +92,6 @@ class FrameMapSequence(ProxySequence):
     def __len__(self):
         return self.length
 
-    def frame(self, index: int) -> Frame:
-        return Frame(self, self._map[index])
-
     def channel(self, channel=None):
         sourcechannel = self._source.channel(channel)
 
