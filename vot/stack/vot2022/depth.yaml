@@ -1,0 +1,23 @@
+title: VOT-D2022 challenge
+dataset: https://data.votchallenge.net/vot2022/depth/description.json
+url: https://www.votchallenge.net/vot2022/
+experiments:
+  baseline:
+    type: multistart
+    analyses:
+      - type: multistart_eao_score
+        name: eaoscore
+        low: 115
+        high: 755
+      - type: multistart_eao_curve
+        name: eaocurve
+        high: 755
+      - type: multistart_average_ar
+        name: ar
+  unsupervised:
+    type: unsupervised
+    repetitions: 1
+    analyses:
+      - type: average_accuracy
+        name: accuracy
+        burnin: 1
