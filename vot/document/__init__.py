@@ -177,7 +177,7 @@ def configure_figure(traits=None):
     elif traits == "eao":
         args["figsize"] = (7, 5)
     elif traits == "attributes":
-        args["figsize"] = (15, 5)
+        args["figsize"] = (10, 5)
 
     return Figure(**args)
 

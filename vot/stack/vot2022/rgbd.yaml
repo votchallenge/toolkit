@@ -1,6 +1,6 @@
 title: VOT-RGBD2022 challenge
-dataset: vot:vot-rgbd2022
-url: http://www.votchallenge.net/vot2022/
+dataset: https://data.votchallenge.net/vot2022/rgbd/description.json
+url: https://www.votchallenge.net/vot2022/
 experiments:
   baseline:
     type: multistart

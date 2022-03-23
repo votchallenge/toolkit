@@ -39,8 +39,6 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
 
     n_visible = len([region for region in sequence.groundtruth() if region.type is not RegionType.SPECIAL])
 
-
-
     precision = len(thresholds) * [float(0)]
     recall = len(thresholds) * [float(0)]
 

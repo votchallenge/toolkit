@@ -1,6 +1,6 @@
 title: VOT-LT2022 challenge
-dataset: vot:vot-lt2022
-url: http://www.votchallenge.net/vot2022/
+dataset: https://data.votchallenge.net/vot2022/lt/description.json
+url: https://www.votchallenge.net/vot2022/
 experiments:
   longterm:
     type: unsupervised

@@ -1,6 +1,6 @@
 title: VOT-ST2021 segmentation challenge
-dataset: vot:vot-sts2021
-url: http://www.votchallenge.net/vot2022/
+dataset: https://data.votchallenge.net/vot2022/sts/description.json
+url: https://www.votchallenge.net/vot2022/
 experiments:
   baseline:
     type: multistart

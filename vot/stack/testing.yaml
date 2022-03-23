@@ -1,6 +1,6 @@
 title: VOT testing
 url: http://www.votchallenge.net/
-dataset: vot:segmentation
+dataset: http://box.vicos.si/tracking/vot20_test_dataset.zip
 experiments:
   baseline:
     type: multistart
