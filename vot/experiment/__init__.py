@@ -17,6 +17,8 @@ experiment_registry = ClassRegistry("vot_experiment")
 transformer_registry = ClassRegistry("vot_transformer")
 
 class RealtimeConfig(Attributee):
+    """Config proxy for real-time experiment.
+    """
 
     grace = Integer(val_min=0, default=0)
     fps = Float(val_min=0, default=20)
@@ -59,8 +61,11 @@ def analysis_resolver(typename, context, **kwargs):
     return analysis
 
 class Experiment(Attributee):
+    """Experiment abstract base class. 
 
-    realtime = Nested(RealtimeConfig, default=None)
+    """
+
+    realtime = Nested(RealtimeConfig, default=None, description="Realtime modifier config")
     noise = Nested(NoiseConfig, default=None)
     inject = Nested(InjectConfig, default=None)
     transformers = List(Object(transformer_resolver), default=[])
@@ -120,6 +125,18 @@ from .multirun import UnsupervisedExperiment, SupervisedExperiment
 from .multistart import MultiStartExperiment
 
 def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing.List["Sequence"], force: bool = False, persist: bool = False):
+    """A helper function that performs a given experiment with a given tracker on a list of sequences.
+
+    Args:
+        experiment (Experiment): The experiment object
+        tracker (Tracker): The tracker object
+        sequences (typing.List[Sequence]): List of sequences.
+        force (bool, optional): Ignore the cached results, rerun all the experiments. Defaults to False.
+        persist (bool, optional): Continue runing even if exceptions were raised. Defaults to False.
+
+    Raises:
+        TrackerException: If the experiment is interrupted
+    """
 
     class EvaluationProgress(object):
 
@@ -149,6 +166,6 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
                     flog.write(te.log)
                     logger.error("Tracker output written to file: %s", flog.name)
             if not persist:
-                raise te
+                raise TrackerException("Experiment interrupted", te, tracker=tracker)
         progress.push()
 

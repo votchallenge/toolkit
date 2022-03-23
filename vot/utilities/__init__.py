@@ -6,11 +6,10 @@ import hashlib
 import logging
 import inspect
 import concurrent.futures as futures
-from functools import wraps
 from logging import Formatter, LogRecord
 
 from numbers import Number
-from typing import Tuple
+from typing import Any, Mapping, Tuple
 import typing
 from vot import get_logger
 
@@ -18,53 +17,6 @@ import six
 import colorama
 
 __ALIASES = dict()
-
-class DocInherit(object):
-    """
-    Docstring inheriting method descriptor
-
-    The class itself is also used as a decorator
-    """
-
-    def __init__(self, mthd):
-        self.mthd = mthd
-        self.name = mthd.__name__
-
-    def __get__(self, obj, cls):
-        if obj:
-            return self.get_with_inst(obj, cls)
-        else:
-            return self.get_no_inst(cls)
-
-    def get_with_inst(self, obj, cls):
-
-        overridden = getattr(super(cls, obj), self.name, None)
-
-        @wraps(self.mthd, assigned=('__name__','__module__'))
-        def f(*args, **kwargs):
-            return self.mthd(obj, *args, **kwargs)
-
-        return self.use_parent_doc(f, overridden)
-
-    def get_no_inst(self, cls):
-
-        for parent in cls.__mro__[1:]:
-            overridden = getattr(parent, self.name, None)
-            if overridden: break
-
-        @wraps(self.mthd, assigned=('__name__','__module__'))
-        def f(*args, **kwargs):
-            return self.mthd(*args, **kwargs)
-
-        return self.use_parent_doc(f, overridden)
-
-    def use_parent_doc(self, func, source):
-        if source is None:
-            raise NameError("Can't find '%s' in parents"%self.name)
-        func.__doc__ = source.__doc__
-        return func
-
-doc_inherit = DocInherit 
 
 def import_class(classpath):
     delimiter = classpath.rfind(".")
@@ -116,6 +68,9 @@ else:
     from tqdm import tqdm
 
 class Progress(object):
+    """Wrapper around tqdm progress bar, enables silecing the progress output and some more
+    costumizations.
+    """
 
     class StreamProxy(object):
 
@@ -123,6 +78,7 @@ class Progress(object):
             # Avoid print() second call (useless \n)
             if len(x.rstrip()) > 0:
                 tqdm.write(x)
+
         def flush(self):
             #return getattr(self.file, "flush", lambda: None)()
             pass
@@ -227,21 +183,32 @@ def read_properties(filename: str, delimiter: str = '=') -> typing.Dict[str, str
             properties[groups.group(1)] = groups.group(2)
         return properties
 
-def write_properties(filename, dictionary, delimiter='='):
-    ''' Writes the provided dictionary in key sorted order to a properties
+def write_properties(filename: str, dictionary: Mapping[str, Any], delimiter: str = '='):
+    """Writes the provided dictionary in key sorted order to a properties
         file with each line in the format: key<delimiter>value
-            filename -- the name of the file to be written
-            dictionary -- a dictionary containing the key/value pairs.
-    '''
+
+    Args:
+        filename (str): the name of the file to be written
+        dictionary (Mapping[str, str]): a dictionary containing the key/value pairs.
+        delimiter (str, optional): _description_. Defaults to '='.
+    """
+
     open_kwargs = {'mode': 'w', 'newline': ''} if six.PY3 else {'mode': 'wb'}
     with open(filename, **open_kwargs) as csvfile:
         writer = csv.writer(csvfile, delimiter=delimiter, escapechar='\\',
                             quoting=csv.QUOTE_NONE)
         writer.writerows(sorted(dictionary.items()))
 
-def file_hash(filename):
+def file_hash(filename: str) -> Tuple[str, str]:
+    """Calculates MD5 and SHA1 hashes based on file content
 
-    # BUF_SIZE is totally arbitrary, change for your app!
+    Args:
+        filename (str): Filename of the file to open and analyze
+
+    Returns:
+        Tuple[str, str]: MD5 and SHA1 hashes as hexadecimal strings.
+    """
+    
     bufsize = 65536  # lets read stuff in 64kb chunks!
 
     md5 = hashlib.md5()
@@ -257,7 +224,16 @@ def file_hash(filename):
 
     return md5.hexdigest(), sha1.hexdigest()
 
-def arg_hash(*args, **kwargs):
+def arg_hash(*args, **kwargs) -> str:
+    """Computes hash based on input positional and keyword arguments. 
+
+    The algorithm tries to convert all arguments to string, then enclose them with delimiters. The
+    positonal arguments are listed as is, keyword arguments are sorted and encoded with their keys as 
+    well as values.
+
+    Returns:
+        str: SHA1 hash as hexadecimal string
+    """
     sha1 = hashlib.sha1()
 
     for arg in args:
@@ -268,7 +244,15 @@ def arg_hash(*args, **kwargs):
 
     return sha1.hexdigest()
 
-def which(program):
+def which(program: str) -> str:
+    """Locates an executable in system PATH list by its name.
+
+    Args:
+        program (str): Name of the executable
+
+    Returns:
+        str: Full path or None if not found
+    """
 
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
@@ -298,7 +282,16 @@ def localize_path(path):
     else:
         return path.replace("\\", "/")
 
-def to_string(n):
+def to_string(n: Any) -> str:
+    """Converts object to string, returs empty string if object is None (so a bit different behaviour than
+    the original string conversion).
+
+    Args:
+        n (Any): Object of any kind
+
+    Returns:
+        str: String representation (using built-in conversion)
+    """
     if n is None:
         return ""
     else:
@@ -338,6 +331,8 @@ def singleton(class_):
     return getinstance
 
 class ColoredFormatter(Formatter):
+    """Colored log formatter using colorama package.
+    """
 
     class Empty(object):
         """An empty class used to copy :class:`~logging.LogRecord` objects without reinitializing them."""
@@ -345,7 +340,6 @@ class ColoredFormatter(Formatter):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         colorama.init()
-
 
         self._styles = dict(
             debug=colorama.Fore.GREEN,
@@ -357,8 +351,15 @@ class ColoredFormatter(Formatter):
             critical=colorama.Fore.RED + colorama.Style.BRIGHT,
         )
 
+    def format(self, record: LogRecord) -> str:
+        """Formats message by injecting colorama terminal codes for text coloring.
 
-    def format(self, record: LogRecord):
+        Args:
+            record (LogRecord): Input log record
+
+        Returns:
+            str: Formatted string
+        """
         style = self._styles[record.levelname.lower()]
 
         copy = ColoredFormatter.Empty()

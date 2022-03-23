@@ -4,7 +4,6 @@ from typing import List, Set, Tuple
 from trax import Region
 
 from vot.dataset import Channel, Sequence, Frame
-from vot.utilities import doc_inherit
 
 class ProxySequence(Sequence):
     """A proxy sequence base that forwards requests to undelying source sequence. Meant as a base class.
@@ -23,41 +22,32 @@ class ProxySequence(Sequence):
     def __len__(self):
         return self.length
 
-    @doc_inherit
     def frame(self, index: int) -> Frame:
         return Frame(self, index)
 
-    @doc_inherit
     def metadata(self, name, default=None):
         return self._source.metadata(name, default)
 
-    @doc_inherit
     def channel(self, channel=None):
         return self._source.channel(channel)
 
-    @doc_inherit
     def channels(self):
         return self._source.channels()
 
-    @doc_inherit
     def groundtruth(self, index: int = None) -> List[Region]:
         return self._source.groundtruth(index)
 
-    @doc_inherit
     def tags(self, index=None):
         return self._source.tags(index)
 
-    @doc_inherit
     def values(self, index=None):
         return self._source.values(index)
 
     @property
-    @doc_inherit
     def size(self) -> Tuple[int, int]:
         return self._source.size
 
     @property
-    @doc_inherit
     def length(self) -> int:
         return len(self._source)
 
@@ -70,15 +60,12 @@ class FrameMapChannel(Channel):
         self._map = frame_map
 
     @property
-    @doc_inherit
     def length(self):
         return len(self._map)
 
-    @doc_inherit
     def frame(self, index):
         return self._source.frame(self._map[index])
 
-    @doc_inherit
     def filename(self, index):
         return self._source.filename(self._map[index])
 
@@ -105,11 +92,9 @@ class FrameMapSequence(ProxySequence):
     def __len__(self):
         return self.length
 
-    @doc_inherit
     def frame(self, index: int) -> Frame:
         return Frame(self, self._map[index])
 
-    @doc_inherit
     def channel(self, channel=None):
         sourcechannel = self._source.channel(channel)
 
@@ -118,11 +103,9 @@ class FrameMapSequence(ProxySequence):
 
         return FrameMapChannel(sourcechannel, self._map)
 
-    @doc_inherit
     def channels(self):
         return self._source.channels()
 
-    @doc_inherit
     def groundtruth(self, index: int = None) -> List[Region]:
         if index is None:
             groundtruth = [None] * len(self)
@@ -146,7 +129,6 @@ class FrameMapSequence(ProxySequence):
         return self._source.values(self._map[index])
 
     @property
-    @doc_inherit
     def length(self) -> int:
         return len(self._map)
 
@@ -158,7 +140,6 @@ class ChannelFilterSequence(ProxySequence):
         super().__init__(source)
         self._filter = [i for i in channels if i in source.channels()]
 
-    @doc_inherit
     def channel(self, channel=None):
         if channel not in self._filter:
             return None
@@ -170,6 +151,5 @@ class ChannelFilterSequence(ProxySequence):
 
         return FrameMapChannel(sourcechannel, self._map)
 
-    @doc_inherit
     def channels(self):
         return list(self._channels)
