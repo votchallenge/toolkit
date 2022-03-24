@@ -18,7 +18,18 @@ import colorama
 
 __ALIASES = dict()
 
-def import_class(classpath):
+def import_class(classpath: str) -> typing.Type:
+    """Import a class from a string by importing parent packages. 
+
+    Args:
+        classpath (str): String representing a canonical class name with all parent packages.
+
+    Raises:
+        ImportError: Raised when
+
+    Returns:
+        [type]: [description]
+    """
     delimiter = classpath.rfind(".")
     if delimiter == -1:
         if classpath in __ALIASES:
@@ -31,6 +42,9 @@ def import_class(classpath):
         return getattr(module, classname)
 
 def alias(*args):
+    """
+    """
+
     def register(cls):
         assert cls is not None
         for name in args:

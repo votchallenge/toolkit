@@ -1,0 +1,10 @@
+title: OTB50 dataset experiment stack
+url: http://cvlab.hanyang.ac.kr/tracker_benchmark/index.html
+dataset: otb:otb50
+experiments:
+  baseline:
+    type: unsupervised
+    analyses:
+      - type: average_accuracy
+        name: accuracy
+        burnin: 1

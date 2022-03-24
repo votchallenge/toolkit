@@ -17,93 +17,210 @@ def is_notebook():
     else:
         return True
 
-
-def run_tracker(tracker: "Tracker", sequence: "Sequence"):
+if is_notebook():
+   
     from IPython.display import display
     from ipywidgets import widgets
     from vot.utilities.draw import ImageDrawHandle
 
-    def encode_image(handle):
-        with io.BytesIO() as output:
-            handle.snapshot.save(output, format="PNG")
-            return output.getvalue()
+    class SequenceView(object):
 
-    handle = ImageDrawHandle(sequence.frame(0).image())
+        def __init__(self):
 
-    button_restart = widgets.Button(description='Restart')
-    button_next = widgets.Button(description='Next')
-    button_play = widgets.Button(description='Run')
-    frame = widgets.Label(value="")
-    frame.layout.display = "none"
-    frame2 = widgets.Label(value="")
-    image = widgets.Image(value=encode_image(handle), format="png", width=sequence.size[0] * 2, height=sequence.size[1] * 2)
+            self._handle = ImageDrawHandle(sequence.frame(0).image())
 
-    state = dict(frame=0, auto=False, alive=True, region=None)
-    condition = Condition()
+            self._button_restart = widgets.Button(description='Restart')
+            self._button_next = widgets.Button(description='Next')
+            self._button_play = widgets.Button(description='Run')
+            self._frame = widgets.Label(value="")
+            self._frame.layout.display = "none"
+            self._frame_feedback = widgets.Label(value="")
+            self._image = widgets.Image(value="", format="png", width=sequence.size[0] * 2, height=sequence.size[1] * 2)
 
-    buttons = widgets.HBox(children=(frame, button_restart, button_next, button_play, frame2))
+            state = dict(frame=0, auto=False, alive=True, region=None)
+            condition = Condition()
 
-    image.value = encode_image(handle)
+            self._buttons = widgets.HBox(children=(frame, self._button_restart, self._button_next, button_play, frame2))
 
-    def run():
+        def _push_image(handle):
+            with io.BytesIO() as output:
+                handle.snapshot.save(output, format="PNG")
+                return output.getvalue()
 
-        runtime = tracker.runtime()
+    def visualize_tracker(tracker: "Tracker", sequence: "Sequence"):
+        from IPython.display import display
+        from ipywidgets import widgets
+        from vot.utilities.draw import ImageDrawHandle
 
-        while state["alive"]:
+        def encode_image(handle):
+            with io.BytesIO() as output:
+                handle.snapshot.save(output, format="PNG")
+                return output.getvalue()
 
-            if state["frame"] == 0:
-                state["region"], _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
-            else:
-                state["region"], _, _ = runtime.update(sequence.frame(state["frame"]))
+        handle = ImageDrawHandle(sequence.frame(0).image())
 
-            update_image()
+        button_restart = widgets.Button(description='Restart')
+        button_next = widgets.Button(description='Next')
+        button_play = widgets.Button(description='Run')
+        frame = widgets.Label(value="")
+        frame.layout.display = "none"
+        frame2 = widgets.Label(value="")
+        image = widgets.Image(value=encode_image(handle), format="png", width=sequence.size[0] * 2, height=sequence.size[1] * 2)
 
-            with condition:
-                condition.wait()
+        state = dict(frame=0, auto=False, alive=True, region=None)
+        condition = Condition()
 
-                if state["frame"] == sequence.length:
-                    state["alive"] = False
-                    continue
+        buttons = widgets.HBox(children=(frame, button_restart, button_next, button_play, frame2))
 
-                state["frame"] = state["frame"] + 1
-
-
-    def update_image():
-        handle.image(sequence.frame(state["frame"]).image())
-        handle.style(color="green").region(sequence.frame(state["frame"]).groundtruth())
-        if state["region"]:
-            handle.style(color="red").region(state["region"])
         image.value = encode_image(handle)
-        frame.value = "Frame: " + str(state["frame"] - 1)
 
-    def on_click(button):
-        if button == button_next:
+        def run():
+
+            runtime = tracker.runtime()
+
+            while state["alive"]:
+
+                if state["frame"] == 0:
+                    state["region"], _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+                else:
+                    state["region"], _, _ = runtime.update(sequence.frame(state["frame"]))
+
+                update_image()
+
+                with condition:
+                    condition.wait()
+
+                    if state["frame"] == sequence.length:
+                        state["alive"] = False
+                        continue
+
+                    state["frame"] = state["frame"] + 1
+
+
+        def update_image():
+            handle.image(sequence.frame(state["frame"]).image())
+            handle.style(color="green").region(sequence.frame(state["frame"]).groundtruth())
+            if state["region"]:
+                handle.style(color="red").region(state["region"])
+            image.value = encode_image(handle)
+            frame.value = "Frame: " + str(state["frame"] - 1)
+
+        def on_click(button):
+            if button == button_next:
+                with condition:
+                    state["auto"] = False
+                    condition.notify()
+            if button == button_restart:
+                with condition:
+                    state["frame"] = 0
+                    condition.notify()
+            if button == button_play:
+                with condition:
+                    state["auto"] = not state["auto"]
+                    button.description = "Stop" if state["auto"] else "Run"
+                    condition.notify()
+
+        button_next.on_click(on_click)
+        button_restart.on_click(on_click)
+        button_play.on_click(on_click)
+        widgets.jslink((frame, "value"), (frame2, "value"))
+
+        def on_update(_):
             with condition:
-                state["auto"] = False
-                condition.notify()
-        if button == button_restart:
+                if state["auto"]:
+                    condition.notify()
+
+        frame2.observe(on_update, names=("value", ))
+
+        thread = Thread(target=run)
+        display(widgets.Box([widgets.VBox(children=(image, buttons))]))
+        thread.start()
+
+    def visualize_results(experiment: "Experiment", sequence: "Sequence"):
+        from IPython.display import display
+        from ipywidgets import widgets
+        from vot.utilities.draw import ImageDrawHandle
+
+        def encode_image(handle):
+            with io.BytesIO() as output:
+                handle.snapshot.save(output, format="PNG")
+                return output.getvalue()
+
+        handle = ImageDrawHandle(sequence.frame(0).image())
+
+        button_restart = widgets.Button(description='Restart')
+        button_next = widgets.Button(description='Next')
+        button_play = widgets.Button(description='Run')
+        frame = widgets.Label(value="")
+        frame.layout.display = "none"
+        frame2 = widgets.Label(value="")
+        image = widgets.Image(value=encode_image(handle), format="png", width=sequence.size[0] * 2, height=sequence.size[1] * 2)
+
+        state = dict(frame=0, auto=False, alive=True, region=None)
+        condition = Condition()
+
+        buttons = widgets.HBox(children=(frame, button_restart, button_next, button_play, frame2))
+
+        image.value = encode_image(handle)
+
+        def run():
+
+            runtime = tracker.runtime()
+
+            while state["alive"]:
+
+                if state["frame"] == 0:
+                    state["region"], _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+                else:
+                    state["region"], _, _ = runtime.update(sequence.frame(state["frame"]))
+
+                update_image()
+
+                with condition:
+                    condition.wait()
+
+                    if state["frame"] == sequence.length:
+                        state["alive"] = False
+                        continue
+
+                    state["frame"] = state["frame"] + 1
+
+
+        def update_image():
+            handle.image(sequence.frame(state["frame"]).image())
+            handle.style(color="green").region(sequence.frame(state["frame"]).groundtruth())
+            if state["region"]:
+                handle.style(color="red").region(state["region"])
+            image.value = encode_image(handle)
+            frame.value = "Frame: " + str(state["frame"] - 1)
+
+        def on_click(button):
+            if button == button_next:
+                with condition:
+                    state["auto"] = False
+                    condition.notify()
+            if button == button_restart:
+                with condition:
+                    state["frame"] = 0
+                    condition.notify()
+            if button == button_play:
+                with condition:
+                    state["auto"] = not state["auto"]
+                    button.description = "Stop" if state["auto"] else "Run"
+                    condition.notify()
+
+        button_next.on_click(on_click)
+        button_restart.on_click(on_click)
+        button_play.on_click(on_click)
+        widgets.jslink((frame, "value"), (frame2, "value"))
+
+        def on_update(_):
             with condition:
-                state["frame"] = 0
-                condition.notify()
-        if button == button_play:
-            with condition:
-                state["auto"] = not state["auto"]
-                button.description = "Stop" if state["auto"] else "Run"
-                condition.notify()
+                if state["auto"]:
+                    condition.notify()
 
-    button_next.on_click(on_click)
-    button_restart.on_click(on_click)
-    button_play.on_click(on_click)
-    widgets.jslink((frame, "value"), (frame2, "value"))
+        frame2.observe(on_update, names=("value", ))
 
-    def on_update(_):
-        with condition:
-            if state["auto"]:
-                condition.notify()
-
-    frame2.observe(on_update, names=("value", ))
-
-    thread = Thread(target=run)
-    display(widgets.Box([widgets.VBox(children=(image, buttons))]))
-    thread.start()
-
+        thread = Thread(target=run)
+        display(widgets.Box([widgets.VBox(children=(image, buttons))]))
+        thread.start()
