@@ -9,7 +9,11 @@ For more detailed informations consult the documentation available in the source
 Developers
 ----------
 
-* [Luka Čehovin Zajc](https://vicos.si/lukacu), University of Ljubljana (lead developer)
+The VOT toolkit is developed and maintained by  [Luka Čehovin Zajc](https://vicos.si/lukacu) with the help of the VOT innitiative members and the VOT community.
+
+Contributors:
+
+* [Luka Čehovin Zajc](https://vicos.si/lukacu), University of Ljubljana
 * [Alan Lukežič](https://vicos.si/people/alan_lukezic/), University of Ljubljana
 * Yan Song, Tampere University
 

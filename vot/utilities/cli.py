@@ -373,7 +373,7 @@ def main():
 
         logger.setLevel(logging.INFO)
 
-        if args.debug or check_debug:
+        if args.debug or check_debug():
             logger.setLevel(logging.DEBUG)
 
         update, version = check_updates()
