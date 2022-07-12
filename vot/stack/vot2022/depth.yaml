@@ -14,10 +14,3 @@ experiments:
         high: 755
       - type: multistart_average_ar
         name: ar
-  unsupervised:
-    type: unsupervised
-    repetitions: 1
-    analyses:
-      - type: average_accuracy
-        name: accuracy
-        burnin: 1
