@@ -17,6 +17,11 @@ Contributors:
 * [Alan Lukežič](https://vicos.si/people/alan_lukezic/), University of Ljubljana
 * Yan Song, Tampere University
 
+Acknowledgements
+----------------
+
+The development of this package was supported by Sloveninan research agency (ARRS) projects Z2-1866 and J2-316.
+
 License
 -------
 
