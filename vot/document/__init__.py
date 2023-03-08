@@ -317,6 +317,8 @@ class TrackerSorter(Attributee):
     result = Integer(val_min=0, default=0)
 
     def __call__(self, experiments, trackers, sequences):
+        from vot.analysis import AnalysisError
+
         if self.experiment is None or self.analysis is None:
             return range(len(trackers))
 
@@ -330,8 +332,12 @@ class TrackerSorter(Attributee):
         if analysis is None:
             raise RuntimeError("Analysis not found")
 
-        future = analysis.commit(experiment, trackers, sequences)
-        result = future.result()
+        try:
+
+            future = analysis.commit(experiment, trackers, sequences)
+            result = future.result()
+        except AnalysisError as e:
+            raise RuntimeError("Unable to sort trackers", e)
 
         scores = [x[self.result] for x in result]
         indices = [i[0] for i in sorted(enumerate(scores), reverse=True, key=lambda x: x[1])]

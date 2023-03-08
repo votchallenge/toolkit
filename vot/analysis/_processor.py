@@ -607,13 +607,14 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
     results = dict()
     condition = Condition()
+    errors = []
 
     def insert_result(container: dict, key):
         def insert(future: Future):
             try:
                 container[key] = future.result()
             except AnalysisError as e:
-                e.print(logger)
+                errors.append(e)
             except Exception as e:
                 logger.exception(e)
             with condition:
@@ -664,5 +665,13 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
             progress.close()
             logger.info("Analysis interrupted by user, aborting.")
             return None
+
+    if len(errors) > 0:
+        logger.info("Errors occured during analysis, incomplete.")
+        for e in errors:
+            logger.info("Failed task {}: {}".format(e.task, e.root_cause))
+            if logger.isEnabledFor(logging.DEBUG):
+                e.print(logger)
+        return None
 
     return results

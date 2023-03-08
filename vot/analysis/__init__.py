@@ -26,8 +26,11 @@ analysis_registry = ClassRegistry("vot_analysis")
 class MissingResultsException(ToolkitException):
     """Exception class that denotes missing results during analysis
     """
-    pass
-
+    def __init__(self, *args: object) -> None:
+        if not args:
+            args = ["Missing results"]
+        super().__init__(*args)
+        
 class Sorting(Enum):
     """Sorting direction enumeration class
     """
