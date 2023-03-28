@@ -8,7 +8,7 @@ import configparser
 import six
 
 from vot import get_logger
-from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel
+from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel, SequenceData
 from vot.region import Special
 from vot.region.io import read_trajectory
 from vot.utilities import Progress
@@ -103,7 +103,9 @@ class GOT10kSequence(BaseSequence):
             if not len(value) == len(groundtruth):
                 raise DatasetException("Length mismatch for value %s" % name)
 
-        return channels, groundtruth, tags, values
+        objects = {"object" : groundtruth}
+
+        return SequenceData(channels, objects, tags, values, len(groundtruth)) 
 
 class GOT10kDataset(Dataset):
 

@@ -9,16 +9,17 @@ class ProxySequence(Sequence):
     """A proxy sequence base that forwards requests to undelying source sequence. Meant as a base class.
     """
 
-    def __init__(self, source: Sequence):
+    def __init__(self, source: Sequence, name: str = None):
         """Creates a proxy sequence.
 
         Args:
             source (Sequence): Source sequence object
         """
-        super().__init__(source.name, source.dataset)
+        if name is None:
+            name = source.name
+        super().__init__(name, source.dataset)
         self._source = source
 
-    
     def __len__(self):
         return self.length
 
@@ -33,6 +34,12 @@ class ProxySequence(Sequence):
 
     def channels(self):
         return self._source.channels()
+
+    def objects(self):
+        return self._source.objects()
+
+    def object(self, id, index=None):
+        return self._source.object(id, index)
 
     def groundtruth(self, index: int = None) -> List[Region]:
         return self._source.groundtruth(index)
@@ -140,13 +147,27 @@ class ChannelFilterSequence(ProxySequence):
     def channel(self, channel=None):
         if channel not in self._filter:
             return None
-
-        sourcechannel = self._source.channel(channel)
-
-        if sourcechannel is None:
-            return None
-
-        return FrameMapChannel(sourcechannel, self._map)
+        return self._source.channel(channel)
 
     def channels(self):
-        return list(self._channels)
+        return set(self._filter)
+
+class ObjectFilterSequence(ProxySequence):
+    """A proxy sequence that only makes specific object visible.
+    """
+
+    def __init__(self, source: Sequence, id: str, trim: bool=False):
+        super().__init__(source, "%s_%s" % (source.name, id))
+        self._id = id
+    
+    def objects(self):
+        objects = self._source.objects()
+        return {self._id: objects[id]}
+
+    def object(self, id, index=None):
+        if id != self._id:
+            return None
+        return self._source.object(id, index)
+
+    def groundtruth(self, index: int = None) -> List[Region]:
+        return self._source.object(self._id, index)

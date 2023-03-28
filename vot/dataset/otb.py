@@ -5,7 +5,7 @@ import logging
 import six
 
 from vot import get_logger
-from vot.dataset import BaseSequence, Dataset, DatasetException, PatternFileListChannel
+from vot.dataset import BaseSequence, Dataset, DatasetException, PatternFileListChannel, SequenceData
 from vot.utilities import Progress
 from vot.region.io import parse_region
 
@@ -161,8 +161,10 @@ class OTBSequence(BaseSequence):
 
         if not channels["color"].length == len(groundtruth):
             raise DatasetException("Length mismatch between groundtruth and images %d != %d" % (channels["color"].length, len(groundtruth)))
+        
+        objects = {"object" : groundtruth}
 
-        return channels, groundtruth, {}, {}
+        return SequenceData(channels, objects, {}, {}, len(groundtruth)) 
 
 class OTBDataset(Dataset):
 

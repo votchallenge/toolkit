@@ -70,6 +70,9 @@ def class_string(kls):
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
     return (size[1], size[0])
 
+def flatten(nested_list):
+    return [item for sublist in nested_list for item in sublist]
+
 from vot.utilities.notebook import is_notebook
 
 if is_notebook():

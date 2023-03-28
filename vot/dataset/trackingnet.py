@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 import six
 
-from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel
+from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel, SequenceData
 from vot.region import Special
 from vot.region.io import read_trajectory
 from vot.utilities import Progress
@@ -61,7 +61,9 @@ class TrackingNetSequence(BaseSequence):
 
         self._metadata["length"] = len(groundtruth)
 
-        return channels, groundtruth, tags, values
+        objects = {"object" : groundtruth}
+
+        return SequenceData(channels, objects, tags, values, len(groundtruth))
 
 class TrackingNetDataset(Dataset):
 

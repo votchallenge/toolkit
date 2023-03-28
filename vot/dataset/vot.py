@@ -8,7 +8,7 @@ import six
 
 import cv2
 
-from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel
+from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel, SequenceData
 from vot.region.io import write_trajectory, read_trajectory
 from vot.utilities import Progress, localize_path, read_properties, write_properties
 
@@ -48,7 +48,6 @@ class VOTSequence(BaseSequence):
         channels = {}
         tags = {}
         values = {}
-        groundtruth = []
 
         for c in ["color", "depth", "ir"]:
             channel_path = self.metadata("channels.%s" % c, None)
@@ -63,10 +62,22 @@ class VOTSequence(BaseSequence):
 
         self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
 
-        groundtruth_file = os.path.join(self._base, self.metadata("groundtruth", "groundtruth.txt"))
-        groundtruth = read_trajectory(groundtruth_file)
+        objectsfiles = glob.glob(os.path.join(self._base, 'groundtruth_*.txt'))
+        if len(objectsfiles) > 0:
+            objects = {}
+            for objectfile in objectsfiles:
+                groundtruth = read_trajectory(os.path.join(objectfile))
+                objectid = objectfile[12:-4]
+                objects[objectid] = groundtruth
+            lenghts = [len(t) for t in objects.values()]
+            assert all([x == lenghts[0] for x in lenghts])
+            length = lenghts[0]
+        else:
+            groundtruth_file = os.path.join(self._base, self.metadata("groundtruth", "groundtruth.txt"))
+            objects = {"object" :  read_trajectory(groundtruth_file)}
+            length = len(objects["object"])
 
-        self._metadata["length"] = len(groundtruth)
+        self._metadata["length"] = length
 
         tagfiles = glob.glob(os.path.join(self._base, '*.tag')) + glob.glob(os.path.join(self._base, '*.label'))
 
@@ -74,7 +85,7 @@ class VOTSequence(BaseSequence):
             with open(tagfile, 'r') as filehandle:
                 tagname = os.path.splitext(os.path.basename(tagfile))[0]
                 tag = [line.strip() == "1" for line in filehandle.readlines()]
-                while not len(tag) >= len(groundtruth):
+                while not len(tag) >= length:
                     tag.append(False)
                 tags[tagname] = tag
 
@@ -84,25 +95,25 @@ class VOTSequence(BaseSequence):
             with open(valuefile, 'r') as filehandle:
                 valuename = os.path.splitext(os.path.basename(valuefile))[0]
                 value = [float(line.strip()) for line in filehandle.readlines()]
-                while not len(value) >= len(groundtruth):
+                while not len(value) >= length:
                     value.append(0.0)
                 values[valuename] = value
 
         for name, channel in channels.items():
-            if not channel.length == len(groundtruth):
-                raise DatasetException("Length mismatch for channel %s (%d != %d)" % (name, channel.length, len(groundtruth)))
+            if not channel.length == length:
+                raise DatasetException("Length mismatch for channel %s (%d != %d)" % (name, channel.length, length))
 
         for name, tag in tags.items():
-            if not len(tag) == len(groundtruth):
-                tag_tmp = len(groundtruth) * [False]
+            if not len(tag) == length:
+                tag_tmp = length * [False]
                 tag_tmp[:len(tag)] = tag
                 tag = tag_tmp
 
         for name, value in values.items():
-            if not len(value) == len(groundtruth):
+            if not len(value) == length:
                 raise DatasetException("Length mismatch for value %s" % name)
 
-        return channels, groundtruth, tags, values
+        return SequenceData(channels, objects, tags, values, length) 
 
 class VOTDataset(Dataset):
 
@@ -236,9 +247,6 @@ def write_sequence(directory: str, sequence: Sequence):
 
 
 _VOT_DATASETS = {
-    "vot2013" : "http://data.votchallenge.net/vot2013/dataset/description.json",
-    "vot2014" : "http://data.votchallenge.net/vot2014/dataset/description.json",
-    "vot2015" : "http://data.votchallenge.net/vot2015/dataset/description.json",
     "vot-tir2015" : "http://www.cvl.isy.liu.se/research/datasets/ltir/version1.0/ltir_v1_0_8bit.zip",
     "vot2016" : "http://data.votchallenge.net/vot2016/main/description.json",
     "vot-tir2016" : "http://data.votchallenge.net/vot2016/vot-tir2016.zip",

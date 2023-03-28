@@ -2,6 +2,7 @@ import os
 import logging
 
 from numbers import Number
+from collections import namedtuple
 from abc import abstractmethod, ABC
 from typing import List, Mapping, Optional, Set, Tuple
 
@@ -91,13 +92,24 @@ class Frame(object):
             return None
         return channelobj.frame(self._index)
 
+    def objects(self):
+        objects = {}
+        for o in self._sequence.objects().keys():
+            region = self._sequence.object(o, self._index)
+            if region is not None:
+                objects[o] = region
+        return objects
+
+    def object(self, id: str):
+        return self._sequence.object(id, self._index)
+
     def groundtruth(self):
         return self._sequence.groundtruth(self._index)
 
-    def tags(self, index = None):
+    def tags(self):
         return self._sequence.tags(self._index)
 
-    def values(self, index=None):
+    def values(self):
         return self._sequence.values(self._index)
 
 class SequenceIterator(object):
@@ -302,6 +314,14 @@ class Sequence(FrameList):
         pass
 
     @abstractmethod
+    def objects(self) -> Set[str]:
+        pass
+
+    @abstractmethod
+    def object(self, id, index=None):
+        pass
+
+    @abstractmethod
     def groundtruth(self, index: int) -> Region:
         pass
 
@@ -375,6 +395,8 @@ class Dataset(ABC):
         """
         return self.list()
 
+SequenceData = namedtuple("SequenceData", ["channels", "objects", "tags", "values", "length"])
+
 class BaseSequence(Sequence):
 
     def __init__(self, name, dataset=None):
@@ -387,7 +409,7 @@ class BaseSequence(Sequence):
         raise NotImplementedError
 
     @abstractmethod
-    def _read(self):
+    def _read(self) -> SequenceData:
         raise NotImplementedError
 
     def __preload(self):
@@ -399,34 +421,49 @@ class BaseSequence(Sequence):
 
     def channels(self):
         self.__preload()
-        return self._data[0]
+        return self._data.channels.keys()
 
     def channel(self, channel=None):
         self.__preload()
         if channel is None:
             channel = self.metadata("channel.default")
-        return self._data[0].get(channel, None)
+        return self._data.channels.get(channel, None)
 
     def frame(self, index):
         return Frame(self, index)
 
+    def objects(self):
+        self.__preload()
+        return self._data.objects.keys()
+
+    def object(self, id, index=None):
+        self.__preload()
+        obj = self._data.objects.get(id, None)
+        if index is None:
+            return obj
+        if obj is None:
+            return None
+        return obj[index]
+
     def groundtruth(self, index=None):
         self.__preload()
-        if index is None:
-            return self._data[1]
-        return self._data[1][index]
+        if len(self.objects()) != 1:
+            raise DatasetException("More than one object in sequence")
+
+        id = next(iter(self._data.objects))
+        return self.object(id, index)
 
     def tags(self, index=None):
         self.__preload()
         if index is None:
-            return self._data[2].keys()
-        return [t for t, sq in self._data[2].items() if sq[index]]
+            return self._data.tags.keys()
+        return [t for t, sq in self._data.tags.items() if sq[index]]
 
     def values(self, index=None):
         self.__preload()
         if index is None:
-            return self._data[3].keys()
-        return {v: sq[index] for v, sq in self._data[3].items()}
+            return self._data.values.keys()
+        return {v: sq[index] for v, sq in self._data.values.items()}
 
     @property
     def size(self):
@@ -443,7 +480,7 @@ class BaseSequence(Sequence):
     @property
     def length(self):
         self.__preload()
-        return len(self._data[1])
+        return self._data.length
 
 class InMemorySequence(BaseSequence):
 
@@ -458,7 +495,7 @@ class InMemorySequence(BaseSequence):
         return dict()
 
     def _read(self):
-        return self._channels, self._groundtruth, self._tags, self._values
+        return SequenceData(self._channels, {"object" : self._groundtruth}, self._tags, self._values)
 
     def append(self, images: dict, region: "Region", tags: list = None, values: dict = None):
 
