@@ -1,5 +1,5 @@
 title: VOT2015 challenge
-dataset: vot:vot2015
+dataset: http://data.votchallenge.net/vot2015/dataset/description.json
 url: http://www.votchallenge.net/vot2015/
 experiments:
   baseline:
