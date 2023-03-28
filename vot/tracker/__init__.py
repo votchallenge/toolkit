@@ -4,8 +4,8 @@ import re
 import configparser
 import logging
 import copy
-from typing import Tuple
-from collections import OrderedDict
+from typing import Tuple, List, Union
+from collections import OrderedDict, namedtuple
 from abc import abstractmethod, ABC
 
 import yaml
@@ -334,6 +334,9 @@ class Tracker(object):
     def tagged(self, tag):
         return tag in self._tags
 
+ObjectStatus = namedtuple("ObjectStatus", ["region", "properties"])
+
+Objects = Union[List[ObjectStatus], ObjectStatus]
 class TrackerRuntime(ABC):
 
     def __init__(self, tracker: Tracker):
@@ -349,6 +352,10 @@ class TrackerRuntime(ABC):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
 
+    @property
+    def multiobject(self):
+        return False
+
     @abstractmethod
     def stop(self):
         pass
@@ -358,11 +365,11 @@ class TrackerRuntime(ABC):
         pass
 
     @abstractmethod
-    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
         pass
 
     @abstractmethod
-    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
+    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
         pass
 
 class RealtimeTrackerRuntime(TrackerRuntime):
@@ -376,11 +383,9 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         self._time = 0
         self._out = None
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
+    @property
+    def multiobject(self):
+        return self._runtime.multiobject
 
     def stop(self):
         self._runtime.stop()
@@ -392,11 +397,11 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         self._time = 0
         self._out = None
 
-    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
         self._countdown = self._grace
         self._out = None
 
-        out, prop, time = self._runtime.initialize(frame, region, properties)
+        out, prop, time = self._runtime.initialize(frame, new, properties)
 
         if time > self._interval:
             if self._countdown > 0:
@@ -411,7 +416,7 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         return out, prop, time
 
 
-    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
+    def update(self, frame: Frame, _: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
 
         if self._time > self._interval:
             self._time = self._time - self._interval
@@ -440,11 +445,9 @@ class PropertyInjectorTrackerRuntime(TrackerRuntime):
         self._runtime = runtime
         self._properties = {k : str(v) for k, v in kwargs.items()}
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
+    @property
+    def multiobject(self):
+        return self._runtime.multiobject
 
     def stop(self):
         self._runtime.stop()
@@ -452,7 +455,7 @@ class PropertyInjectorTrackerRuntime(TrackerRuntime):
     def restart(self):
         self._runtime.restart()
 
-    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
 
         if not properties is None:
             tproperties = dict(properties)
@@ -461,12 +464,93 @@ class PropertyInjectorTrackerRuntime(TrackerRuntime):
 
         tproperties.update(self._properties)
 
-        return self._runtime.initialize(frame, region, tproperties)
+        return self._runtime.initialize(frame, new, tproperties)
 
 
-    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
-        return self._runtime.update(frame, properties)
+    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+        return self._runtime.update(frame, new, properties)
 
+
+class SingleObjectTrackerRuntime(TrackerRuntime):
+
+    def __init__(self, runtime: TrackerRuntime):
+        super().__init__(runtime.tracker)
+        self._runtime = runtime
+
+    @property
+    def multiobject(self):
+        return False
+
+    def stop(self):
+        self._runtime.stop()
+
+    def restart(self):
+        self._runtime.restart()
+
+    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+
+        if isinstance(new, list) and len(new) != 1: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
+        status = self._runtime.initialize(frame, new, properties)
+        if isinstance(status, list): status = status[0]
+        return status
+
+    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+
+        if not new is None: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
+        status = self._runtime.update(frame, new, properties)
+        if isinstance(status, list): status = status[0]
+        return status
+
+class MultiObjectTrackerRuntime(TrackerRuntime):
+
+    def __init__(self, runtime: TrackerRuntime):
+        super().__init__(runtime.tracker)
+        if self._runtime.multiobject:
+            self._runtime = runtime
+        else:
+            self._runtime = [runtime]
+            self._used = 0
+
+    @property
+    def multiobject(self):
+        return True
+
+    def stop(self):
+        if isinstance(self._runtime, TrackerRuntime):
+            self._runtime.stop()
+        else:
+            for r in self._runtime:
+                r.stop()
+
+    def restart(self):
+        if isinstance(self._runtime, TrackerRuntime):
+            self._runtime.restart()
+        else:
+            for r in self._runtime:
+                r.restart()
+
+    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+        if isinstance(self._runtime, TrackerRuntime):
+            return self._runtime.initialize(frame, new, properties)
+        if isinstance(new, ObjectStatus):
+            new = [new]
+
+        self._used = 0
+        status = []
+        for i, o in enumerate(new):
+            if i >= len(self._runtime):
+                self._runtime.append(self._tracker.runtime())
+                self._runtime.initialize(frame, new, properties)
+
+        if isinstance(status, list): status = status[0]
+        return status
+
+    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+
+        if not new is None: raise TrackerException("Only supports single object tracking")
+        status = self._runtime.update(frame, new, properties)
+        if isinstance(status, list): status = status[0]
+        return status
 
 try:
 

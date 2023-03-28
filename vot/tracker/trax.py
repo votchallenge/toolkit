@@ -27,7 +27,7 @@ from trax.region import Rectangle as TraxRectangle
 
 from vot.dataset import Frame, DatasetException
 from vot.region import Region, Polygon, Rectangle, Mask
-from vot.tracker import Tracker, TrackerRuntime, TrackerException
+from vot.tracker import Tracker, TrackerRuntime, TrackerException, Objects, ObjectStatus
 from vot.utilities import to_logical, to_number, normalize_path
 
 PORT_POOL_MIN = 9090
@@ -88,7 +88,6 @@ def convert_region(region: Region) -> TraxRegion:
         return TraxPolygon.create([region[i] for i in range(region.size)])
     elif isinstance(region, Mask):
         return TraxMask.create(region.mask, x=region.offset[0], y=region.offset[1])
-
     return None
 
 def convert_traxregion(region: TraxRegion) -> Region:
@@ -99,7 +98,23 @@ def convert_traxregion(region: TraxRegion) -> Region:
         return Polygon(list(region))
     elif region.type == TraxRegion.MASK:
         return Mask(region.array(), region.offset(), optimize=True)
+    return None
 
+def convert_objects(objects: Objects) -> TraxRegion:
+    if objects is None: return None
+    if isinstance(objects, (list, )):
+        return [(convert_region(o.region), dict(o.properties)) for o in objects]
+    else:
+        [(convert_region(objects.region), dict(objects.properties))]
+
+def convert_traxobjects(region: TraxRegion) -> Region:
+    if region.type == TraxRegion.RECTANGLE:
+        x, y, width, height = region.bounds()
+        return Rectangle(x, y, width, height)
+    elif region.type == TraxRegion.POLYGON:
+        return Polygon(list(region))
+    elif region.type == TraxRegion.MASK:
+        return Mask(region.array(), region.offset(), optimize=True)
     return None
 
 class TestRasterMethods(unittest.TestCase):
@@ -195,6 +210,7 @@ class TrackerProcess(object):
         self._watchdog_reset(False)
 
         self._has_vot_wrapper = not self._client.get("vot") is None
+        self._multiobject = self._client.get("multiobject")
 
     def _watchdog_reset(self, enable=True):
         if self._watchdog_counter == 0:
@@ -240,7 +256,7 @@ class TrackerProcess(object):
         self._returncode = self._process.returncode
         return self._returncode is None
 
-    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
 
         if not self.alive:
             raise TraxException("Tracker not alive")
@@ -249,31 +265,37 @@ class TrackerProcess(object):
             properties = dict()
 
         tlist = convert_frame(frame, self._client.channels)
-        tregion = convert_region(region)
+        tobjects = convert_objects(new)
 
         self._watchdog_reset(True)
 
-        region, properties, elapsed = self._client.initialize(tlist, tregion, properties)
+        status, elapsed = self._client.initialize(tlist, tobjects, properties)
 
         self._watchdog_reset(False)
 
-        return convert_traxregion(region), properties.dict(), elapsed
+        status = [ObjectStatus(convert_traxregion(region), properties) for region, properties in status]
+
+        return status, elapsed
 
 
-    def frame(self, frame: Frame, properties: dict = dict()) -> Tuple[Region, dict, float]:
+    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
 
         if not self.alive:
             raise TraxException("Tracker not alive")
 
         tlist = convert_frame(frame, self._client.channels)
 
+        tobjects = convert_objects(new)
+
         self._watchdog_reset(True)
 
-        region, properties, elapsed = self._client.frame(tlist, properties)
+        status, elapsed = self._client.frame(tlist, properties, tobjects)
 
         self._watchdog_reset(False)
 
-        return convert_traxregion(region), properties.dict(), elapsed
+        status = [ObjectStatus(convert_traxregion(region), properties) for region, properties in status]
+
+        return status, elapsed
 
     def terminate(self):
         with self._watchdog_lock:
@@ -367,6 +389,11 @@ class TraxTrackerRuntime(TrackerRuntime):
     def tracker(self) -> Tracker:
         return self._tracker
 
+    @property
+    def multiobject(self):
+        self._connect()
+        return self._process._multiobject
+
     def _connect(self):
         if not self._process:
             if not self._output is None:
@@ -415,7 +442,7 @@ class TraxTrackerRuntime(TrackerRuntime):
         except TraxException as e:
             self._error(e)
 
-    def initialize(self, frame: Frame, region: Region, properties: dict = None) -> Tuple[Region, dict, float]:
+    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
         try:
             if self._restart:
                 self.stop()
@@ -426,15 +453,15 @@ class TraxTrackerRuntime(TrackerRuntime):
             if not properties is None:
                 tproperties.update(properties)
 
-            return self._process.initialize(frame, region, tproperties)
+            return self._process.initialize(frame, new, tproperties)
         except TraxException as e:
             self._error(e)
 
-    def update(self, frame: Frame, properties: dict = None) -> Tuple[Region, dict, float]:
+    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
         try:
             if properties is None:
                 properties = dict()
-            return self._process.frame(frame, properties)
+            return self._process.update(frame, new, properties)
         except TraxException as e:
             self._error(e)
 
@@ -444,9 +471,7 @@ class TraxTrackerRuntime(TrackerRuntime):
             self._process = None
 
     def __del__(self):
-        if not self._process is None:
-            self._process.terminate()
-            self._process = None
+        self.stop()
 
 def escape_path(path):
     if sys.platform.startswith("win"):

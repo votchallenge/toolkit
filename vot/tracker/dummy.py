@@ -3,9 +3,9 @@ import os
 from sys import path
 import time
 
-from trax import Image, Region, Server, TraxStatus
-
 def _main():
+    from trax import Image, Region, Server, TraxStatus
+
     region = None
     with Server([Region.RECTANGLE], [Image.PATH]) as server:
         while True:

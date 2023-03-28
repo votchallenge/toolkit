@@ -8,7 +8,7 @@ from vot.region import Special, calculate_overlap
 from attributee import Boolean, Integer, Float, List, String
 
 from vot.experiment import Experiment, experiment_registry
-from vot.tracker import Tracker, Trajectory
+from vot.tracker import Tracker, Trajectory, ObjectStatus
 
 class MultiRunExperiment(Experiment):
 
@@ -18,13 +18,14 @@ class MultiRunExperiment(Experiment):
     def _can_stop(self, tracker: Tracker, sequence: Sequence):
         if not self.early_stop:
             return False
-        trajectories = self.gather(tracker, sequence)
-        if len(trajectories) < 3:
-            return False
-
-        for trajectory in trajectories[1:]:
-            if not trajectory.equals(trajectories[0]):
+        
+        for o in sequence.objects():
+            trajectories = self.gather(tracker, sequence, objects=[o])
+            if len(trajectories) < 3:
                 return False
+            for trajectory in trajectories[1:]:
+                if not trajectory.equals(trajectories[0]):
+                    return False
 
         return True
 
@@ -34,62 +35,94 @@ class MultiRunExperiment(Experiment):
 
         files = []
         complete = True
+        multiobject = len(sequence.objects()) > 1
+        assert self._multiobject or not multiobject
 
-        for i in range(1, self.repetitions+1):
-            name = "%s_%03d" % (sequence.name, i)
-            if Trajectory.exists(results, name):
-                files.extend(Trajectory.gather(results, name))
-            elif self._can_stop(tracker, sequence):
-                break
-            else:
-                complete = False
-                break
+        for o in sequence.objects():
+            prefix = sequence.name if not multiobject else "%s_%s" % (sequence.name, o)
+            for i in range(1, self.repetitions+1):
+                name = "%s_%03d" % (prefix, i)
+                if Trajectory.exists(results, name):
+                    files.extend(Trajectory.gather(results, name))
+                elif self._can_stop(tracker, sequence):
+                    break
+                else:
+                    complete = False
+                    break
 
         return complete, files, results
 
-    def gather(self, tracker: Tracker, sequence: Sequence):
+    def gather(self, tracker: Tracker, sequence: Sequence, objects = None):
         trajectories = list()
+
+        multiobject = len(sequence.objects()) > 1
+
+        assert self._multiobject or not multiobject
         results = self.results(tracker, sequence)
-        for i in range(1, self.repetitions+1):
-            name = "%s_%03d" % (sequence.name, i)
-            if Trajectory.exists(results, name):
-                trajectories.append(Trajectory.read(results, name))
+
+        if objects is None:
+            objects = list(sequence.objects())
+
+        for o in objects:
+            prefix = sequence.name if not multiobject else "%s_%s" % (sequence.name, o)
+            for i in range(1, self.repetitions+1):
+                name =  "%s_%03d" % (prefix, i)
+                if Trajectory.exists(results, name):
+                    trajectories.append(Trajectory.read(results, name))
         return trajectories
 
 @experiment_registry.register("unsupervised")
 class UnsupervisedExperiment(MultiRunExperiment):
 
+    multiobject = Boolean(default=False)
+
+    @property
+    def _multiobject(self) -> bool:
+        return self.multiobject
+
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
+
+        from .helpers import MultiObjectHelper
 
         results = self.results(tracker, sequence)
 
-        with self._get_runtime(tracker, sequence) as runtime:
+        multiobject = len(sequence.objects()) > 1
+        assert self._multiobject or not multiobject
+
+        helper = MultiObjectHelper(sequence)
+
+        with self._get_runtime(tracker, sequence, self._multiobject) as runtime:
 
             for i in range(1, self.repetitions+1):
-                name = "%s_%03d" % (sequence.name, i)
 
-                if Trajectory.exists(results, name) and not force:
+                trajectories = {}
+
+                for o in helper.all(): trajectories[o] = Trajectory(sequence.length)
+
+                if all([Trajectory.exists(results, name) for name in trajectories.keys()]) and not force:
                     continue
 
                 if self._can_stop(tracker, sequence):
                     return
 
-                trajectory = Trajectory(sequence.length)
+                _, elapsed = runtime.initialize(sequence.frame(0), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(0)])
 
-                _, properties, elapsed = runtime.initialize(sequence.frame(0), self._get_initialization(sequence, 0))
-
-                properties["time"] = elapsed
-
-                trajectory.set(0, Special(Special.INITIALIZATION), properties)
+                for x in helper.new(0):
+                    trajectories[x].set(0, Special(Special.INITIALIZATION), {"time": elapsed})
 
                 for frame in range(1, sequence.length):
-                    region, properties, elapsed = runtime.update(sequence.frame(frame))
+                    state, elapsed = runtime.update(sequence.frame(frame), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(frame)])
 
-                    properties["time"] = elapsed
+                    if not isinstance(state, list):
+                        state = [state]
 
-                    trajectory.set(frame, region, properties)
+                    for x, object in zip(helper.objects(frame), state):
+                        object.properties["time"] = elapsed # TODO: what to do with time stats?
+                        trajectories[x].set(frame, object.region, object.properties)
 
-                trajectory.write(results, name)
+                for o, trajectory in trajectories.items():
+                    name = "%s_%s_%03d" % (sequence.name, o, i) if multiobject else "%s_%03d" % (sequence.name, i)
+                    trajectory.write(results, name)
 
                 if callback:
                     callback(i / self.repetitions)
@@ -121,22 +154,20 @@ class SupervisedExperiment(MultiRunExperiment):
                 frame = 0
                 while frame < sequence.length:
 
-                    _, properties, elapsed = runtime.initialize(sequence.frame(frame), self._get_initialization(sequence, frame))
+                    _, elapsed = runtime.initialize(sequence.frame(frame), self._get_initialization(sequence, frame))
 
-                    properties["time"] = elapsed
-
-                    trajectory.set(frame, Special(Special.INITIALIZATION), properties)
+                    trajectory.set(frame, Special(Special.INITIALIZATION), {"time" : elapsed})
 
                     frame = frame + 1
 
                     while frame < sequence.length:
 
-                        region, properties, elapsed = runtime.update(sequence.frame(frame))
+                        object, elapsed = runtime.update(sequence.frame(frame))
 
-                        properties["time"] = elapsed
+                        object.properties["time"] = elapsed
 
-                        if calculate_overlap(region, sequence.groundtruth(frame), sequence.size) <= self.failure_overlap:
-                            trajectory.set(frame, Special(Special.FAILURE), properties)
+                        if calculate_overlap(object.region, sequence.groundtruth(frame), sequence.size) <= self.failure_overlap:
+                            trajectory.set(frame, Special(Special.FAILURE), object.properties)
                             frame = frame + self.skip_initialize
  
                             if self.skip_tags:
@@ -146,7 +177,7 @@ class SupervisedExperiment(MultiRunExperiment):
                                     frame = frame + 1
                             break
                         else:
-                            trajectory.set(frame, region, properties)
+                            trajectory.set(frame, object.region, object.properties)
                         frame = frame + 1
 
                 if  callback:

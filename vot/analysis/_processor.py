@@ -629,7 +629,7 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
         results[experiment] = experiment_results
 
-        sequences = [experiment.transform(sequence) for sequence in workspace.dataset]
+        sequences = experiment.transform(workspace.dataset)
 
         for analysis in experiment.analyses:
 

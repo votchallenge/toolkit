@@ -41,7 +41,10 @@ def do_test(config: argparse.Namespace):
         config (argparse.Namespace): Configuration
     """
     from vot.dataset.dummy import DummySequence
-    from vot.dataset import load_sequence
+    from vot.dataset import load_sequence, Frame
+    from vot.tracker import ObjectStatus
+    from vot.experiment.helpers import MultiObjectHelper
+
     trackers = Registry(config.registry)
 
     if not config.tracker:
@@ -57,54 +60,63 @@ def do_test(config: argparse.Namespace):
 
     tracker = trackers[config.tracker]
 
-    logger.info("Generating dummy sequence")
-
-    if config.sequence is None:
-        sequence = DummySequence(50)
-    else:
-        sequence = load_sequence(normalize_path(config.sequence))
-
-    logger.info("Obtaining runtime for tracker %s", tracker.identifier)
-
-    if config.visualize:
-        import matplotlib.pylab as plt
-        from vot.utilities.draw import MatplotlibDrawHandle
-        figure = plt.figure()
-        figure.canvas.set_window_title('VOT Test')
-        axes = figure.add_subplot(1, 1, 1)
-        axes.set_aspect("equal")
-        handle = MatplotlibDrawHandle(axes, size=sequence.size)
-        handle.style(fill=False)
-        figure.show()
-
-    runtime = None
-
+    def visualize(axes, frame: Frame, reference, state):
+        axes.clear()
+        handle.image(frame.channel())
+        if not isinstance(state, list):
+            state = [state]
+        for gt, st in zip(reference, state):
+            handle.style(color="green").region(gt)
+            handle.style(color="red").region(st.region)
+        
     try:
 
         runtime = tracker.runtime(log=True)
+
+        logger.info("Generating dummy sequence")
+
+        print(runtime.multiobject )
+
+        if config.sequence is None:
+            sequence = DummySequence(50, objects=3 if runtime.multiobject else 1)
+        else:
+            sequence = load_sequence(normalize_path(config.sequence))
+
+        logger.info("Obtaining runtime for tracker %s", tracker.identifier)
+
+        if config.visualize:
+            import matplotlib.pylab as plt
+            from vot.utilities.draw import MatplotlibDrawHandle
+            figure = plt.figure()
+            figure.canvas.set_window_title('VOT Test')
+            axes = figure.add_subplot(1, 1, 1)
+            axes.set_aspect("equal")
+            handle = MatplotlibDrawHandle(axes, size=sequence.size)
+            handle.style(fill=False)
+            figure.show()
+
+        helper = MultiObjectHelper(sequence)
 
         for repeat in range(1, 4):
 
             logger.info("Initializing tracker ({}/{})".format(repeat, 3))
 
-            region, _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+            frame = sequence.frame(0)
+            state, _ = runtime.initialize(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(0)])
 
             if config.visualize:
-                axes.clear()
-                handle.image(sequence.frame(0).channel())
-                handle.style(color="green").region(sequence.frame(0).groundtruth())
-                handle.style(color="red").region(region)
+                visualize(axes, frame, [frame.object(x) for x in helper.objects(0)], state)
                 figure.canvas.draw()
 
-            for i in range(1, sequence.length):
+            print(len(sequence))
+            for i in range(1, len(sequence)):
+                
                 logger.info("Updating on frame %d/%d", i, sequence.length-1)
-                region, _, _ = runtime.update(sequence.frame(i))
+                frame = sequence.frame(i)
+                state, _ = runtime.update(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(i)])
 
                 if config.visualize:
-                    axes.clear()
-                    handle.image(sequence.frame(i).channel())
-                    handle.style(color="green").region(sequence.frame(i).groundtruth())
-                    handle.style(color="red").region(region)
+                    visualize(axes, frame, [frame.object(x) for x in helper.objects(i)], state)
                     figure.canvas.draw()
 
             logger.info("Stopping tracker")
@@ -268,6 +280,7 @@ def do_pack(config: argparse.Namespace):
 
     import zipfile, io
     from shutil import copyfileobj
+    from vot.utilities import flatten
 
     workspace = Workspace.load(config.workspace)
 
@@ -287,8 +300,8 @@ def do_pack(config: argparse.Namespace):
     with Progress("Scanning", len(workspace.dataset) * len(workspace.stack)) as progress:
 
         for experiment in workspace.stack:
-            for sequence in workspace.dataset:
-                sequence = experiment.transform(sequence)
+            sequences = experiment.transform(workspace.dataset)
+            for sequence in sequences:
                 complete, files, results = experiment.scan(tracker, sequence)
                 all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
                 if not complete:

@@ -67,7 +67,7 @@ class VOTSequence(BaseSequence):
             objects = {}
             for objectfile in objectsfiles:
                 groundtruth = read_trajectory(os.path.join(objectfile))
-                objectid = objectfile[12:-4]
+                objectid = os.path.basename(objectfile)[12:-4]
                 objects[objectid] = groundtruth
             lenghts = [len(t) for t in objects.values()]
             assert all([x == lenghts[0] for x in lenghts])

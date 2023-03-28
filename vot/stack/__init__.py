@@ -32,8 +32,8 @@ def experiment_resolver(typename, context, **kwargs):
 
 class Stack(Attributee):
 
-    title = String()
-    dataset = String(default="")
+    title = String(default="Stack")
+    dataset = String(default=None)
     url = String(default="")
     deprecated = Boolean(default=False)
     experiments = Map(Object(experiment_resolver))

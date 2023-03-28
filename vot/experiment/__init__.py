@@ -9,11 +9,10 @@ from class_registry import ClassRegistry
 
 from attributee import Attributee, Object, Integer, Float, Nested, List
 
-from vot.tracker import RealtimeTrackerRuntime, TrackerException
+from vot.tracker import TrackerException
 from vot.utilities import Progress, to_number, import_class
 
 experiment_registry = ClassRegistry("vot_experiment")
-
 transformer_registry = ClassRegistry("vot_transformer")
 
 class RealtimeConfig(Attributee):
@@ -82,20 +81,37 @@ class Experiment(Attributee):
         return self._identifier
 
     @property
+    def _multiobject(self) -> bool:
+        # TODO: at some point this may be a property for all experiments
+        return False
+
+    @property
     def storage(self) -> "Storage":
         return self._storage
 
-    def _get_initialization(self, sequence: "Sequence", index: int):
-        return sequence.groundtruth(index)
+    def _get_initialization(self, sequence: "Sequence", index: int, id: str = None):
+        if not self._multiobject and id is None:
+            return sequence.groundtruth(index)
+        else:
+            return sequence.frame(index).object(id)
 
-    def _get_runtime(self, tracker: "Tracker", sequence: "Sequence"):
+    def _get_runtime(self, tracker: "Tracker", sequence: "Sequence", multiobject=False):
+        from ..tracker import SingleObjectTrackerRuntime, RealtimeTrackerRuntime, MultiObjectTrackerRuntime
+
+        runtime = tracker.runtime()
+
+        if multiobject:
+            if not runtime.multiobject:
+                runtime = MultiObjectTrackerRuntime(runtime)
+        else:
+            runtime = SingleObjectTrackerRuntime(runtime)
+
         if not self.realtime is None:
             grace = to_number(self.realtime.grace, min_n=0)
             fps = to_number(self.realtime.fps, min_n=0, conversion=float)
             interval = 1 / float(sequence.metadata("fps", fps))
-            runtime = RealtimeTrackerRuntime(tracker.runtime(), grace, interval)
-        else:
-            runtime = tracker.runtime()
+            runtime = RealtimeTrackerRuntime(runtime, grace, interval)
+
         return runtime
 
     @abstractmethod
@@ -107,8 +123,6 @@ class Experiment(Attributee):
         raise NotImplementedError
 
     def results(self, tracker: "Tracker", sequence: "Sequence") -> "Results":
-        from vot.tracker import Results
-        from vot.workspace import LocalStorage
         if tracker.storage is not None:
             return tracker.storage.results(tracker, self, sequence)
         return self._storage.results(tracker, self, sequence)
@@ -116,10 +130,25 @@ class Experiment(Attributee):
     def log(self, identifier: str):
         return self._storage.substorage("logs").write("{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now()))
 
-    def transform(self, sequence: "Sequence"):
-        for transformer in self.transformers:
-            sequence = transformer(sequence)
-        return sequence
+    def transform(self, sequences):
+        from vot.dataset import Sequence
+        from vot.experiment.transformer import SingleObject
+        if isinstance(sequences, Sequence):
+            sequences = [sequences]
+        
+        transformers = list(self.transformers)
+
+        if not self._multiobject:
+            transformers.insert(0, SingleObject())
+
+        # Process sequences one transformer at the time. The number of sequences may grow
+        for transformer in transformers:
+            transformed = []
+            for sequence in sequences:
+                transformed.extend(transformer(sequence))
+            sequences = transformed
+
+        return sequences
 
 from .multirun import UnsupervisedExperiment, SupervisedExperiment
 from .multistart import MultiStartExperiment
@@ -153,9 +182,13 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
 
     logger = logging.getLogger("vot")
 
+    transformed = []
+    for sequence in sequences:
+        transformed.extend(experiment.transform(sequence))
+    sequences = transformed
+
     progress = EvaluationProgress("{}/{}".format(tracker.identifier, experiment.identifier), len(sequences))
     for sequence in sequences:
-        sequence = experiment.transform(sequence)
         try:
             experiment.execute(tracker, sequence, force=force, callback=progress)
         except TrackerException as te:

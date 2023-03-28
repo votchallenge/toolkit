@@ -1,9 +1,10 @@
 import os
 from abc import abstractmethod
+from typing import List
 
 from PIL import Image
 
-from attributee import Attributee, Integer, Float
+from attributee import Attributee, Integer, Float, Boolean
 
 from vot.dataset import Sequence, VOTSequence, InMemorySequence
 from vot.dataset.proxy import FrameMapSequence
@@ -19,9 +20,22 @@ class Transformer(Attributee):
         self._cache = cache
 
     @abstractmethod
-    def __call__(self, sequence: Sequence) -> Sequence:
+    def __call__(self, sequence: Sequence) -> List[Sequence]:
         raise NotImplementedError
 
+@transformer_registry.register("singleobject")
+class SingleObject(Transformer):
+
+    trim = Boolean(default=False, description="Trim each generated sequence to a visible subsection for the selected object")
+
+    def __call__(self, sequence: Sequence) -> List[Sequence]:
+        from vot.dataset.proxy import ObjectFilterSequence
+        
+        if len(sequence.objects()) == 1:
+            return [sequence]
+        
+        return [ObjectFilterSequence(sequence, id, self.trim) for id in sequence.objects()]
+        
 @transformer_registry.register("redetection")
 class Redetection(Transformer):
 
@@ -30,7 +44,7 @@ class Redetection(Transformer):
     padding = Float(default=2, val_min=0)
     scaling = Float(default=1, val_min=0.1, val_max=10)
 
-    def __call__(self, sequence: Sequence) -> Sequence:
+    def __call__(self, sequence: Sequence) -> List[Sequence]:
 
         chache_dir = self._cache.directory(self, arg_hash(sequence.name, **self.dump()))
 
@@ -63,4 +77,4 @@ class Redetection(Transformer):
 
         source = VOTSequence(chache_dir, name=sequence.name)
         mapping = [0] * self.initialization + [1] * (self.length - self.initialization)
-        return FrameMapSequence(source, mapping)
+        return [FrameMapSequence(source, mapping)]
