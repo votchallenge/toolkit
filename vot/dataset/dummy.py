@@ -70,8 +70,6 @@ class DummySequence(VOTSequence):
             frame_depth.save(path_depth % (i + 1))
             frame_ir.save(path_ir % (i + 1))
 
-        print(len(groundtruth[0]))
-
         if objects == 1:
             write_trajectory(os.path.join(base, "groundtruth.txt"), groundtruth[0])
         else:

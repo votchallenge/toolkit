@@ -101,11 +101,13 @@ def convert_traxregion(region: TraxRegion) -> Region:
     return None
 
 def convert_objects(objects: Objects) -> TraxRegion:
-    if objects is None: return None
+    if objects is None: return []
     if isinstance(objects, (list, )):
         return [(convert_region(o.region), dict(o.properties)) for o in objects]
+    if isinstance(objects, (ObjectStatus, )):
+        return [(convert_region(objects.region), dict(objects.properties))]
     else:
-        [(convert_region(objects.region), dict(objects.properties))]
+        return [(convert_region(objects), dict())]
 
 def convert_traxobjects(region: TraxRegion) -> Region:
     if region.type == TraxRegion.RECTANGLE:
@@ -203,6 +205,7 @@ class TrackerProcess(object):
                 self._client = Client(
                     stream=(self._process.stdin.fileno(), self._process.stdout.fileno()), log=log
                 )
+                
         except TraxException as e:
             self.terminate()
             self._watchdog_reset(False)

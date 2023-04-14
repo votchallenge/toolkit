@@ -27,6 +27,9 @@ def mask_bounds(mask: np.ndarray):
                 left = min(left, j)
                 right = max(right, j)
 
+    if top == ii32.max:
+        return (0, 0, 0, 0)
+
     return (left, top, right, bottom)
 
 
@@ -206,7 +209,8 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optio
         raster_bounds = union
 
     if raster_bounds[0] >= raster_bounds[2] or raster_bounds[1] >= raster_bounds[3]:
-        return float(0)
+        # Two empty regons are considered to be identical
+        return float(1)
 
     m1 = _region_raster(a, raster_bounds, at, ao)
     m2 = _region_raster(b, raster_bounds, bt, bo)
@@ -266,7 +270,7 @@ def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Tuple[int, int]
 
     return _calculate_overlap(data1, data2, type1, type2, offset1, offset2, bounds)
 
-def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Tuple[int, int]]):
+def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Tuple[int, int]] = None):
     """
     first and second are lists containing objects of type Region
     bounds is in the format [width, height]

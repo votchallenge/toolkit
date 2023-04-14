@@ -84,6 +84,7 @@ def create_mask_from_string(mask_encoding):
 
     return mask, (tl_x, tl_y)
 
+
 from vot.region.raster import mask_bounds
 
 def encode_mask(mask):
@@ -147,23 +148,82 @@ def parse_region(string: str) -> "Region":
                 return Polygon([(x_, y_) for x_, y_ in zip(tokens[::2], tokens[1::2])])
     return None
 
+def read_trajectory_binary(fp: io.RawIOBase):
+    import struct
+    from cachetools import LRUCache, cached
+    from vot.region import Special
+    from vot.region.shapes import Rectangle, Polygon, Mask
+
+    buffer = dict(data=fp.read(), offset = 0)
+
+    @cached(cache=LRUCache(maxsize=32))
+    def calcsize(format):
+        return struct.calcsize(format)
+
+    def read(format: str):
+        unpacked = struct.unpack_from(format, buffer["data"], buffer["offset"])
+        buffer["offset"] += calcsize(format)
+        return unpacked
+
+    _, length = read("<hI")
+
+    trajectory = []
+
+    for _ in range(length):
+        type, = read("<B")
+        if type == 0: r = Special(*read("<I"))
+        elif type == 1: r = Rectangle(*read("<ffff"))
+        elif type == 2:
+            n, = read("<H")
+            values = read("<%df" % (2 * n))
+            r = Polygon(list(zip(values[0::2], values[1::2])))
+        elif type == 3:
+            tl_x, tl_y, region_w, region_h, n = read("<hhHHH")
+            rle = read("<%dH" % (n))
+            r = Mask(rle_to_mask(rle, region_w, region_h), (tl_x, tl_y))
+        else:
+            raise IOError("Wrong region type")
+        trajectory.append(r)
+    return trajectory
+
+def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
+    import struct
+    from vot.region import Special
+    from vot.region.shapes import Rectangle, Polygon, Mask
+
+    fp.write(struct.pack("<hI", 1, len(data)))
+
+    for r in data:
+        if isinstance(r, Special): fp.write(struct.pack("<BI", 0, r.code))
+        elif isinstance(r, Rectangle): fp.write(struct.pack("<Bffff", 1, r.x, r.y, r.width, r.height))
+        elif isinstance(r, Polygon): fp.write(struct.pack("<BH%df" % (2 * r.size), 2, r.size, *[item for sublist in r.points() for item in sublist]))
+        elif isinstance(r, Mask): 
+            rle = mask_to_rle(r.mask)
+            fp.write(struct.pack("<BhhHHH%dH" % len(rle), 3, r.offset[0], r.offset[1], r.mask.shape[1], r.mask.shape[0], len(rle), *rle))
+        else:
+            raise IOError("Wrong region type")
+
 def read_trajectory(fp: Union[str, TextIO]):
     if isinstance(fp, str):
-        binary = fp.endswith(".tra")
+        try:
+            import struct
+            with open(fp, "r+b") as tfp:
+                v, = struct.unpack("<h", tfp.read(struct.calcsize("<h")))
+                binary = v == 1
+                # TODO: we can use the same file handle in case of binary format
+        except Exception as e:
+            binary = False
+
         fp = open(fp, "rb" if binary else "r")
         close = True
     else:
         binary = isinstance(fp, (io.RawIOBase, io.BufferedIOBase)) 
         close = False
 
-    regions = []
-    # iterate over all lines in the file
-
-    from vot.region import RegionException
-
     if binary:
-        raise RegionException("Binary format not supported at the moment")
+        regions = read_trajectory_binary(fp)
     else:
+        regions = []
         for line in fp.readlines():
             regions.append(parse_region(line.strip()))
 
@@ -192,13 +252,11 @@ def write_trajectory(fp: Union[str, TextIO], data: List["Region"]):
         binary = isinstance(fp, (io.RawIOBase, io.BufferedIOBase)) 
         close = False
 
-    from vot.region import RegionException
-
     if binary:
-        raise RegionException("Binary format not supported at the moment")
+        write_trajectory_binary(fp, data)
     else:
         for region in data:
-            fp.write('%s\n' % str(region))
+            fp.write(str(region) + "\n")
     
     if close:
         fp.close()

@@ -57,7 +57,7 @@ class Region(ABC):
 
 class Special(Region):
     """
-    Special region
+    Special region, meaning of the code can change depending on the context
 
     :var code: Code value
     """

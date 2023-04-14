@@ -232,7 +232,7 @@ class Mask(Shape):
 
     def _optimize(self):
         bounds = mask_bounds(self.mask)
-        if bounds[0] is None:
+        if bounds[2] == 0:
             # mask is empty
             self._mask = np.zeros((0, 0), dtype=np.uint8)
             self._offset = (0, 0)
@@ -282,10 +282,8 @@ class Mask(Shape):
         return copy_mask(self._mask, self._offset, np.array(bounds))
 
     def is_empty(self):
-        if self.mask.shape[1] > 0 and self.mask.shape[0] > 0:
-            return False
-        else:
-            return True
+        bounds = mask_bounds(self.mask)
+        return bounds[2] == 0 or bounds[3] == 0
 
     def resize(self, factor=1):
 
