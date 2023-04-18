@@ -10,6 +10,7 @@ import cv2
 
 from vot.dataset import Dataset, DatasetException, Sequence, BaseSequence, PatternFileListChannel, SequenceData
 from vot.region.io import write_trajectory, read_trajectory
+from vot.region import Special
 from vot.utilities import Progress, localize_path, read_properties, write_properties
 
 logger = logging.getLogger("vot")
@@ -62,20 +63,23 @@ class VOTSequence(BaseSequence):
 
         self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
 
+        lenghts = [len(t) for t in channels.values()]
+        assert all([x == lenghts[0] for x in lenghts]), "Sequence channels have different lengths"
+        length = lenghts[0]
+
         objectsfiles = glob.glob(os.path.join(self._base, 'groundtruth_*.txt'))
         if len(objectsfiles) > 0:
             objects = {}
             for objectfile in objectsfiles:
                 groundtruth = read_trajectory(os.path.join(objectfile))
+                if len(groundtruth) < length: groundtruth += [Special(Sequence.UNKNOWN)] * (length - len(groundtruth))
                 objectid = os.path.basename(objectfile)[12:-4]
                 objects[objectid] = groundtruth
-            lenghts = [len(t) for t in objects.values()]
-            assert all([x == lenghts[0] for x in lenghts])
-            length = lenghts[0]
         else:
             groundtruth_file = os.path.join(self._base, self.metadata("groundtruth", "groundtruth.txt"))
-            objects = {"object" :  read_trajectory(groundtruth_file)}
-            length = len(objects["object"])
+            groundtruth = read_trajectory(groundtruth_file)
+            if len(groundtruth) < length: groundtruth += [Special(Sequence.UNKNOWN)] * (length - len(groundtruth))
+            objects["object"] = groundtruth
 
         self._metadata["length"] = length
 
@@ -98,10 +102,6 @@ class VOTSequence(BaseSequence):
                 while not len(value) >= length:
                     value.append(0.0)
                 values[valuename] = value
-
-        for name, channel in channels.items():
-            if not channel.length == length:
-                raise DatasetException("Length mismatch for channel %s (%d != %d)" % (name, channel.length, length))
 
         for name, tag in tags.items():
             if not len(tag) == length:

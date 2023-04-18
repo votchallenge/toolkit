@@ -64,6 +64,9 @@ class Experiment(Attributee):
 
     """
 
+    UNKNOWN = 0
+    INITIALIZATION = 1
+
     realtime = Nested(RealtimeConfig, default=None, description="Realtime modifier config")
     noise = Nested(NoiseConfig, default=None)
     inject = Nested(InjectConfig, default=None)
@@ -120,6 +123,7 @@ class Experiment(Attributee):
 
     @abstractmethod
     def scan(self, tracker: "Tracker", sequence: "Sequence"):
+        """ Scan results for a given tracker and sequence. """
         raise NotImplementedError
 
     def results(self, tracker: "Tracker", sequence: "Sequence") -> "Results":

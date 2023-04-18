@@ -6,7 +6,9 @@ from collections import OrderedDict
 
 import six
 
-from vot.dataset import Dataset, DatasetException, BaseSequence, PatternFileListChannel, SequenceData
+from vot.dataset import Dataset, DatasetException, \
+    BaseSequence, PatternFileListChannel, SequenceData, \
+    Sequence
 from vot.region import Special
 from vot.region.io import read_trajectory
 from vot.utilities import Progress
@@ -57,7 +59,7 @@ class TrackingNetSequence(BaseSequence):
         if len(groundtruth) == 1 and channels["color"].length > 1:
             # We are dealing with testing dataset, only first frame is available, so we pad the
             # groundtruth with unknowns. Only unsupervised experiment will work, but it is ok
-            groundtruth.extend([Special(Special.UNKNOWN)] * (channels["color"].length - 1))
+            groundtruth.extend([Special(Sequence.UNKNOWN)] * (channels["color"].length - 1))
 
         self._metadata["length"] = len(groundtruth)
 

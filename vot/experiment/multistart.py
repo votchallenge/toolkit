@@ -77,7 +77,7 @@ class MultiStartExperiment(Experiment):
 
                 _, elapsed = runtime.initialize(proxy.frame(0), self._get_initialization(proxy, 0))
 
-                trajectory.set(0, Special(Special.INITIALIZATION), {"time": elapsed})
+                trajectory.set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
 
                 for frame in range(1, proxy.length):
                     object, elapsed = runtime.update(proxy.frame(frame))

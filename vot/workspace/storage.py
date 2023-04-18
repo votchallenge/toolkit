@@ -13,6 +13,11 @@ from ..experiment import Experiment
 from ..dataset import Sequence
 from ..tracker import Tracker, Results
 
+from attributee import Attributee, Boolean
+
+class StorageConfiguration(Attributee):
+    binary = Boolean(default=True)
+
 class Storage(ABC):
     """Abstract superclass for workspace storage abstraction
     """
@@ -27,6 +32,10 @@ class Storage(ABC):
             sequence (Sequence): Selected sequence
         """
         pass
+
+    @property
+    def config(self) -> StorageConfiguration:
+        return StorageConfiguration()
 
     @abstractmethod
     def documents(self) -> typing.List[str]:
@@ -173,12 +182,17 @@ class LocalStorage(Storage):
     """Storage backed by the local filesystem.
     """
 
-    def __init__(self, root: str):
+    def __init__(self, root: str, config: StorageConfiguration = None):
         self._root = root
         self._results = os.path.join(root, "results")
+        self._config = config if config is not None else StorageConfiguration()
 
     def __repr__(self) -> str:
         return "<Local storage: {}>".format(self._root)
+
+    @property
+    def config(self) -> StorageConfiguration:
+        return self._config
 
     @property
     def base(self) -> str:
@@ -225,7 +239,7 @@ class LocalStorage(Storage):
         return os.path.isdir(os.path.join(self._root, name))
 
     def substorage(self, name):
-        return LocalStorage(os.path.join(self.base, name))
+        return LocalStorage(os.path.join(self.base, name), self._config)
 
     def copy(self, localfile, destination):
         import shutil

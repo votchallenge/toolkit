@@ -11,11 +11,9 @@ from attributee import Integer, Boolean, Float, Include
 
 from vot.tracker import Tracker, Trajectory
 from vot.dataset import Sequence
-from vot.dataset.proxy import FrameMapSequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import SupervisedExperiment
-from vot.experiment.multistart import MultiStartExperiment, find_anchors
-from vot.region import Region, Special, calculate_overlaps
+from vot.region import Region, calculate_overlaps
 from vot.analysis import MissingResultsException, Measure, Point, is_special, Plot, Analysis, \
     Sorting, SeparableAnalysis, SequenceAggregator, analysis_registry, TrackerSeparableAnalysis, Axes
 from vot.utilities.data import Grid
@@ -27,12 +25,12 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
     mask = np.ones(len(overlaps), dtype=bool)
 
     for i, region in enumerate(trajectory):
-        if is_special(region, Special.UNKNOWN) and ignore_unknown:
+        if is_special(region, Trajectory.UNKNOWN) and ignore_unknown:
             mask[i] = False
-        elif is_special(region, Special.INITIALIZATION):
+        elif is_special(region, Trajectory.INITIALIZATION):
             for j in range(i, min(len(trajectory), i + burnin)):
                 mask[j] = False
-        elif is_special(region, Special.FAILURE):
+        elif is_special(region, Trajectory.FAILURE):
             mask[i] = False
     
     if any(mask):
@@ -41,12 +39,12 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
         return 0, 0
 
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
-    return len([region for region in trajectory if is_special(region, Special.FAILURE)]), len(trajectory)
+    return len([region for region in trajectory if is_special(region, Trajectory.FAILURE)]), len(trajectory)
 
 
 def locate_failures_inits(trajectory: List[Region]) -> Tuple[int, int]:
-    return [i for i, region in enumerate(trajectory) if is_special(region, Special.FAILURE)], \
-            [i for i, region in enumerate(trajectory) if is_special(region, Special.INITIALIZATION)]
+    return [i for i, region in enumerate(trajectory) if is_special(region, Trajectory.FAILURE)], \
+            [i for i, region in enumerate(trajectory) if is_special(region, Trajectory.INITIALIZATION)]
 
 def compute_eao_curve(overlaps: List, weights: List[float], success: List[bool]):
     max_length = max([len(el) for el in overlaps])

@@ -18,17 +18,31 @@ from vot.utilities import to_string
 logger = logging.getLogger("vot")
 
 class TrackerException(ToolkitException):
+    """ Base class for all tracker related exceptions."""
+
     def __init__(self, *args, tracker, tracker_log=None):
+        """ Initialize the exception.
+
+        Args:
+            tracker (Tracker): Tracker that caused the exception.
+            tracker_log (str, optional): Optional log message. Defaults to None.
+        """
         super().__init__(*args)
         self._tracker_log = tracker_log
         self._tracker = tracker
 
     @property
-    def log(self):
+    def log(self) -> str:
+        """ Returns the log message of the tracker.
+
+        Returns:
+            sts: Log message of the tracker.
+        """
         return self._tracker_log
 
     @property
     def tracker(self):
+        """ Returns the tracker that caused the exception."""
         return self._tracker
 
 class TrackerTimeoutException(TrackerException):
@@ -39,12 +53,15 @@ VALID_IDENTIFIER = re.compile("^[a-zA-Z0-9-_]+$")
 VALID_REFERENCE = re.compile("^([a-zA-Z0-9-_]+)(@[a-zA-Z0-9-_]*)?$")
 
 def is_valid_identifier(identifier):
+    """Checks if the identifier is valid."""
     return not VALID_IDENTIFIER.match(identifier) is None
 
 def is_valid_reference(reference):
+    """Checks if the reference is valid."""
     return not VALID_REFERENCE.match(reference) is None
 
 def parse_reference(reference):
+    """Parses the reference into identifier and version."""
     matches = VALID_REFERENCE.match(reference)
     if not matches:
         return None, None
@@ -53,6 +70,7 @@ def parse_reference(reference):
 _runtime_protocols = {}
 
 class Registry(object):
+    """ Repository of known trackers. Trackers are loaded from a manifest files in one or more directories. """
 
     def __init__(self, directories, root=os.getcwd()):
         trackers = dict()
@@ -107,9 +125,12 @@ class Registry(object):
         logger.debug("Found %d trackers", len(self._trackers))
 
     def __getitem__(self, reference) -> "Tracker":
+        """ Returns the tracker for the given reference. """
+
         return self.resolve(reference, skip_unknown=False, resolve_plural=False)[0]
 
     def __contains__(self, reference) -> bool:
+        """ Checks if the tracker is registered. """
         identifier, _ = parse_reference(reference)
         return identifier in self._trackers
 
@@ -120,6 +141,19 @@ class Registry(object):
         return len(self._trackers)
 
     def resolve(self, *references, storage=None, skip_unknown=True, resolve_plural=True):
+        """ Resolves the references to trackers.
+
+        Args:
+            storage (_type_, optional): Sto . Defaults to None.
+            skip_unknown (bool, optional): _description_. Defaults to True.
+            resolve_plural (bool, optional): _description_. Defaults to True.
+
+        Raises:
+            ToolkitException: _description_
+
+        Returns:
+            _type_: _description_
+        """        """"""
 
         trackers = []
 
@@ -173,6 +207,7 @@ class Registry(object):
         return [t.identifier for t in self._trackers.values()]
 
 class Tracker(object):
+    """ Tracker definition class. """
 
     @staticmethod
     def _collect_envvars(**kwargs):
@@ -267,6 +302,7 @@ class Tracker(object):
         return tracker
 
     def runtime(self, log=False) -> "TrackerRuntime":
+        """Creates a new runtime instance for this tracker instance."""
         if not self._command:
             raise TrackerException("Tracker does not have an attached executable", tracker=self)
 
@@ -319,6 +355,11 @@ class Tracker(object):
 
     @property
     def protocol(self) -> str:
+        """Returns the communication protocol used by this tracker.
+
+        Returns:
+            str: Communication protocol
+        """
         return self._protocol
 
     def describe(self):
@@ -327,17 +368,21 @@ class Tracker(object):
         return data
 
     def metadata(self, key):
+        """Returns the metadata value for specified key."""
         if not key in self._metadata:
             return None
         return self._metadata[key]
 
     def tagged(self, tag):
+        """Returns true if the tracker is tagged with specified tag."""
+
         return tag in self._tags
 
 ObjectStatus = namedtuple("ObjectStatus", ["region", "properties"])
 
 Objects = Union[List[ObjectStatus], ObjectStatus]
 class TrackerRuntime(ABC):
+    """Base class for tracker runtime implementations. """
 
     def __init__(self, tracker: Tracker):
         self._tracker = tracker
@@ -362,6 +407,7 @@ class TrackerRuntime(ABC):
 
     @abstractmethod
     def restart(self):
+        """Restarts the tracker runtime, usually stars a new process."""
         pass
 
     @abstractmethod

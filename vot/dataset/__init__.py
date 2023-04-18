@@ -262,6 +262,9 @@ class PatternFileListChannel(Channel):
 
         return os.path.join(self.base, self._files[index])
 
+    def __len__(self):
+        return self.length
+
 class FrameList(ABC):
     """Abstract base for all sequences, just a list of frame objects
     """
@@ -281,6 +284,9 @@ class Sequence(FrameList):
     """_summary_
 
     """
+
+    UNKNOWN = 0
+    INVISIBLE = 1
 
     def __init__(self, name: str, dataset: "Dataset" = None):
         self._name = name

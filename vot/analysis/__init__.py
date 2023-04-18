@@ -432,6 +432,5 @@ def is_special(region: Region, code=None) -> bool:
     return region.type == RegionType.SPECIAL and region.code == code
 
 from ._processor import process_stack_analyses, AnalysisProcessor, AnalysisError
-
-for module in ["vot.analysis.multistart", "vot.analysis.supervised", "vot.analysis.basic", "vot.analysis.tpr"]:
-    importlib.import_module(module)
+for module in [".multistart", ".supervised", ".accuracy", ".failures", ".longterm"]:
+    importlib.import_module(module, package="vot.analysis")

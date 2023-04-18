@@ -1,5 +1,4 @@
 from abc import abstractmethod, ABC
-from typing import Tuple
 from enum import Enum
 
 from vot import ToolkitException
@@ -62,10 +61,6 @@ class Special(Region):
     :var code: Code value
     """
 
-    UNKNOWN = 0
-    INITIALIZATION = 1
-    FAILURE = 2
-
     def __init__(self, code):
         """ Constructor
 
@@ -103,7 +98,7 @@ class Special(Region):
         pass
 
     def is_empty(self):
-        return False
+        return True
 
 from .raster import calculate_overlap, calculate_overlaps
 from .shapes import Rectangle, Polygon, Mask

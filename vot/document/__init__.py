@@ -3,11 +3,8 @@ import os
 import typing
 from abc import ABC, abstractmethod
 import json
-import math
 import inspect
 import threading
-import logging
-import tempfile
 import datetime
 import collections
 from asyncio import wait
@@ -24,11 +21,10 @@ import matplotlib.colors as colors
 from attributee import Attributee, Object, Nested, String, Callable, Integer, List
 
 from vot import __version__ as version
-from vot import check_debug, get_logger
+from vot import get_logger
 from vot.dataset import Sequence
 from vot.tracker import Tracker
 from vot.analysis import Axes
-from vot.experiment import Experiment, analysis_resolver
 from vot.utilities import class_fullname
 from vot.utilities.data import Grid
 

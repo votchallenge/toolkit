@@ -203,14 +203,18 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optio
 
     union = (min(bounds1[0], bounds2[0]), min(bounds1[1], bounds2[1]), max(bounds1[2], bounds2[2]), max(bounds1[3], bounds2[3]))
 
+    if union[0] >= union[2] or union[1] >= union[3]:
+        # Two empty regons are considered to be identical
+        return float(1)
+
     if not bounds is None:
         raster_bounds = (max(0, union[0]), max(0, union[1]), min(bounds[0] - 1, union[2]), min(bounds[1] - 1, union[3]))
     else:
         raster_bounds = union
 
     if raster_bounds[0] >= raster_bounds[2] or raster_bounds[1] >= raster_bounds[3]:
-        # Two empty regons are considered to be identical
-        return float(1)
+        # Regions are not identical, but are outside rasterization bounds.
+        return float(0)
 
     m1 = _region_raster(a, raster_bounds, at, ao)
     m2 = _region_raster(b, raster_bounds, bt, bo)
@@ -232,7 +236,9 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optio
 from vot.region import Region, RegionException
 from vot.region.shapes import Shape, Rectangle, Polygon, Mask
 
-def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Tuple[int, int]] = None):
+Bounds = Tuple[int, int]
+
+def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Bounds] = None):
     """
     Inputs: reg1 and reg2 are Region objects (Rectangle, Polygon or Mask)
     bounds: size of the image, format: [width, height]
@@ -270,7 +276,7 @@ def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Tuple[int, int]
 
     return _calculate_overlap(data1, data2, type1, type2, offset1, offset2, bounds)
 
-def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Tuple[int, int]] = None):
+def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Bounds] = None):
     """
     first and second are lists containing objects of type Region
     bounds is in the format [width, height]

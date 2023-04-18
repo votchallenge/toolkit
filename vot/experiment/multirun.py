@@ -52,7 +52,7 @@ class MultiRunExperiment(Experiment):
 
         return complete, files, results
 
-    def gather(self, tracker: Tracker, sequence: Sequence, objects = None):
+    def gather(self, tracker: Tracker, sequence: Sequence, objects = None, pad = False):
         trajectories = list()
 
         multiobject = len(sequence.objects()) > 1
@@ -69,6 +69,8 @@ class MultiRunExperiment(Experiment):
                 name =  "%s_%03d" % (prefix, i)
                 if Trajectory.exists(results, name):
                     trajectories.append(Trajectory.read(results, name))
+                elif pad:
+                    trajectories.append(None)
         return trajectories
 
 @experiment_registry.register("unsupervised")
@@ -108,7 +110,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
                 _, elapsed = runtime.initialize(sequence.frame(0), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(0)])
 
                 for x in helper.new(0):
-                    trajectories[x].set(0, Special(Special.INITIALIZATION), {"time": elapsed})
+                    trajectories[x].set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
 
                 for frame in range(1, sequence.length):
                     state, elapsed = runtime.update(sequence.frame(frame), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(frame)])
@@ -129,6 +131,8 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 @experiment_registry.register("supervised")
 class SupervisedExperiment(MultiRunExperiment):
+
+    FAILURE = 2
 
     skip_initialize = Integer(val_min=1, default=1)
     skip_tags = List(String(), default=[])
@@ -156,7 +160,7 @@ class SupervisedExperiment(MultiRunExperiment):
 
                     _, elapsed = runtime.initialize(sequence.frame(frame), self._get_initialization(sequence, frame))
 
-                    trajectory.set(frame, Special(Special.INITIALIZATION), {"time" : elapsed})
+                    trajectory.set(frame, Special(Trajectory.INITIALIZATION), {"time" : elapsed})
 
                     frame = frame + 1
 
@@ -167,7 +171,7 @@ class SupervisedExperiment(MultiRunExperiment):
                         object.properties["time"] = elapsed
 
                         if calculate_overlap(object.region, sequence.groundtruth(frame), sequence.size) <= self.failure_overlap:
-                            trajectory.set(frame, Special(Special.FAILURE), object.properties)
+                            trajectory.set(frame, Special(SupervisedExperiment.FAILURE), object.properties)
                             frame = frame + self.skip_initialize
  
                             if self.skip_tags:

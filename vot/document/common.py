@@ -9,6 +9,9 @@ def read_resource(name):
     with open(path, "r") as filehandle:
         return filehandle.read()
 
+def per_tracker(a):
+    return a.axes == Axes.TRACKERS
+
 def extract_measures_table(trackers, results):
     table_header = [[], [], []]
     table_data = dict()
@@ -19,7 +22,7 @@ def extract_measures_table(trackers, results):
             descriptions = analysis.describe()
 
             # Ignore all non per-tracker results
-            if analysis.axes != Axes.TRACKERS:
+            if per_tracker(analysis):
                 continue
 
             for i, description in enumerate(descriptions):
@@ -76,7 +79,7 @@ def extract_plots(trackers, results, order=None):
             descriptions = analysis.describe()
 
             # Ignore all non per-tracker results
-            if analysis.axes != Axes.TRACKERS:
+            if per_tracker(analysis):
                 continue
 
             for i, description in enumerate(descriptions):

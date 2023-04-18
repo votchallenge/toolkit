@@ -9,7 +9,7 @@ from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.region import Region, RegionType, calculate_overlaps
 from vot.experiment import Experiment
-from vot.experiment.multirun import UnsupervisedExperiment
+from vot.experiment.multirun import UnsupervisedExperiment, MultiRunExperiment
 from vot.analysis import SequenceAggregator, Analysis, SeparableAnalysis, \
     MissingResultsException, Measure, Sorting, Curve, Plot, SequenceAggregator, \
     Axes, analysis_registry
@@ -107,6 +107,7 @@ class _Thresholds(SequenceAggregator):
 
 @analysis_registry.register("pr_curves")
 class PrecisionRecallCurves(SeparableAnalysis):
+    """ Computes the precision/recall curves for a tracker for given sequences. """
 
     thresholds = Include(_Thresholds)
     ignore_unknown = Boolean(default=True)
@@ -148,6 +149,7 @@ class PrecisionRecallCurves(SeparableAnalysis):
 
 @analysis_registry.register("pr_curve")
 class PrecisionRecallCurve(SequenceAggregator):
+    """ Computes the average precision/recall curve for a tracker. """
 
     curves = Include(PrecisionRecallCurves)
 
@@ -164,7 +166,6 @@ class PrecisionRecallCurve(SequenceAggregator):
     def dependencies(self):
         return self.curves,
 
-    # def collapse(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
 
         curve = None
@@ -257,3 +258,137 @@ class PrecisionRecall(Analysis):
     @property
     def axes(self):
         return Axes.TRACKERS
+
+
+def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = None, threshold: float = None) -> float:
+
+    overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds))
+    if threshold is None: threshold = -1
+
+    # Tracking, Failure, Miss, Halucination, Notice
+    T, F, M, H, N = 0, 0, 0, 0, 0
+
+    for i, (region_tr, region_gt) in enumerate(zip(trajectory, groundtruth)):
+        if region_gt.is_empty():
+            if overlaps[i] == 1:
+                N += 1
+            else:
+                H += 1
+        elif region_tr.is_empty():
+            M += 1
+        else:
+            if overlaps[i] > threshold:
+                T += 1
+            else:
+                F += 1
+
+    return T, F, M, H, N
+
+class CountFrames(SeparableAnalysis):
+
+    threshold = Float(default=0.0, val_min=0, val_max=1)
+    bounded = Boolean(default=True)
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
+
+    def describe(self):
+        return Measure("Tracking", "T", 0, None, Sorting.DESCENDING), \
+            Measure("Failure", "F", 0, None, Sorting.ASCENDING), \
+            Measure("Miss", "M", 0, None, Sorting.ASCENDING), \
+            Measure("Halucinate", "H", 0, None, Sorting.ASCENDING), \
+            Measure("Notice", "N", 0, None, Sorting.DESCENDING),
+
+
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+
+        assert isinstance(experiment, MultiRunExperiment)
+
+        objects = sequence.objects()
+        distribution = []
+        bounds = (sequence.size) if self.bounded else None
+
+        for object in objects:
+            trajectories = experiment.gather(tracker, sequence, objects=[object])
+            if len(trajectories) == 0:
+                raise MissingResultsException()
+
+            CN, CF, CM, CH, CT = 0, 0, 0, 0, 0
+
+            for trajectory in trajectories:
+                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds)
+                CN += N
+                CF += F
+                CM += M
+                CH += H
+                CT += T
+            CN /= len(trajectories)
+            CF /= len(trajectories)
+            CM /= len(trajectories)
+            CH /= len(trajectories)
+            CT /= len(trajectories)
+
+            distribution.append((CT, CF, CM, CH, CN))
+
+        return distribution,
+
+
+@analysis_registry.register("quality_auxiliary")
+class QualityAuxiliary(SeparableAnalysis):
+
+    threshold = Float(default=0.0, val_min=0, val_max=1)
+    bounded = Boolean(default=True)
+    absence_threshold = Integer(default=10, val_min=0)
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
+
+    @property
+    def title(self):
+        return "Quality Auxiliary"
+
+    def describe(self):
+        return Measure("Non-reported Error", "NRE", 0, 1, Sorting.DESCENDING), \
+            Measure("Drift-rate Error", "DRE", 0, 1, Sorting.DESCENDING), \
+            Measure("Absence-detection Quality", "ADQ", 0, 1, Sorting.DESCENDING),
+
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+
+        assert isinstance(experiment, MultiRunExperiment)
+
+        not_reported_error = 0
+        drift_rate_error = 0
+        absence_detection = 0
+
+        objects = sequence.objects()
+        bounds = (sequence.size) if self.bounded else None
+
+        for object in objects:
+            trajectories = experiment.gather(tracker, sequence, objects=[object])
+            if len(trajectories) == 0:
+                raise MissingResultsException()
+
+            CN, CF, CM, CH, CT = 0, 0, 0, 0, 0
+
+            for trajectory in trajectories:
+                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds)
+                CN += N
+                CF += F
+                CM += M
+                CH += H
+                CT += T
+            CN /= len(trajectories)
+            CF /= len(trajectories)
+            CM /= len(trajectories)
+            CH /= len(trajectories)
+            CT /= len(trajectories)
+
+            not_reported_error += CM / (CT + CF + CM)
+            drift_rate_error += CF / (CT + CF + CM)
+
+            if CN + CH > self.absence_threshold:
+                absence_detection += CN / (CN + CH)
+
+
+        return not_reported_error / len(objects), drift_rate_error / len(objects), absence_detection,
+

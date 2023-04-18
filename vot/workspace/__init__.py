@@ -4,6 +4,7 @@ import typing
 import importlib
 
 import yaml
+from lazy_object_proxy import Proxy
 
 from attributee import Attribute, Attributee, Nested, List, String, CoerceContext
 
@@ -11,9 +12,10 @@ from .. import ToolkitException, get_logger
 from ..dataset import Dataset, load_dataset
 from ..tracker import Registry, Tracker
 from ..stack import Stack, resolve_stack
-from ..utilities import normalize_path, class_fullname
+from ..utilities import normalize_path
 from ..document import ReportConfiguration
-from .storage import LocalStorage, Storage, NullStorage
+from .storage import LocalStorage, Storage, NullStorage, StorageConfiguration
+
 
 _logger = get_logger()
 
@@ -57,6 +59,7 @@ class Workspace(Attributee):
     stack = StackLoader()
     sequences = String(default="sequences")
     report = Nested(ReportConfiguration)
+    results = Nested(StorageConfiguration)
 
     @staticmethod
     def initialize(directory: str, config: typing.Optional[typing.Dict] = None, download: bool = True) -> None:
@@ -147,9 +150,12 @@ class Workspace(Attributee):
             directory ([type]): [description]
         """
         self._directory = directory
-        self._storage = LocalStorage(directory) if directory is not None else NullStorage()
 
+        self._storage = Proxy(lambda: LocalStorage(directory, self.results) if directory is not None else NullStorage())
+        
         super().__init__(**kwargs)
+
+        
         dataset_directory = normalize_path(self.sequences, directory)
 
         if not self.stack.dataset is None:

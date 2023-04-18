@@ -245,7 +245,7 @@ def write_trajectory(fp: Union[str, TextIO], data: List["Region"]):
     """
 
     if isinstance(fp, str):
-        binary = fp.endswith(".tra")
+        binary = fp.endswith(".bin")
         close = True
         fp = open(fp, "wb" if binary else "w")
     else:
