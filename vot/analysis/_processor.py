@@ -1,7 +1,12 @@
 
 import logging
+import sys
 import threading
-from collections import Iterable, OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple
+if sys.version_info >= (3, 3):
+    from collections.abc import Iterable
+else:
+    from collections import Iterable
 from functools import partial
 from typing import List, Union, Mapping, Tuple, Any
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
