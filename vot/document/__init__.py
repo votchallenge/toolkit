@@ -10,6 +10,8 @@ import logging
 import tempfile
 import datetime
 import collections
+import collections.abc
+import sys
 from asyncio import wait
 from asyncio.futures import wrap_future
 
@@ -344,7 +346,11 @@ class Generator(Attributee):
         raise NotImplementedError
 
     async def process(self, analyses, experiment, trackers, sequences):
-        if not isinstance(analyses, collections.Iterable):
+        if sys.version_info >= (3, 3):
+            _Iterable = collections.abc.Iterable
+        else:
+            _Iterable = collections.Iterable
+        if not isinstance(analyses, _Iterable):
             analyses = [analyses]
 
         futures = []
