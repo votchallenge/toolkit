@@ -94,7 +94,7 @@ class Frame(object):
 
     def objects(self):
         objects = {}
-        for o in self._sequence.objects().keys():
+        for o in self._sequence.objects():
             region = self._sequence.object(o, self._index)
             if region is not None:
                 objects[o] = region
