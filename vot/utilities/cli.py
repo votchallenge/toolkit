@@ -75,14 +75,18 @@ def do_test(config: argparse.Namespace):
 
         logger.info("Generating dummy sequence")
 
-        print(runtime.multiobject )
-
         if config.sequence is None:
             sequence = DummySequence(50, objects=3 if runtime.multiobject else 1)
         else:
             sequence = load_sequence(normalize_path(config.sequence))
 
         logger.info("Obtaining runtime for tracker %s", tracker.identifier)
+
+        context = {"continue" : True}
+
+        def on_press(event):
+            if event.key == 'q':
+                context["continue"] = False
 
         if config.visualize:
             import matplotlib.pylab as plt
@@ -92,34 +96,36 @@ def do_test(config: argparse.Namespace):
             axes = figure.add_subplot(1, 1, 1)
             axes.set_aspect("equal")
             handle = MatplotlibDrawHandle(axes, size=sequence.size)
+            context["click"] = figure.canvas.mpl_connect('key_press_event', on_press)
             handle.style(fill=False)
             figure.show()
 
         helper = MultiObjectHelper(sequence)
 
-        for repeat in range(1, 4):
+        logger.info("Initializing tracker")
 
-            logger.info("Initializing tracker ({}/{})".format(repeat, 3))
+        frame = sequence.frame(0)
+        state, _ = runtime.initialize(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(0)])
 
-            frame = sequence.frame(0)
-            state, _ = runtime.initialize(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(0)])
+        if config.visualize:
+            visualize(axes, frame, [frame.object(x) for x in helper.objects(0)], state)
+            figure.canvas.draw()
+
+        for i in range(1, len(sequence)):
+            
+            logger.info("Processing frame %d/%d", i, sequence.length-1)
+            frame = sequence.frame(i)
+            state, _ = runtime.update(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(i)])
 
             if config.visualize:
-                visualize(axes, frame, [frame.object(x) for x in helper.objects(0)], state)
+                visualize(axes, frame, [frame.object(x) for x in helper.objects(i)], state)
                 figure.canvas.draw()
+                figure.canvas.flush_events()
 
-            print(len(sequence))
-            for i in range(1, len(sequence)):
-                
-                logger.info("Updating on frame %d/%d", i, sequence.length-1)
-                frame = sequence.frame(i)
-                state, _ = runtime.update(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(i)])
+            if not context["continue"]:
+                break
 
-                if config.visualize:
-                    visualize(axes, frame, [frame.object(x) for x in helper.objects(i)], state)
-                    figure.canvas.draw()
-
-            logger.info("Stopping tracker")
+        logger.info("Stopping tracker")
 
         runtime.stop()
 
@@ -170,13 +176,13 @@ def do_evaluate(config: argparse.Namespace):
 
     workspace = Workspace.load(config.workspace)
 
-    logger.info("Loaded workspace in '%s'", config.workspace)
+    logger.debug("Loaded workspace in '%s'", config.workspace)
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
     registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
 
-    logger.info("Found data for %d trackers", len(registry))
+    logger.debug("Found data for %d trackers", len(registry))
 
     trackers = registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
@@ -189,7 +195,7 @@ def do_evaluate(config: argparse.Namespace):
 
     try:
         for tracker in trackers:
-            logger.info("Evaluating tracker %s", tracker.identifier)
+            logger.debug("Evaluating tracker %s", tracker.identifier)
             for experiment in workspace.stack:
                 run_experiment(experiment, tracker, workspace.dataset, config.force, config.persist)
 
@@ -207,13 +213,13 @@ def do_analysis(config: argparse.Namespace):
 
     workspace = Workspace.load(config.workspace)
 
-    logger.info("Loaded workspace in '%s'", config.workspace)
+    logger.debug("Loaded workspace in '%s'", config.workspace)
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
     registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
 
-    logger.info("Found data for %d trackers", len(registry))
+    logger.debug("Found data for %d trackers", len(registry))
 
     if not config.trackers:
         trackers = workspace.list_results(registry)
@@ -284,11 +290,9 @@ def do_pack(config: argparse.Namespace):
 
     workspace = Workspace.load(config.workspace)
 
-    logger.info("Loaded workspace in '%s'", config.workspace)
+    logger.debug("Loaded workspace in '%s'", config.workspace)
 
     registry = Registry(list(workspace.registry) + config.registry, root=config.workspace)
-
-    logger.info("Found data for %d trackers", len(registry))
 
     tracker = registry[config.tracker]
 
@@ -313,7 +317,7 @@ def do_pack(config: argparse.Namespace):
         logger.error("Unable to continue, experiments not complete")
         return
 
-    logger.info("Collected %d files, compressing to archive ...", len(all_files))
+    logger.debug("Collected %d files, compressing to archive ...", len(all_files))
 
     timestamp = datetime.now()
 
