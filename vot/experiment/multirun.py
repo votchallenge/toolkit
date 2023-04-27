@@ -93,6 +93,11 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
         helper = MultiObjectHelper(sequence)
 
+        def result_name(sequence, o, i):
+            return "%s_%s_%03d" % (sequence.name, o, i) if multiobject else "%s_%03d" % (sequence.name, i)
+
+        delta = i / (self.repetitions * len(sequence))
+
         with self._get_runtime(tracker, sequence, self._multiobject) as runtime:
 
             for i in range(1, self.repetitions+1):
@@ -101,7 +106,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
                 for o in helper.all(): trajectories[o] = Trajectory(sequence.length)
 
-                if all([Trajectory.exists(results, name) for name in trajectories.keys()]) and not force:
+                if all([Trajectory.exists(results, result_name(sequence, o, i)) for o in trajectories.keys()]) and not force:
                     continue
 
                 if self._can_stop(tracker, sequence):
@@ -122,12 +127,12 @@ class UnsupervisedExperiment(MultiRunExperiment):
                         object.properties["time"] = elapsed # TODO: what to do with time stats?
                         trajectories[x].set(frame, object.region, object.properties)
 
-                for o, trajectory in trajectories.items():
-                    name = "%s_%s_%03d" % (sequence.name, o, i) if multiobject else "%s_%03d" % (sequence.name, i)
-                    trajectory.write(results, name)
+                    if callback:
+                        callback(delta)
 
-                if callback:
-                    callback(i / self.repetitions)
+                for o, trajectory in trajectories.items():
+                    trajectory.write(results, result_name(sequence, o, i))
+
 
 @experiment_registry.register("supervised")
 class SupervisedExperiment(MultiRunExperiment):
