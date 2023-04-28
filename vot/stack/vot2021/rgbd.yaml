@@ -1,6 +1,6 @@
-title: VOT-RGBD2019 challenge
-dataset: vot:vot-rgbd2019
-url: http://www.votchallenge.net/vot2019/
+title: VOT-RGBD2021 challenge
+dataset: http://data.votchallenge.net/vot2019/rgbd/description.json
+url: http://www.votchallenge.net/vot2021/
 experiments:
   rgbd-unsupervised:
     type: unsupervised

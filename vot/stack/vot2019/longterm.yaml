@@ -1,5 +1,5 @@
 title: VOT-LT2019 challenge
-dataset: vot:vot-lt2019
+dataset: http://data.votchallenge.net/vot2019/longterm/description.json
 url: http://www.votchallenge.net/vot2019/
 experiments:
   longterm:

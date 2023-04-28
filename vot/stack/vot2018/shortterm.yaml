@@ -1,5 +1,5 @@
 title: VOT-ST2018 challenge
-dataset: vot:vot-st2018
+dataset: http://data.votchallenge.net/vot2018/main/description.json
 url: http://www.votchallenge.net/vot2018/
 experiments:
   baseline:

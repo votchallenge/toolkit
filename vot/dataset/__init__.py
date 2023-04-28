@@ -578,10 +578,7 @@ def download_dataset(url: str, path: str):
     try:
         res = urlsplit(url)
 
-        if not res.scheme or res.scheme == "vot":
-            from .vot import resolve_dataset_alias
-            download_dataset(resolve_dataset_alias(res.path), path)
-        elif res.scheme in ["http", "https"]:
+        if res.scheme in ["http", "https"]:
             if res.path.endswith(".json"):
                 from .vot import download_dataset_meta
                 download_dataset_meta(url, path)

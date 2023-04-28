@@ -1,6 +1,6 @@
-title: VOT-TIR2016 challenge
-dataset: vot:vot-tir2016
-url: http://www.votchallenge.net/vot2016/
+title: VOT-TIR2015 challenge
+dataset: http://www.cvl.isy.liu.se/research/datasets/ltir/version1.0/ltir_v1_0_8bit.zip
+url: http://www.votchallenge.net/vot2015/
 experiments:
   baseline:
     type: supervised

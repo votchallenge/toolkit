@@ -1,6 +1,6 @@
-title: VOT-ST2021 challenge
-dataset: vot:vot-st2021
-url: http://www.votchallenge.net/vot2021/
+title: VOT-ST2020 challenge
+dataset: https://data.votchallenge.net/vot2020/shortterm/description.json
+url: http://www.votchallenge.net/vot2020/
 experiments:
   baseline:
     type: multistart

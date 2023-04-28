@@ -1,4 +1,4 @@
-title: VOT testing
+title: VOT Segmentation testing
 url: http://www.votchallenge.net/
 dataset: http://box.vicos.si/tracking/vot20_test_dataset.zip
 experiments:

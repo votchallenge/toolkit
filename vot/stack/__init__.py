@@ -96,6 +96,8 @@ def list_integrated_stacks() -> Mapping[str, str]:
     for stack_path in root.rglob("*.yaml"):
         with open(stack_path, 'r') as fp:
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
+        if stack_metadata is None:
+            continue
         key = str(stack_path.relative_to(root).with_name(os.path.splitext(stack_path.name)[0]))
         stacks[key] = stack_metadata.get("title", "")
 

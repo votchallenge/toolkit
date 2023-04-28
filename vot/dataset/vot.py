@@ -244,27 +244,3 @@ def write_sequence(directory: str, sequence: Sequence):
 
     write_trajectory(os.path.join(directory, "groundtruth.txt"), [f.groundtruth() for f in sequence])
     write_properties(os.path.join(directory, "sequence"), metadata)
-
-
-_VOT_DATASETS = {
-    "vot-tir2015" : "http://www.cvl.isy.liu.se/research/datasets/ltir/version1.0/ltir_v1_0_8bit.zip",
-    "vot2016" : "http://data.votchallenge.net/vot2016/main/description.json",
-    "vot-tir2016" : "http://data.votchallenge.net/vot2016/vot-tir2016.zip",
-    "vot2017" : "http://data.votchallenge.net/vot2017/main/description.json",
-    "vot-st2018" : "http://data.votchallenge.net/vot2018/main/description.json",
-    "vot-lt2018" : "http://data.votchallenge.net/vot2018/longterm/description.json",
-    "vot-st2019" : "http://data.votchallenge.net/vot2019/main/description.json",
-    "vot-lt2019" : "http://data.votchallenge.net/vot2019/longterm/description.json",
-    "vot-rgbd2019" : "http://data.votchallenge.net/vot2019/rgbd/description.json",
-    "vot-rgbd2022" : "http://data.votchallenge.net/vot2022/rgbd/description.json",
-    "vot-rgbt2019" : "http://data.votchallenge.net/vot2019/rgbtir/meta/description.json",
-    "vot-st2020" : "https://data.votchallenge.net/vot2020/shortterm/description.json",
-    "vot-rgbt2020" : "http://data.votchallenge.net/vot2020/rgbtir/meta/description.json",
-    "vot-st2021": "https://data.votchallenge.net/vot2021/shortterm/description.json",
-    "test" : "http://data.votchallenge.net/toolkit/test.zip"
-}
-
-def resolve_dataset_alias(name):
-    if not name in _VOT_DATASETS:
-        raise ValueError("Unknown dataset")
-    return _VOT_DATASETS[name]

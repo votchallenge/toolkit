@@ -1,6 +1,6 @@
-title: VOT-LT2021 challenge
-dataset: vot:vot-lt2019
-url: http://www.votchallenge.net/vot2021/
+title: VOT-LT2018 challenge
+dataset: http://data.votchallenge.net/vot2018/longterm/description.json
+url: http://www.votchallenge.net/vot2018/
 experiments:
   longterm:
     type: unsupervised

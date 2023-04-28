@@ -1,5 +1,5 @@
 title: VOT-RGBD2020 challenge
-dataset: vot:vot-rgbd2019
+dataset: http://data.votchallenge.net/vot2019/rgbd/description.json
 url: http://www.votchallenge.net/vot2020/
 experiments:
   rgbd-unsupervised:
