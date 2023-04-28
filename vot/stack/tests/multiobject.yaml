@@ -1,0 +1,13 @@
+title: VOTS2023 Test Stack
+dataset: https://data.votchallenge.net/vots2023/test/description.json
+experiments:
+  baseline:
+    type: unsupervised
+    repetitions: 1
+    multiobject: True
+    analyses:
+      - type: accuracy
+        name: quality
+        threshold: 0
+      - type: quality_auxiliary
+        name: auxiliary
