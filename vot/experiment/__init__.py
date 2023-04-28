@@ -184,6 +184,9 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
             self._finished = self._finished + 1
             self.bar.absolute(self._finished)
 
+        def close(self):
+            self.bar.close()
+
     logger = logging.getLogger("vot")
 
     transformed = []
@@ -206,3 +209,4 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
                 raise TrackerException("Experiment interrupted", te, tracker=tracker)
         progress.push()
 
+    progress.close()

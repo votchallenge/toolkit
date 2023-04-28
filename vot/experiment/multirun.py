@@ -96,8 +96,6 @@ class UnsupervisedExperiment(MultiRunExperiment):
         def result_name(sequence, o, i):
             return "%s_%s_%03d" % (sequence.name, o, i) if multiobject else "%s_%03d" % (sequence.name, i)
 
-        delta = i / (self.repetitions * len(sequence))
-
         with self._get_runtime(tracker, sequence, self._multiobject) as runtime:
 
             for i in range(1, self.repetitions+1):
@@ -128,7 +126,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
                         trajectories[x].set(frame, object.region, object.properties)
 
                     if callback:
-                        callback(delta)
+                        callback(float(i-1) / self.repetitions + (float(frame) / (self.repetitions * len(sequence))))
 
                 for o, trajectory in trajectories.items():
                     trajectory.write(results, result_name(sequence, o, i))
