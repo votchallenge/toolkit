@@ -8,16 +8,16 @@ from vot.analysis import (Measure,
                           MissingResultsException,
                           SequenceAggregator, Sorting,
                           is_special, SeparableAnalysis,
-                          analysis_registry)
+                          analysis_registry, Curve)
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import (MultiRunExperiment)
-from vot.region import Region, Special, calculate_overlaps
+from vot.region import Region, calculate_overlaps
 from vot.tracker import Tracker, Trajectory
 from vot.utilities.data import Grid
 
-def compute_accuracy(trajectory: List[Region], groundtruth: List[Region], burnin: int = 10, 
-    ignore_unknown: bool = True, bounds = None, threshold: float = None) -> float:
+def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin: int = 10, 
+    ignore_unknown: bool = True, ignore_invisible: bool = False, bounds = None, threshold: float = None) -> float:
 
     overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds))
     mask = np.ones(len(overlaps), dtype=bool)
@@ -25,11 +25,15 @@ def compute_accuracy(trajectory: List[Region], groundtruth: List[Region], burnin
     if threshold is None: threshold = -1
 
     for i, (region_tr, region_gt) in enumerate(zip(trajectory, groundtruth)):
-        # Skip if groundtruth is unknown or target is not visible
-        if region_gt.is_empty() and ignore_unknown:
+        # Skip if groundtruth is unknown
+        if is_special(region_gt, Sequence.UNKNOWN):
             mask[i] = False
-        if is_special(region_tr, Trajectory.UNKNOWN) and ignore_unknown:
+        elif ignore_invisible and region_gt.is_empty():
             mask[i] = False
+        # Skip if predicted is unknown
+        elif is_special(region_tr, Trajectory.UNKNOWN) and ignore_unknown:
+            mask[i] = False
+        # Skip if predicted is initialization frame
         elif is_special(region_tr, Trajectory.INITIALIZATION):
             for j in range(i, min(len(trajectory), i + burnin)):
                 mask[j] = False
@@ -38,17 +42,14 @@ def compute_accuracy(trajectory: List[Region], groundtruth: List[Region], burnin
         elif overlaps[i] <= threshold:
             mask[i] = False
 
-    if any(mask):
-        return np.mean(overlaps[mask]), np.sum(mask)
-    else:
-        return 0, 0
-
+    return overlaps[mask]
 
 @analysis_registry.register("accuracy")
 class SequenceAccuracy(SeparableAnalysis):
 
     burnin = Integer(default=10, val_min=0)
     ignore_unknown = Boolean(default=True)
+    ignore_invisible = Boolean(default=False)    
     bounded = Boolean(default=True)
     threshold = Float(default=None, val_min=0, val_max=1)
 
@@ -78,8 +79,11 @@ class SequenceAccuracy(SeparableAnalysis):
             cummulative = 0
 
             for trajectory in trajectories:
-                accuracy, _ = compute_accuracy(trajectory.regions(), sequence.object(object), self.burnin, self.ignore_unknown, bounds=bounds)
-                cummulative += accuracy
+                overlaps = gather_overlaps(trajectory.regions(), sequence.object(object), self.burnin, 
+                                        ignore_unknown=self.ignore_unknown, ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold)
+                if overlaps.size > 0:
+                    cummulative += np.mean(overlaps)
+
             objects_accuracy += cummulative / len(trajectories)
 
         return objects_accuracy / len(objects),
@@ -95,7 +99,7 @@ class AverageAccuracy(SequenceAggregator):
 
     @property
     def title(self):
-        return "Average accurarcy"
+        return "Accurarcy"
 
     def dependencies(self):
         return self.analysis,
@@ -119,3 +123,86 @@ class AverageAccuracy(SequenceAggregator):
                 frames += 1
 
         return accuracy / frames,
+
+@analysis_registry.register("success_plot")
+class SuccessPlot(SeparableAnalysis):
+
+    ignore_unknown = Boolean(default=True)
+    burnin = Integer(default=0, val_min=0)
+    bounded = Boolean(default=True)
+    threshold = Float(default=None, val_min=0, val_max=1)
+    resolution = Integer(default=100, val_min=2)
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
+
+    @property
+    def title(self):
+        return "Sequence success plot"
+
+    def describe(self):
+        return Curve("Success plot", 2, "Success", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
+
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+
+        assert isinstance(experiment, MultiRunExperiment)
+
+        objects = sequence.objects()
+        bounds = (sequence.size) if self.bounded else None
+
+        axis_x = np.linspace(0, 1, self.resolution)
+        axis_y = np.zeros_like(axis_x)
+
+        for object in objects:
+            trajectories = experiment.gather(tracker, sequence, objects=[object])
+            if len(trajectories) == 0:
+                raise MissingResultsException()
+
+            object_y = np.zeros_like(axis_x) 
+
+            for trajectory in trajectories:
+                overlaps = gather_overlaps(trajectory.regions(), sequence.object(object), self.burnin, self.ignore_unknown, bounds=bounds, threshold=self.threshold)
+
+                for i, threshold in enumerate(axis_x):
+                    object_y[i] += np.sum(overlaps > threshold) / len(overlaps)
+
+            axis_y += object_y
+
+        return [(x, y) for x, y in zip(axis_x, axis_y)],
+
+
+@analysis_registry.register("average_success_plot")
+class AverageSuccessPlot(SequenceAggregator):
+
+    resolution = Integer(default=100, val_min=2)
+    analysis = Include(SuccessPlot)
+
+    def dependencies(self):
+        return self.analysis,
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
+
+    @property
+    def title(self):
+        return "Sequence success plot"
+
+    def describe(self):
+        return Curve("Success plot", 2, "Success", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
+
+    def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
+        axis_x = np.linspace(0, 1, self.resolution)
+        axis_y = np.zeros_like(axis_x)
+
+        for i, _ in enumerate(sequences):
+            if results[i, 0] is None:
+                continue
+
+            curve = results[i, 0][0]
+
+            for j, (_, y) in enumerate(curve):
+                axis_y[j] += y
+
+        axis_y /= len(sequences)
+
+        return [(x, y) for x, y in zip(axis_x, axis_y)],

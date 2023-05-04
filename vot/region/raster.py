@@ -3,6 +3,7 @@ from typing import List, Tuple, Optional
 import numba
 import numpy as np
 
+_TYPE_EMPTY = 0
 _TYPE_RECTANGLE = 1
 _TYPE_POLYGON = 2
 _TYPE_MASK = 3
@@ -193,6 +194,8 @@ def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], t: int, o: 
         return rasterize_polygon(a, bounds)
     elif t == _TYPE_MASK:
         return copy_mask(a, o, bounds)
+    
+    return np.zeros((bounds[3] - bounds[1] + 1, bounds[2] - bounds[0] + 1), dtype=np.uint8)
 
 @numba.njit(cache=True)
 def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optional[Tuple[int, int]] = None,
@@ -245,9 +248,6 @@ def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Bounds] = None)
     function first rasterizes both regions to 2-D binary masks and calculates overlap between them
     """
 
-    if not isinstance(reg1, Shape) or not isinstance(reg2, Shape):
-        return float(0)
-
     if isinstance(reg1, Rectangle):
         data1 = np.round(reg1._data)
         offset1 = (0, 0)
@@ -260,6 +260,10 @@ def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Bounds] = None)
         data1 = reg1.mask
         offset1 = reg1.offset
         type1 = _TYPE_MASK
+    else:
+        data1 = np.zeros((1, 1))
+        offset1 = (0, 0)
+        type1 = _TYPE_EMPTY
 
     if isinstance(reg2, Rectangle):
         data2 = np.round(reg2._data)
@@ -273,6 +277,10 @@ def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Bounds] = None)
         data2 = reg2.mask
         offset2 = reg2.offset
         type2 = _TYPE_MASK
+    else:
+        data2 = np.zeros((1, 1))
+        offset2 = (0, 0)
+        type2 = _TYPE_EMPTY
 
     return _calculate_overlap(data1, data2, type1, type2, offset1, offset2, bounds)
 

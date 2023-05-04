@@ -12,7 +12,7 @@ from vot.experiment import Experiment
 from vot.experiment.multirun import UnsupervisedExperiment, MultiRunExperiment
 from vot.analysis import SequenceAggregator, Analysis, SeparableAnalysis, \
     MissingResultsException, Measure, Sorting, Curve, Plot, SequenceAggregator, \
-    Axes, analysis_registry
+    Axes, analysis_registry, Point, is_special, Analysis
 from vot.utilities.data import Grid
 
 def determine_thresholds(scores: Iterable[float], resolution: int) -> List[float]:
@@ -260,7 +260,7 @@ class PrecisionRecall(Analysis):
         return Axes.TRACKERS
 
 
-def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = None, threshold: float = None) -> float:
+def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = None, threshold: float = 0) -> float:
 
     overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds))
     if threshold is None: threshold = -1
@@ -269,18 +269,21 @@ def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = N
     T, F, M, H, N = 0, 0, 0, 0, 0
 
     for i, (region_tr, region_gt) in enumerate(zip(trajectory, groundtruth)):
+        if (is_special(region_gt, Sequence.UNKNOWN)):
+            continue
         if region_gt.is_empty():
-            if overlaps[i] == 1:
+            if region_tr.is_empty():
                 N += 1
             else:
                 H += 1
-        elif region_tr.is_empty():
-            M += 1
         else:
             if overlaps[i] > threshold:
                 T += 1
             else:
-                F += 1
+                if region_tr.is_empty():
+                    M += 1
+                else:
+                    F += 1
 
     return T, F, M, H, N
 
@@ -293,12 +296,7 @@ class CountFrames(SeparableAnalysis):
         return isinstance(experiment, MultiRunExperiment)
 
     def describe(self):
-        return Measure("Tracking", "T", 0, None, Sorting.DESCENDING), \
-            Measure("Failure", "F", 0, None, Sorting.ASCENDING), \
-            Measure("Miss", "M", 0, None, Sorting.ASCENDING), \
-            Measure("Halucinate", "H", 0, None, Sorting.ASCENDING), \
-            Measure("Notice", "N", 0, None, Sorting.DESCENDING),
-
+        return None, 
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
 
@@ -363,6 +361,8 @@ class QualityAuxiliary(SeparableAnalysis):
         objects = sequence.objects()
         bounds = (sequence.size) if self.bounded else None
 
+        absence_valid = 0
+
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
             if len(trajectories) == 0:
@@ -388,7 +388,101 @@ class QualityAuxiliary(SeparableAnalysis):
 
             if CN + CH > self.absence_threshold:
                 absence_detection += CN / (CN + CH)
+                absence_valid += 1
+
+        return not_reported_error / len(objects), drift_rate_error / len(objects), absence_detection / absence_valid,
 
 
-        return not_reported_error / len(objects), drift_rate_error / len(objects), absence_detection,
+@analysis_registry.register("average_quality_auxiliary")
+class AverageQualityAuxiliary(SequenceAggregator):
 
+    analysis = Include(QualityAuxiliary)
+
+    @property
+    def title(self):
+        return "Quality Auxiliary"
+
+    def dependencies(self):
+        return self.analysis,
+
+    def describe(self):
+        return Measure("Non-reported Error", "NRE", 0, 1, Sorting.DESCENDING), \
+            Measure("Drift-rate Error", "DRE", 0, 1, Sorting.DESCENDING), \
+            Measure("Absence-detection Quality", "ADQ", 0, 1, Sorting.DESCENDING),
+
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
+
+    def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
+        not_reported_error = 0
+        drift_rate_error = 0
+        absence_detection = 0
+
+        for nre, dre, ad in results:
+            not_reported_error += nre
+            drift_rate_error += dre
+            absence_detection += ad
+
+        return not_reported_error / len(sequences), drift_rate_error / len(sequences), absence_detection / len(sequences)
+
+from vot.analysis import SequenceAggregator
+from vot.analysis.accuracy import SequenceAccuracy
+
+@analysis_registry.register("longterm_ar")
+class AccuracyRobustness(Analysis):
+    """Longterm multi-object accuracy-robustness measure. """
+
+    threshold = Float(default=0.0, val_min=0, val_max=1)
+    bounded = Boolean(default=True)
+    counts = Include(CountFrames)
+
+    def dependencies(self) -> List[Analysis]:
+        return self.counts, SequenceAccuracy(burnin=0, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False)
+    
+    def compatible(self, experiment: Experiment):
+        return isinstance(experiment, MultiRunExperiment)
+
+    @property
+    def title(self):
+        return "Accuracy-robustness"
+
+    def describe(self):
+        return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
+             Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
+             Point("AR plot", dimensions=2, abbreviation="AR", minimal=(0, 0), \
+                maximal=(1, 1), labels=("Robustness", "Accuracy"), trait="ar")
+
+    def compute(self, _: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
+        """Aggregate results from multiple sequences into a single value."""
+
+        frame_counts = dependencies[0]
+        accuracy_analysis = dependencies[1]
+
+        results = Grid(len(trackers), 1)
+
+        for j, _ in enumerate(trackers):
+            accuracy = 0
+            robustness = 0
+            count = 0
+
+            for i, _ in enumerate(sequences):
+                if accuracy_analysis[j, i] is None:
+                    continue
+
+                accuracy += accuracy_analysis[j, i][0]
+
+                frame_counts_sequence = frame_counts[j, i][0]
+
+                objects = len(frame_counts_sequence)
+                for o in range(objects):
+                    robustness += (1/objects) * frame_counts_sequence[o][0] / (frame_counts_sequence[o][0] + frame_counts_sequence[o][1] + frame_counts_sequence[o][2])
+
+                count += 1
+
+            results[j, 0] = (accuracy / count, robustness / count, (robustness / count, accuracy / count))
+
+        return results
+
+    @property
+    def axes(self) -> Axes:
+        return Axes.TRACKERS

@@ -22,7 +22,7 @@ def extract_measures_table(trackers, results):
             descriptions = analysis.describe()
 
             # Ignore all non per-tracker results
-            if per_tracker(analysis):
+            if not per_tracker(analysis):
                 continue
 
             for i, description in enumerate(descriptions):
@@ -79,7 +79,7 @@ def extract_plots(trackers, results, order=None):
             descriptions = analysis.describe()
 
             # Ignore all non per-tracker results
-            if per_tracker(analysis):
+            if not per_tracker(analysis):
                 continue
 
             for i, description in enumerate(descriptions):
@@ -108,7 +108,6 @@ def extract_plots(trackers, results, order=None):
                     continue
 
                 for t in order if order is not None else range(len(trackers)):
-                    
                     tracker = trackers[t]
                     values = aresults[t, 0]
                     data = values[i] if not values is None else None

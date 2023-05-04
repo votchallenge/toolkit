@@ -6,8 +6,16 @@ experiments:
     repetitions: 1
     multiobject: True
     analyses:
-      - type: accuracy
-        name: quality
-        threshold: 0
-      - type: quality_auxiliary
-        name: auxiliary
+      - type: average_accuracy
+        name: Quality
+        burnin: 0
+        ignore_unknown: False
+        weighted: False
+      - type: average_success_plot
+        name: Quality plot
+        burnin: 0
+        ignore_unknown: False
+      - type: longterm_ar
+        name: AR
+      - type: average_quality_auxiliary
+        name: Auxiliary measures
