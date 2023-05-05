@@ -128,6 +128,7 @@ class AverageAccuracy(SequenceAggregator):
 class SuccessPlot(SeparableAnalysis):
 
     ignore_unknown = Boolean(default=True)
+    ignore_invisible = Boolean(default=False)
     burnin = Integer(default=0, val_min=0)
     bounded = Boolean(default=True)
     threshold = Float(default=None, val_min=0, val_max=1)
@@ -161,12 +162,18 @@ class SuccessPlot(SeparableAnalysis):
             object_y = np.zeros_like(axis_x) 
 
             for trajectory in trajectories:
-                overlaps = gather_overlaps(trajectory.regions(), sequence.object(object), self.burnin, self.ignore_unknown, bounds=bounds, threshold=self.threshold)
+                overlaps = gather_overlaps(trajectory.regions(), sequence.object(object), burnin=self.burnin, ignore_unknown=self.ignore_unknown, ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold)
 
                 for i, threshold in enumerate(axis_x):
-                    object_y[i] += np.sum(overlaps > threshold) / len(overlaps)
+                    if threshold == 1:
+                        # Nicer handling of the edge case
+                        object_y[i] += np.sum(overlaps >= threshold) / len(overlaps)
+                    else:
+                        object_y[i] += np.sum(overlaps > threshold) / len(overlaps)
 
-            axis_y += object_y
+            axis_y += object_y / len(trajectories)
+
+        axis_y /= len(objects)
 
         return [(x, y) for x, y in zip(axis_x, axis_y)],
 

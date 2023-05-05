@@ -437,7 +437,7 @@ class AccuracyRobustness(Analysis):
     counts = Include(CountFrames)
 
     def dependencies(self) -> List[Analysis]:
-        return self.counts, SequenceAccuracy(burnin=0, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False)
+        return self.counts, SequenceAccuracy(burnin=0, threshold=self.threshold, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False)
     
     def compatible(self, experiment: Experiment):
         return isinstance(experiment, MultiRunExperiment)
