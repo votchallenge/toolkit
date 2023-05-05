@@ -332,8 +332,11 @@ def do_pack(config: argparse.Namespace):
         with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True), mode="w") as archive:
             for f in all_files:
                 info = zipfile.ZipInfo(filename=os.path.join(f[1], f[2], f[0]), date_time=timestamp.timetuple())
-                with io.TextIOWrapper(archive.open(info, mode="w")) as fout, f[3].read(f[0]) as fin:
-                    copyfileobj(fin, fout)
+                with archive.open(info, mode="w") as fout, f[3].read(f[0]) as fin:
+                    if isinstance(fin, io.TextIOBase):
+                        copyfileobj(fin, io.TextIOWrapper(fout))
+                    else:
+                        copyfileobj(fin, fout)
                 progress.relative(1)
 
             info = zipfile.ZipInfo(filename="manifest.yml", date_time=timestamp.timetuple())
