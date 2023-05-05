@@ -16,5 +16,5 @@ dominate>=2.5
 cachetools>=4.1
 bidict>=0.19
 phx-class-registry>=3.0
-attributee>=0.1.7
+attributee>=0.1.8
 lazy-object-proxy>=1.9
