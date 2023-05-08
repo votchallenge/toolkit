@@ -44,7 +44,7 @@ def check_updates() -> bool:
 
     try:
         get_logger().debug("Checking for new version")
-        response = requests.get(version_url, timeout=2)
+        response = requests.get(version_url, timeout=5, allow_redirects=True)
     except Exception as e:
         get_logger().debug("Unable to retrieve version information %s", e)
         return False, None

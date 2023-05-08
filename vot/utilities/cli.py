@@ -346,13 +346,13 @@ def do_pack(config: argparse.Namespace):
     logger.info("Result packaging successful, archive available in %s", archive_name)
 
 def main():
-    """Entrypoint to the VOT Command Line Interface utility, should be executed as a program and provided with arguments.
+    """Entrypoint to the toolkit Command Line Interface utility, should be executed as a program and provided with arguments.
     """
     stream = logging.StreamHandler()
     stream.setFormatter(ColoredFormatter())
     logger.addHandler(stream)
 
-    parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Utility', prog="vot")
+    parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Interface', prog="vot")
     parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')
     parser.add_argument("--registry", default=".", help='Tracker registry paths', required=False, action=EnvDefault, \
         separator=os.path.pathsep, envvar='VOT_REGISTRY')
@@ -396,19 +396,25 @@ def main():
         if args.debug or check_debug():
             logger.setLevel(logging.DEBUG)
 
-        update, version = check_updates()
-        if update:
-            logger.warning("A newer version of the VOT toolkit is available (%s), please update.", version)
+        def check_version():
+            update, version = check_updates()
+            if update:
+                logger.warning("A newer version of the VOT toolkit is available (%s), please update.", version)
 
         if args.action == "test":
+            check_version()
             do_test(args)
         elif args.action == "initialize":
+            check_version()
             do_workspace(args)
         elif args.action == "evaluate":
+            check_version()
             do_evaluate(args)
         elif args.action == "analysis":
+            check_version()
             do_analysis(args)
         elif args.action == "pack":
+            check_version()
             do_pack(args)
         else:
             parser.print_help()
