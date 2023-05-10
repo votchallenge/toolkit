@@ -68,8 +68,8 @@ class VOTSequence(BaseSequence):
         length = lenghts[0]
 
         objectsfiles = glob.glob(os.path.join(self._base, 'groundtruth_*.txt'))
+        objects = {}
         if len(objectsfiles) > 0:
-            objects = {}
             for objectfile in objectsfiles:
                 groundtruth = read_trajectory(os.path.join(objectfile))
                 if len(groundtruth) < length: groundtruth += [Special(Sequence.UNKNOWN)] * (length - len(groundtruth))
