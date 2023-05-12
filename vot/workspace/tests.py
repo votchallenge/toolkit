@@ -43,7 +43,7 @@ class TestStacks(unittest.TestCase):
        
         get_logger().setLevel(logging.WARN) # Disable progress bar
 
-        default_config = dict(stack="testing", registry=["./trackers.ini"])
+        default_config = dict(stack="tests/basic", registry=["./trackers.ini"])
 
         with tempfile.TemporaryDirectory() as testdir:
             Workspace.initialize(testdir, default_config, download=True)
