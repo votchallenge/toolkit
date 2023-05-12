@@ -16,7 +16,7 @@ from ..tracker import Tracker, Results
 from attributee import Attributee, Boolean
 
 class StorageConfiguration(Attributee):
-    binary = Boolean(default=False)
+    binary = Boolean(default=True)
 
 class Storage(ABC):
     """Abstract superclass for workspace storage abstraction

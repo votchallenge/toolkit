@@ -7,7 +7,7 @@ import numpy as np
 from numba import jit
 
 @jit(nopython=True)
-def mask_to_rle(m):
+def mask_to_rle(m, maxstride=100000000):
     """
     # Input: 2-D numpy array
     # Output: list of numbers (1st number = #0s, 2nd number = #1s, 3rd number = #0s, ...)
@@ -29,14 +29,28 @@ def mask_to_rle(m):
     # go over all elements and check if two consecutive are the same
     for i in range(1, v.size):
         if v[i] != v[i - 1]:
-            rle.append(i - last_idx)
+            length = i - last_idx
+            # if length is larger than maxstride, split it into multiple elements
+            while length > maxstride:
+                rle.append(maxstride)
+                rle.append(0)
+                length -= maxstride
+            # add remaining length
+            if length > 0:
+                rle.append(length)
             last_idx = i
 
     if v.size > 0:
         # handle last element of rle
         if last_idx < v.size - 1:
             # last element is the same as one element before it - add number of these last elements
-            rle.append(v.size - last_idx)
+            length = v.size - last_idx
+            while length > maxstride:
+                rle.append(maxstride)
+                rle.append(0)
+                length -= maxstride
+            if length > 0:
+                rle.append(length)
         else:
             # last element is different than one element before - add 1
             rle.append(1)
@@ -83,7 +97,6 @@ def create_mask_from_string(mask_encoding):
     mask = rle_to_mask(rle, region_w, region_h)
 
     return mask, (tl_x, tl_y)
-
 
 from vot.region.raster import mask_bounds
 
@@ -198,7 +211,7 @@ def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
         elif isinstance(r, Rectangle): fp.write(struct.pack("<Bffff", 1, r.x, r.y, r.width, r.height))
         elif isinstance(r, Polygon): fp.write(struct.pack("<BH%df" % (2 * r.size), 2, r.size, *[item for sublist in r.points() for item in sublist]))
         elif isinstance(r, Mask): 
-            rle = mask_to_rle(r.mask)
+            rle = mask_to_rle(r.mask, maxstride=255*255)
             fp.write(struct.pack("<BhhHHH%dH" % len(rle), 3, r.offset[0], r.offset[1], r.mask.shape[1], r.mask.shape[0], len(rle), *rle))
         else:
             raise IOError("Wrong region type")
