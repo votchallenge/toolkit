@@ -548,6 +548,7 @@ class SingleObjectTrackerRuntime(TrackerRuntime):
         return status
 
 class MultiObjectTrackerRuntime(TrackerRuntime):
+    """ This is a wrapper for tracker runtimes that do not support multi object tracking. It is still work in progress."""
 
     def __init__(self, runtime: TrackerRuntime):
         super().__init__(runtime.tracker)
