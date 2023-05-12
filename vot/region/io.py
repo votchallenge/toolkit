@@ -192,7 +192,7 @@ def read_trajectory_binary(fp: io.RawIOBase):
             r = Polygon(list(zip(values[0::2], values[1::2])))
         elif type == 3:
             tl_x, tl_y, region_w, region_h, n = read("<hhHHH")
-            rle = read("<%dH" % (n))
+            rle = np.array(read("<%dH" % (n)), dtype=np.int32)
             r = Mask(rle_to_mask(rle, region_w, region_h), (tl_x, tl_y))
         else:
             raise IOError("Wrong region type")
