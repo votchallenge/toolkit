@@ -18,4 +18,4 @@ experiments:
       - type: longterm_ar
         name: AR
       - type: average_quality_auxiliary
-        name: Auxiliary measures
+        name: Auxiliary

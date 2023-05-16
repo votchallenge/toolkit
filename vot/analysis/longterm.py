@@ -58,7 +58,7 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
 class _ConfidenceScores(SeparableAnalysis):
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Aggregate confidence scores"
 
     def describe(self):
@@ -87,7 +87,7 @@ class _Thresholds(SequenceAggregator):
     resolution = Integer(default=100)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Thresholds for tracking precision/recall"
 
     def describe(self):
@@ -114,7 +114,7 @@ class PrecisionRecallCurves(SeparableAnalysis):
     bounded = Boolean(default=True)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Tracking precision/recall"
 
     def describe(self):
@@ -154,7 +154,7 @@ class PrecisionRecallCurve(SequenceAggregator):
     curves = Include(PrecisionRecallCurves)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Tracking precision/recall average curve"
 
     def describe(self):
@@ -190,7 +190,7 @@ class FScoreCurve(Analysis):
     prcurve = Include(PrecisionRecallCurve)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Tracking precision/recall"
 
     def describe(self):
@@ -224,7 +224,7 @@ class PrecisionRecall(Analysis):
     fcurve = Include(FScoreCurve)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Tracking precision/recall"
 
     def describe(self):
@@ -342,7 +342,7 @@ class QualityAuxiliary(SeparableAnalysis):
         return isinstance(experiment, MultiRunExperiment)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Quality Auxiliary"
 
     def describe(self):
@@ -404,7 +404,7 @@ class AverageQualityAuxiliary(SequenceAggregator):
     analysis = Include(QualityAuxiliary)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Quality Auxiliary"
 
     def dependencies(self):
@@ -451,7 +451,7 @@ class AccuracyRobustness(Analysis):
         return isinstance(experiment, MultiRunExperiment)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Accuracy-robustness"
 
     def describe(self):

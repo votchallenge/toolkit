@@ -27,7 +27,7 @@ class FailureCount(SeparableAnalysis):
         return isinstance(experiment, SupervisedExperiment)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Number of failures"
 
     def describe(self):
@@ -65,7 +65,7 @@ class CumulativeFailureCount(SequenceAggregator):
         return self.analysis,
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Number of failures"
 
     def describe(self):

@@ -79,7 +79,7 @@ class AccuracyRobustness(SeparableAnalysis):
     bounded = Boolean(default=True)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "AR analysis"
 
     def describe(self):
@@ -114,7 +114,7 @@ class AverageAccuracyRobustness(SequenceAggregator):
     analysis = Include(AccuracyRobustness)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "AR Analysis"
 
     def dependencies(self):
@@ -151,7 +151,7 @@ class EAOCurve(TrackerSeparableAnalysis):
     bounded = Boolean(default=True)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "EAO Curve"
 
     def describe(self):
@@ -207,7 +207,7 @@ class EAOScore(Analysis):
     high = Integer()
 
     @property
-    def title(self):
+    def _title_default(self):
         return "EAO analysis"
 
     def describe(self):

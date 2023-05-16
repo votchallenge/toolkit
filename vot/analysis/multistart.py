@@ -45,7 +45,7 @@ class AccuracyRobustness(SeparableAnalysis):
     threshold = Float(default=0.1, val_min=0, val_max=1)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "AR Analysis"
 
     def describe(self):
@@ -111,7 +111,7 @@ class AverageAccuracyRobustness(SequenceAggregator):
     analysis = Include(AccuracyRobustness)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "AR Analysis"
 
     def dependencies(self):
@@ -152,7 +152,7 @@ class MultiStartFragments(SeparableAnalysis):
     threshold = Float(default=0.1, val_min=0, val_max=1)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Fragment Analysis"
 
     def describe(self):
@@ -217,7 +217,7 @@ class EAOCurves(SeparableAnalysis):
     high = Integer()
 
     @property
-    def title(self):
+    def _title_default(self):
         return "EAO Curve"
 
     def describe(self):
@@ -283,7 +283,7 @@ class EAOCurve(SequenceAggregator):
     curves = Include(EAOCurves)
     
     @property
-    def title(self):
+    def _title_default(self):
         return "EAO Curve"
 
     def describe(self):
@@ -315,7 +315,7 @@ class EAOScore(Analysis):
     eaocurve = Include(EAOCurve)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "EAO analysis"
 
     def describe(self):

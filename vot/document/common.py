@@ -113,7 +113,7 @@ def extract_plots(trackers, results, order=None):
                     data = values[i] if not values is None else None
                     plot(tracker, data)
 
-                experiment_plots.append((description.name, plot))
+                experiment_plots.append((analysis.title + " - " + description.name, plot))
 
         plots[experiment] = experiment_plots
 

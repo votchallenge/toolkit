@@ -198,6 +198,13 @@ class Analysis(Attributee):
 
     @property
     def title(self) -> str:
+        if self.name is None:
+            return self._title_default
+        else:
+            return self.name
+
+    @property
+    def _title_default(self) -> str:
         raise NotImplementedError()
 
     def dependencies(self) -> List["Analysis"]:

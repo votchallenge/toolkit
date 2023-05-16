@@ -57,11 +57,11 @@ class SequenceAccuracy(SeparableAnalysis):
         return isinstance(experiment, MultiRunExperiment)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Sequence accurarcy"
 
     def describe(self):
-        return Measure("Accuracy", "AUC", 0, 1, Sorting.DESCENDING),
+        return Measure(self.title, "", 0, 1, Sorting.DESCENDING),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
 
@@ -98,14 +98,14 @@ class AverageAccuracy(SequenceAggregator):
         return isinstance(experiment, MultiRunExperiment)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Accurarcy"
 
     def dependencies(self):
         return self.analysis,
 
     def describe(self):
-        return Measure("Accuracy", "AUC", 0, 1, Sorting.DESCENDING),
+        return Measure(self.title, "", 0, 1, Sorting.DESCENDING),
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
         accuracy = 0
@@ -138,11 +138,11 @@ class SuccessPlot(SeparableAnalysis):
         return isinstance(experiment, MultiRunExperiment)
 
     @property
-    def title(self):
+    def _title_default(self):
         return "Sequence success plot"
 
     def describe(self):
-        return Curve("Success plot", 2, "Success", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
+        return Curve("Plot", 2, "S", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
 
@@ -191,11 +191,11 @@ class AverageSuccessPlot(SequenceAggregator):
         return isinstance(experiment, MultiRunExperiment)
 
     @property
-    def title(self):
-        return "Sequence success plot"
+    def _title_default(self):
+        return "Success plot"
 
     def describe(self):
-        return Curve("Success plot", 2, "Success", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
+        return Curve("Plot", 2, "S", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
         axis_x = np.linspace(0, 1, self.resolution)
