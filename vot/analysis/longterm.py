@@ -390,7 +390,12 @@ class QualityAuxiliary(SeparableAnalysis):
                 absence_detection += CN / (CN + CH)
                 absence_valid += 1
 
-        return not_reported_error / len(objects), drift_rate_error / len(objects), absence_detection / absence_valid,
+        if absence_valid > 0:
+            absence_detection /= absence_valid
+        else:
+            absence_detection = None
+
+        return not_reported_error / len(objects), drift_rate_error / len(objects), absence_detection,
 
 
 @analysis_registry.register("average_quality_auxiliary")
@@ -417,13 +422,16 @@ class AverageQualityAuxiliary(SequenceAggregator):
         not_reported_error = 0
         drift_rate_error = 0
         absence_detection = 0
+        absence_count = 0
 
         for nre, dre, ad in results:
             not_reported_error += nre
             drift_rate_error += dre
-            absence_detection += ad
+            if ad is not None:
+                absence_count += 1
+                absence_detection += ad
 
-        return not_reported_error / len(sequences), drift_rate_error / len(sequences), absence_detection / len(sequences)
+        return not_reported_error / len(sequences), drift_rate_error / len(sequences), absence_detection / absence_count
 
 from vot.analysis import SequenceAggregator
 from vot.analysis.accuracy import SequenceAccuracy
