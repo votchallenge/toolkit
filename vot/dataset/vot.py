@@ -172,21 +172,36 @@ def download_dataset_meta(url, path):
 
     base_url = get_base_url(url) + "/"
 
+    failed = []
+
     with Progress("Downloading", len(meta["sequences"])) as progress:
         for sequence in meta["sequences"]:
             sequence_directory = os.path.join(path, sequence["name"])
             os.makedirs(sequence_directory, exist_ok=True)
 
+            if os.path.isfile(os.path.join(sequence_directory, "sequence")):
+                refdata = read_properties(os.path.join(sequence_directory, "sequence"))
+                if refdata["uid"] == sequence["annotations"]["uid"]:
+                    logger.info('Sequence "%s" already downloaded.', sequence["name"])
+                    progress.relative(1)
+                    continue
+
             data = {'name': sequence["name"], 'fps': sequence["fps"], 'format': 'default'}
 
             annotations_url = join_url(base_url, sequence["annotations"]["url"])
 
+            data["uid"] = sequence["annotations"]["uid"]
+
             try:
                 download_uncompress(annotations_url, sequence_directory)
             except NetworkException as e:
-                raise DatasetException("Unable do download annotations bundle")
+                logger.exception(e)
+                failed.append(sequence["name"])
+                continue
             except IOError as e:
-                raise DatasetException("Unable to extract annotations bundle, is the target directory writable and do you have enough space?")
+                logger.exception(e)
+                failed.append(sequence["name"])
+                continue
 
             for cname, channel in sequence["channels"].items():
                 channel_directory = os.path.join(sequence_directory, cname)
@@ -197,9 +212,13 @@ def download_dataset_meta(url, path):
                 try:
                     download_uncompress(channel_url, channel_directory)
                 except NetworkException as e:
-                    raise DatasetException("Unable do download channel bundle")
+                    logger.exception(e)
+                    failed.append(sequence["name"])
+                    continue
                 except IOError as e:
-                    raise DatasetException("Unable to extract channel bundle, is the target directory writable and do you have enough space?")
+                    logger.exception(e)
+                    failed.append(sequence["name"])
+                    continue
 
                 if "pattern" in channel:
                     data["channels." + cname] = cname + os.path.sep + channel["pattern"]
@@ -207,12 +226,16 @@ def download_dataset_meta(url, path):
                     data["channels." + cname] = cname + os.path.sep
 
             write_properties(os.path.join(sequence_directory, 'sequence'), data)
-
             progress.relative(1)
 
-    with open(os.path.join(path, "list.txt"), "w") as fp:
-        for sequence in meta["sequences"]:
-            fp.write('{}\n'.format(sequence["name"]))
+    if len(failed) > 0:
+        logger.error('Failed to download %d sequences.', len(failed))
+        logger.error('Failed sequences: %s', ', '.join(failed))
+    else:
+        logger.info('Successfully downloaded all sequences.')
+        with open(os.path.join(path, "list.txt"), "w") as fp:
+            for sequence in meta["sequences"]:
+                fp.write('{}\n'.format(sequence["name"]))
 
 def write_sequence(directory: str, sequence: Sequence):
 

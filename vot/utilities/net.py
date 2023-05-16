@@ -7,7 +7,7 @@ from urllib.parse import urlparse, urljoin
 
 import requests
 
-from vot import ToolkitException
+from vot import ToolkitException, get_logger
 
 class NetworkException(ToolkitException):
     pass
@@ -55,7 +55,9 @@ def download_json(url):
         raise NetworkException("Unable to read JSON file {}".format(e))
 
 
-def download(url, output, callback=None, chunk_size=1024*32):
+def download(url, output, callback=None, chunk_size=1024*32, retry=10):
+    logger = get_logger()
+
     with requests.session() as sess:
 
         is_gdrive = is_google_drive_url(url)
@@ -79,6 +81,7 @@ def download(url, output, callback=None, chunk_size=1024*32):
                 raise NetworkException("Permission denied for {}".format(gurl))
             url = gurl
 
+
         if output is None:
             if is_gdrive:
                 m = re.search('filename="(.*)"',
@@ -96,21 +99,43 @@ def download(url, output, callback=None, chunk_size=1024*32):
             tmp_file = None
             filehandle = output
 
+        position = 0
+        progress = False
+
         try:
             total = res.headers.get('Content-Length')
-
             if total is not None:
                 total = int(total)
+            while True:
+                try:
+                    for chunk in res.iter_content(chunk_size=chunk_size):
+                        filehandle.write(chunk)
+                        position += len(chunk)
+                        progress = True
+                        if callback:
+                            callback(position, total)
 
-            for chunk in res.iter_content(chunk_size=chunk_size):
-                filehandle.write(chunk)
-                if callback:
-                    callback(len(chunk), total)
-            if tmp_file:
-                filehandle.close()
-                shutil.copy(tmp_file, output)
-        except IOError:
-            raise NetworkException("Error when downloading file")
+                    if tmp_file:
+                        filehandle.close()
+                        shutil.copy(tmp_file, output)
+                    break
+
+                except requests.exceptions.RequestException as e:
+                    if not progress:
+                        logger.warning("Error when downloading file, retrying")
+                        retry-=1
+                        if retry < 1:
+                            raise NetworkException("Unable to download file {}".format(e))
+                        res = sess.get(url, stream=True)
+                        filehandle.seek(0)
+                        position = 0
+                    else:
+                        logger.warning("Error when downloading file, trying to resume download")
+                        res = sess.get(url, stream=True, headers=({'Range': f'bytes={position}-'} if position > 0 else None))
+                    progress = False
+
+        except IOError as e:
+            raise NetworkException("Local I/O Error when downloading file: %s" % e)
         finally:
             try:
                 if tmp_file:
@@ -119,6 +144,7 @@ def download(url, output, callback=None, chunk_size=1024*32):
                 pass
 
         return output
+
 
 def download_uncompress(url, path):
     from vot.utilities import extract_files
