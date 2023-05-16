@@ -134,6 +134,9 @@ def download(url, output, callback=None, chunk_size=1024*32, retry=10):
                         res = sess.get(url, stream=True, headers=({'Range': f'bytes={position}-'} if position > 0 else None))
                     progress = False
 
+            if position < total:
+                raise NetworkException("Unable to download file")
+
         except IOError as e:
             raise NetworkException("Local I/O Error when downloading file: %s" % e)
         finally:
