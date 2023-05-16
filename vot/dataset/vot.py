@@ -165,10 +165,17 @@ class VOTDataset(Dataset):
 
 def download_dataset_meta(url, path):
     from vot.utilities.net import download_uncompress, download_json, get_base_url, join_url, NetworkException
+    from vot.utilities import format_size
 
     meta = download_json(url)
 
-    logger.info('Downloading sequence dataset "%s" with %s sequences.', meta["name"], len(meta["sequences"]))
+    total_size = 0
+    for sequence in meta["sequences"]:
+        total_size += sequence["annotations"]["uncompressed"]
+        for channel in sequence["channels"].values():
+            total_size += channel["uncompressed"]
+
+    logger.info('Downloading sequence dataset "%s" with %s sequences (total %s).', meta["name"], len(meta["sequences"]), format_size(total_size))
 
     base_url = get_base_url(url) + "/"
 
@@ -203,6 +210,8 @@ def download_dataset_meta(url, path):
                 failed.append(sequence["name"])
                 continue
 
+            failure = False
+
             for cname, channel in sequence["channels"].items():
                 channel_directory = os.path.join(sequence_directory, cname)
                 os.makedirs(channel_directory, exist_ok=True)
@@ -214,16 +223,19 @@ def download_dataset_meta(url, path):
                 except NetworkException as e:
                     logger.exception(e)
                     failed.append(sequence["name"])
-                    continue
+                    failure = False
                 except IOError as e:
                     logger.exception(e)
                     failed.append(sequence["name"])
-                    continue
+                    failure = False
 
                 if "pattern" in channel:
                     data["channels." + cname] = cname + os.path.sep + channel["pattern"]
                 else:
                     data["channels." + cname] = cname + os.path.sep
+
+                if failure:
+                    continue
 
             write_properties(os.path.join(sequence_directory, 'sequence'), data)
             progress.relative(1)

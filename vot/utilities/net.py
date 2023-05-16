@@ -115,6 +115,9 @@ def download(url, output, callback=None, chunk_size=1024*32, retry=10):
                         if callback:
                             callback(position, total)
 
+                    if position < total:
+                        raise requests.exceptions.RequestException("Connection closed")
+
                     if tmp_file:
                         filehandle.close()
                         shutil.copy(tmp_file, output)
