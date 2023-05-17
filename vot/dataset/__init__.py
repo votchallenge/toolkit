@@ -183,12 +183,12 @@ class PatternFileListChannel(Channel):
     follow a specific pattern.
     """
 
-    def __init__(self, path, start=1, step=1, end=None):
+    def __init__(self, path, start=1, step=1, end=None, check_files=True):
         super().__init__()
         base, pattern = os.path.split(path)
         self._base = base
         self._pattern = pattern
-        self.__scan(pattern, start, step, end)
+        self.__scan(pattern, start, step, end, check_files=check_files)
 
     @property
     def base(self) -> str:
@@ -203,7 +203,7 @@ class PatternFileListChannel(Channel):
     def pattern(self):
         return self._pattern
 
-    def __scan(self, pattern, start, step, end):
+    def __scan(self, pattern, start, step, end, check_files=True):
 
         extension = os.path.splitext(pattern)[1]
         if not extension in {'.jpg', '.png'}:
@@ -214,10 +214,12 @@ class PatternFileListChannel(Channel):
 
         fullpattern = os.path.join(self.base, pattern)
 
+        assert end is not None or check_files
+
         while True:
             image_file = os.path.join(fullpattern % i)
 
-            if not os.path.isfile(image_file):
+            if check_files and not os.path.isfile(image_file):
                 break
             self._files.append(os.path.basename(image_file))
             i = i + step
@@ -228,10 +230,15 @@ class PatternFileListChannel(Channel):
         if i <= start:
             raise DatasetException("Empty sequence, no frames found.")
 
-        im = cv2.imread(self.filename(0))
-        self._width = im.shape[1]
-        self._height = im.shape[0]
-        self._depth = im.shape[2]
+        if os.path.isfile(self.filename(0)):
+            im = cv2.imread(self.filename(0))
+            self._width = im.shape[1]
+            self._height = im.shape[0]
+            self._depth = im.shape[2]
+        else:
+            self._depth = None
+            self._width = None
+            self._height = None
 
     @property
     def length(self):
@@ -473,15 +480,15 @@ class BaseSequence(Sequence):
 
     @property
     def size(self):
-        return self.channel().size
+        return self.width, self.height
 
     @property
     def width(self):
-        return self.channel().width
+        return self._metadata["width"]
 
     @property
     def height(self):
-        return self.channel().height
+        return self._metadata["height"]
 
     @property
     def length(self):

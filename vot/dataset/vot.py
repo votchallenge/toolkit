@@ -15,13 +15,20 @@ from vot.utilities import Progress, localize_path, read_properties, write_proper
 
 logger = logging.getLogger("vot")
 
-def load_channel(source):
+def convert_int(value):
+    try:
+        if value is None:
+            return None
+        return int(value)
+    except ValueError:
+        return None
+def _load_channel(source, length=None):
 
     extension = os.path.splitext(source)[1]
 
     if extension == '':
         source = os.path.join(source, '%08d.jpg')
-    return PatternFileListChannel(source)
+    return PatternFileListChannel(source, end=length, check_files=length is None)
 
 class VOTSequence(BaseSequence):
 
@@ -42,6 +49,15 @@ class VOTSequence(BaseSequence):
         metadata_file = os.path.join(self._base, 'sequence')
         metadata.update(read_properties(metadata_file))
 
+
+        metadata["height"] = convert_int(metadata.get("height", None))
+        metadata["width"] = convert_int(metadata.get("width", None))
+        metadata["length"] = convert_int(metadata.get("length", None))
+        metadata["fps"] = convert_int(metadata.get("fps", None))
+
+
+        print(metadata)
+
         return metadata
 
     def _read(self):
@@ -49,23 +65,26 @@ class VOTSequence(BaseSequence):
         channels = {}
         tags = {}
         values = {}
+        length = self._metadata.get("length", None)
 
         for c in ["color", "depth", "ir"]:
             channel_path = self.metadata("channels.%s" % c, None)
             if not channel_path is None:
-                channels[c] = load_channel(os.path.join(self._base, localize_path(channel_path)))
+                channels[c] = _load_channel(os.path.join(self._base, localize_path(channel_path)), length)
 
         # Load default channel if no explicit channel data available
         if len(channels) == 0:
-            channels["color"] = load_channel(os.path.join(self._base, "color", "%08d.jpg"))
+            channels["color"] = _load_channel(os.path.join(self._base, "color", "%08d.jpg"), length=length) 
         else:
             self._metadata["channel.default"] = next(iter(channels.keys()))
 
-        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
+        if not "width" in self._metadata or not "height" in self._metadata:
+            self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
+ 
 
-        lenghts = [len(t) for t in channels.values()]
-        assert all([x == lenghts[0] for x in lenghts]), "Sequence channels have different lengths"
-        length = lenghts[0]
+        lengths = [len(t) for t in channels.values()]
+        assert all([x == lengths[0] for x in lengths]), "Sequence channels have different lengths"
+        length = lengths[0]
 
         objectsfiles = glob.glob(os.path.join(self._base, 'groundtruth_*.txt'))
         objects = {}
