@@ -431,7 +431,10 @@ class AverageQualityAuxiliary(SequenceAggregator):
                 absence_count += 1
                 absence_detection += ad
 
-        return not_reported_error / len(sequences), drift_rate_error / len(sequences), absence_detection / absence_count
+        if absence_count > 0:
+            absence_detection /= absence_count
+
+        return not_reported_error / len(sequences), drift_rate_error / len(sequences), absence_detection
 
 from vot.analysis import SequenceAggregator
 from vot.analysis.accuracy import SequenceAccuracy
