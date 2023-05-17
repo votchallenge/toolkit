@@ -199,7 +199,7 @@ class LocalStorage(Storage):
         return self._root
 
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
-        storage = LocalStorage(os.path.join(self._results, tracker.reference, experiment.identifier, sequence.name))
+        storage = LocalStorage(os.path.join(self._results, tracker.reference, experiment.identifier, sequence.name), self.config)
         return Results(storage)
 
     def documents(self):
