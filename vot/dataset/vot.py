@@ -49,14 +49,10 @@ class VOTSequence(BaseSequence):
         metadata_file = os.path.join(self._base, 'sequence')
         metadata.update(read_properties(metadata_file))
 
-
         metadata["height"] = convert_int(metadata.get("height", None))
         metadata["width"] = convert_int(metadata.get("width", None))
         metadata["length"] = convert_int(metadata.get("length", None))
         metadata["fps"] = convert_int(metadata.get("fps", None))
-
-
-        print(metadata)
 
         return metadata
 
