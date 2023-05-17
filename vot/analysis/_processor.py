@@ -135,7 +135,7 @@ class DebugExecutor(Executor):
 
 
             except TypeError as e:
-                logger.debug("Task %s call resulted in error: %s", task.fn, e)
+                logger.info("Task %s call resulted in error: %s", task.fn, e)
 
                 error = e
 
@@ -143,7 +143,11 @@ class DebugExecutor(Executor):
 
                 error = e
 
-                logger.debug("Task %s resulted in exception: %s", task.fn, e)
+                logger.info("Task %s resulted in exception: %s", task.fn, e)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.exception(e)
+
+                logger.exception(e)
 
             if error is not None:
                 task.promise.set_exception(error)
