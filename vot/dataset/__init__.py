@@ -10,6 +10,8 @@ from PIL.Image import Image
 import numpy as np
 from trax import Region
 
+from cachetools import cached, LRUCache
+
 from vot import ToolkitException
 
 import cv2
@@ -410,12 +412,17 @@ class Dataset(ABC):
 
 SequenceData = namedtuple("SequenceData", ["channels", "objects", "tags", "values", "length"])
 
+from vot import sequence_cache_size
+
+@cached(LRUCache(maxsize=sequence_cache_size))
+def _cached_loader(sequence):
+    return sequence._read()
+
 class BaseSequence(Sequence):
 
     def __init__(self, name, dataset=None):
         super().__init__(name, dataset)
         self._metadata = self._read_metadata()
-        self._data = None
 
     @abstractmethod
     def _read_metadata(self):
@@ -426,32 +433,31 @@ class BaseSequence(Sequence):
         raise NotImplementedError
 
     def __preload(self):
-        if self._data is None:
-            self._data = self._read()
+        return _cached_loader(self)
 
     def metadata(self, name, default=None):
         return self._metadata.get(name, default)
 
     def channels(self):
-        self.__preload()
-        return self._data.channels.keys()
+        data = self.__preload()
+        return data.channels.keys()
 
     def channel(self, channel=None):
-        self.__preload()
+        data = self.__preload()
         if channel is None:
             channel = self.metadata("channel.default")
-        return self._data.channels.get(channel, None)
+        return data.channels.get(channel, None)
 
     def frame(self, index):
         return Frame(self, index)
 
     def objects(self):
-        self.__preload()
-        return self._data.objects.keys()
+        data = self.__preload()
+        return data.objects.keys()
 
     def object(self, id, index=None):
-        self.__preload()
-        obj = self._data.objects.get(id, None)
+        data = self.__preload()
+        obj = data.objects.get(id, None)
         if index is None:
             return obj
         if obj is None:
@@ -459,24 +465,24 @@ class BaseSequence(Sequence):
         return obj[index]
 
     def groundtruth(self, index=None):
-        self.__preload()
+        data = self.__preload()
         if len(self.objects()) != 1:
             raise DatasetException("More than one object in sequence")
 
-        id = next(iter(self._data.objects))
+        id = next(iter(data.objects))
         return self.object(id, index)
 
     def tags(self, index=None):
-        self.__preload()
+        data = self.__preload()
         if index is None:
-            return self._data.tags.keys()
-        return [t for t, sq in self._data.tags.items() if sq[index]]
+            return data.tags.keys()
+        return [t for t, sq in data.tags.items() if sq[index]]
 
     def values(self, index=None):
-        self.__preload()
+        data = self.__preload()
         if index is None:
-            return self._data.values.keys()
-        return {v: sq[index] for v, sq in self._data.values.items()}
+            return data.values.keys()
+        return {v: sq[index] for v, sq in data.values.items()}
 
     @property
     def size(self):
@@ -492,8 +498,8 @@ class BaseSequence(Sequence):
 
     @property
     def length(self):
-        self.__preload()
-        return self._data.length
+        data = self.__preload()
+        return data.length
 
 class InMemorySequence(BaseSequence):
 
