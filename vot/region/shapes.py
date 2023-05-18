@@ -237,7 +237,8 @@ class Mask(Shape):
             self._mask = np.zeros((0, 0), dtype=np.uint8)
             self._offset = (0, 0)
         else:
-            self._mask = np.copy(self.mask[bounds[1]:bounds[3], bounds[0]:bounds[2]])
+
+            self._mask = np.copy(self.mask[bounds[1]:bounds[3]+1, bounds[0]:bounds[2]+1])
             self._offset = (bounds[0] + self.offset[0], bounds[1] + self.offset[1])
 
     @property
