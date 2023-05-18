@@ -61,7 +61,7 @@ class VOTSequence(BaseSequence):
         channels = {}
         tags = {}
         values = {}
-        length = self._metadata.get("length", None)
+        length = self._metadata["length"]
 
         for c in ["color", "depth", "ir"]:
             channel_path = self.metadata("channels.%s" % c, None)
@@ -74,10 +74,9 @@ class VOTSequence(BaseSequence):
         else:
             self._metadata["channel.default"] = next(iter(channels.keys()))
 
-        if not "width" in self._metadata or not "height" in self._metadata:
+        if self.width is None or self.height is None:
             self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
  
-
         lengths = [len(t) for t in channels.values()]
         assert all([x == lengths[0] for x in lengths]), "Sequence channels have different lengths"
         length = lengths[0]
