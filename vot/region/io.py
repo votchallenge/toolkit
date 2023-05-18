@@ -137,13 +137,14 @@ def parse_region(string: str) -> "Region":
     Returns:
         Region: resulting region
     """
+    from vot import config
     from vot.region import Special
     from vot.region.shapes import Rectangle, Polygon, Mask
 
     if string[0] == 'm':
         # input is a mask - decode it
         m_, offset_ = create_mask_from_string(string[1:].split(','))
-        return Mask(m_, offset=offset_, optimize=True)
+        return Mask(m_, offset=offset_, optimize=config.mask_optimize_read)
     else:
         # input is not a mask - check if special, rectangle or polygon
         tokens = [float(t) for t in string.split(',')]

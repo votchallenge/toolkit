@@ -63,15 +63,31 @@ def check_updates() -> bool:
     else:
         return False, None
 
-def _global_property(name: str, default: typing.Any = None, cast = str) -> typing.Any:
+from attributee import Attributee, Integer, Boolean
 
-    var = cast(os.environ.get(name, default))
+class GlobalConfiguration(Attributee):
+    """Global configuration object for the toolkit. It is used to store global configuration options.
+    """
 
-    return var
+    debug_mode = Boolean(default=False, description="Enables debug mode for the toolkit.")
+    sequence_cache_size = Integer(default=1000, description="Maximum number of sequences to keep in cache.")
+    results_binary = Boolean(default=True, description="Enables binary results format.")
+    mask_optimize_read = Boolean(default=True, description="Enables mask optimization when reading masks.")
 
-debug_mode = _global_property("VOT_TOOLKIT_DEBUG", False, lambda x: str(x).lower() in ["true", "1"])
-sequence_cache_size = _global_property("VOT_SEQUENCE_CACHE", 1000, int)
-results_binary = _global_property("VOT_RESULTS_BINARY", True, lambda x: str(x).lower() in ["true", "1"])
+    def __init__(self):
+        kwargs = {}
+        for k in self.attributes():
+            envname = "VOT_{}".format(k.upper())
+            if envname in os.environ:
+                kwargs[k] = os.environ[envname]
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return "<GlobalConfig debug_mode={} sequence_cache_size={} results_binary={} mask_optimize_read={}>".format(
+            self.debug_mode, self.sequence_cache_size, self.results_binary, self.mask_optimize_read
+        )
+
+config = GlobalConfiguration()
 
 def check_debug() -> bool:
     """Checks if debug is enabled for the toolkit via an environment variable.
@@ -79,5 +95,5 @@ def check_debug() -> bool:
     Returns:
         bool: True if debug is enabled, False otherwise
     """
-    return debug_mode
+    return config.debug_mode
 

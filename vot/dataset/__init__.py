@@ -412,9 +412,9 @@ class Dataset(ABC):
 
 SequenceData = namedtuple("SequenceData", ["channels", "objects", "tags", "values", "length"])
 
-from vot import sequence_cache_size
+from vot import config
 
-@cached(LRUCache(maxsize=sequence_cache_size))
+@cached(LRUCache(maxsize=config.sequence_cache_size))
 def _cached_loader(sequence):
     return sequence._read()
 
