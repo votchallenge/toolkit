@@ -8,7 +8,7 @@ _TYPE_RECTANGLE = 1
 _TYPE_POLYGON = 2
 _TYPE_MASK = 3
 
-@numba.njit()
+@numba.njit(cache=True)
 def mask_bounds(mask: np.ndarray):
     """
     mask: 2-D array with a binary mask
@@ -34,7 +34,7 @@ def mask_bounds(mask: np.ndarray):
     return (left, top, right, bottom)
 
 
-@numba.njit()
+@numba.njit(cache=True)
 def rasterize_rectangle(data: np.ndarray, bounds: Tuple[int, int, int, int]):
     width = bounds[2] - bounds[0] + 1
     height = bounds[3] - bounds[1] + 1
@@ -55,7 +55,7 @@ def rasterize_rectangle(data: np.ndarray, bounds: Tuple[int, int, int, int]):
 
 
 #@numba.njit(numba.uint8[:, ::1](numba.float32[:, ::1], numba.types.UniTuple(numba.int64, 4)))
-@numba.njit()
+@numba.njit(cache=True)
 def rasterize_polygon(data: np.ndarray, bounds: Tuple[int, int, int, int]):
 
     #int nodes, pixelY, i, j, swap;
@@ -130,7 +130,7 @@ def rasterize_polygon(data: np.ndarray, bounds: Tuple[int, int, int, int]):
     return mask
 
 
-@numba.njit()
+@numba.njit(cache=True)
 def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int, int, int]):
     tx = max(offset[0], bounds[0])
     ty = max(offset[1], bounds[1])
@@ -151,11 +151,11 @@ def copy_mask(mask: np.ndarray, offset: Tuple[int, int], bounds: Tuple[int, int,
 
     return copy
 
-@numba.njit()
+@numba.njit(cache=True)
 def _bounds_rectangle(a):
     return (int(round(a[0, 0])), int(round(a[1, 0])), int(round(a[0, 0] + a[2, 0] - 1)), int(round(a[1, 0] + a[3, 0] - 1)))
 
-@numba.njit()
+@numba.njit(cache=True)
 def _bounds_polygon(a):
     fi32 = np.finfo(np.float32)
     top = fi32.max
@@ -170,12 +170,12 @@ def _bounds_polygon(a):
         right = max(right, a[i, 0])
     return (int(round(left)), int(round(top)), int(round(right)), int(round(bottom)))
 
-@numba.njit()
+@numba.njit(cache=True)
 def _bounds_mask(a, o):
     bounds = mask_bounds(a)
     return (bounds[0] + o[0], bounds[1] + o[1], bounds[2] + o[0], bounds[3] + o[1])
 
-@numba.njit()
+@numba.njit(cache=True)
 def _region_bounds(a: np.ndarray, t: int, o: Optional[Tuple[int, int]] = None):
     if t == _TYPE_RECTANGLE:
         return _bounds_rectangle(a)
@@ -185,7 +185,7 @@ def _region_bounds(a: np.ndarray, t: int, o: Optional[Tuple[int, int]] = None):
         return _bounds_mask(a, o)
     return (0, 0, 0, 0)
 
-@numba.njit()
+@numba.njit(cache=True)
 def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], t: int, o: Optional[Tuple[int, int]] = None):
 
     if t == _TYPE_RECTANGLE:
