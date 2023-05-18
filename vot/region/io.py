@@ -143,7 +143,7 @@ def parse_region(string: str) -> "Region":
     if string[0] == 'm':
         # input is a mask - decode it
         m_, offset_ = create_mask_from_string(string[1:].split(','))
-        return Mask(m_, offset=offset_)
+        return Mask(m_, offset=offset_, optimize=True)
     else:
         # input is not a mask - check if special, rectangle or polygon
         tokens = [float(t) for t in string.split(',')]
