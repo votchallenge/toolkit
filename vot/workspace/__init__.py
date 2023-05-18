@@ -14,7 +14,7 @@ from ..tracker import Registry, Tracker
 from ..stack import Stack, resolve_stack
 from ..utilities import normalize_path
 from ..document import ReportConfiguration
-from .storage import LocalStorage, Storage, NullStorage, StorageConfiguration
+from .storage import LocalStorage, Storage, NullStorage
 
 
 _logger = get_logger()
@@ -59,7 +59,6 @@ class Workspace(Attributee):
     stack = StackLoader()
     sequences = String(default="sequences")
     report = Nested(ReportConfiguration)
-    results = Nested(StorageConfiguration)
 
     @staticmethod
     def initialize(directory: str, config: typing.Optional[typing.Dict] = None, download: bool = True) -> None:
@@ -151,7 +150,7 @@ class Workspace(Attributee):
         """
         self._directory = directory
 
-        self._storage = Proxy(lambda: LocalStorage(directory, self.results) if directory is not None else NullStorage())
+        self._storage = Proxy(lambda: LocalStorage(directory) if directory is not None else NullStorage())
         
         super().__init__(**kwargs)
 

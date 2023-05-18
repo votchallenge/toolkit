@@ -28,10 +28,6 @@ class Results(object):
 
     def find(self, pattern):
         return fnmatch.filter(self._storage.documents(), pattern)
-
-    @property
-    def binary(self):
-        return self._storage.config.binary
     
 class Trajectory(object):
     """Trajectory class for storing and retrieving tracker trajectories."""
@@ -154,8 +150,9 @@ class Trajectory(object):
         return len(self._regions)
 
     def write(self, results: Results, name: str):
+        from vot import config
 
-        if results.binary:
+        if config.results_binary:
             with results.write(name + ".bin") as fp:
                 write_trajectory(fp, self._regions)
         else:
