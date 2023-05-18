@@ -1,6 +1,7 @@
 
 import os
 import logging
+import typing
 
 from .version import __version__
 
@@ -62,12 +63,21 @@ def check_updates() -> bool:
     else:
         return False, None
 
+def _global_property(name: str, default: typing.Any = None, cast = str) -> typing.Any:
+
+    var = cast(os.environ.get(name, default))
+
+    return var
+
+debug_mode = _global_property("VOT_TOOLKIT_DEBUG", False, lambda x: str(x).lower() in ["true", "1"])
+sequence_cache_size = _global_property("VOT_SEQUENCE_CACHE", 1000, int)
+results_binary = _global_property("VOT_RESULTS_BINARY", True, lambda x: str(x).lower() in ["true", "1"])
+
 def check_debug() -> bool:
     """Checks if debug is enabled for the toolkit via an environment variable.
 
     Returns:
         bool: True if debug is enabled, False otherwise
     """
-    var = os.environ.get("VOT_TOOLKIT_DEBUG", "false").lower()
-    return var in ["true", "1"]
+    return debug_mode
 
