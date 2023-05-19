@@ -1,3 +1,4 @@
+"""This module contains the implementation of the FailureCount analysis. The analysis counts the number of failures in one or more sequences."""
 
 from typing import List, Tuple, Any
 
@@ -17,26 +18,31 @@ from vot.utilities.data import Grid
 
 
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
+    """Count the number of failures in a trajectory. A failure is defined as a region that overlaps with a Special.FAILURE region."""
     return len([region for region in trajectory if is_special(region, SupervisedExperiment.FAILURE)]), len(trajectory)
 
 
 @analysis_registry.register("failures")
 class FailureCount(SeparableAnalysis):
+    """Count the number of failures in a sequence. A failure is defined as a region that overlaps with a Special.FAILURE region."""
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis."""
         return isinstance(experiment, SupervisedExperiment)
 
     @property
     def _title_default(self):
+        """Default title for the analysis."""
         return "Number of failures"
 
     def describe(self):
+        """Describe the analysis."""
         return Measure("Failures", "F", 0, None, Sorting.ASCENDING),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+        """Compute the analysis for a single sequence."""
 
         assert isinstance(experiment, SupervisedExperiment)
-
 
         objects = sequence.objects()
         objects_failures = 0
@@ -55,23 +61,38 @@ class FailureCount(SeparableAnalysis):
 
 @analysis_registry.register("cumulative_failures")
 class CumulativeFailureCount(SequenceAggregator):
+    """Count the number of failures in a sequence. A failure is defined as a region that overlaps with a Special.FAILURE region."""
 
     analysis = Include(FailureCount)
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis."""
         return isinstance(experiment, SupervisedExperiment)
 
     def dependencies(self):
+        """Return the dependencies of the analysis."""
         return self.analysis,
 
     @property
     def _title_default(self):
+        """Default title for the analysis."""
         return "Number of failures"
 
     def describe(self):
+        """Describe the analysis."""
         return Measure("Failures", "F", 0, None, Sorting.ASCENDING), 
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
+        """Aggregate the analysis for a list of sequences. The aggregation is done by summing the number of failures for each sequence.
+
+        Args:
+            sequences (List[Sequence]): The list of sequences to aggregate.
+            results (Grid): The results of the analysis for each sequence.
+
+        Returns:
+            Tuple[Any]: The aggregated analysis.
+        """
+
         failures = 0
 
         for a in results:

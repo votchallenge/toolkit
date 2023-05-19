@@ -1,3 +1,5 @@
+"""Accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
+
 from typing import List, Tuple, Any
 
 import numpy as np
@@ -17,7 +19,20 @@ from vot.tracker import Tracker, Trajectory
 from vot.utilities.data import Grid
 
 def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin: int = 10, 
-    ignore_unknown: bool = True, ignore_invisible: bool = False, bounds = None, threshold: float = None) -> float:
+    ignore_unknown: bool = True, ignore_invisible: bool = False, bounds = None, threshold: float = None) -> np.ndarray:
+    """Gather overlaps between trajectory and groundtruth regions. 
+    
+    Args:
+        trajectory (List[Region]): List of regions predicted by the tracker.
+        groundtruth (List[Region]): List of groundtruth regions.
+        burnin (int, optional): Number of frames to skip at the beginning of the sequence. Defaults to 10.
+        ignore_unknown (bool, optional): Ignore unknown regions in the groundtruth. Defaults to True.
+        ignore_invisible (bool, optional): Ignore invisible regions in the groundtruth. Defaults to False.
+        bounds ([type], optional): Bounds of the sequence. Defaults to None.
+        threshold (float, optional): Minimum overlap to consider. Defaults to None.
+        
+    Returns:
+        np.ndarray: List of overlaps."""
 
     overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds))
     mask = np.ones(len(overlaps), dtype=bool)
@@ -46,25 +61,39 @@ def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin:
 
 @analysis_registry.register("accuracy")
 class SequenceAccuracy(SeparableAnalysis):
+    """Sequence accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
 
-    burnin = Integer(default=10, val_min=0)
-    ignore_unknown = Boolean(default=True)
-    ignore_invisible = Boolean(default=False)    
-    bounded = Boolean(default=True)
-    threshold = Float(default=None, val_min=0, val_max=1)
+    burnin = Integer(default=10, val_min=0, description="Number of frames to skip after the initialization.")
+    ignore_unknown = Boolean(default=True, description="Ignore unknown regions in the groundtruth.")
+    ignore_invisible = Boolean(default=False, description="Ignore invisible regions in the groundtruth.")    
+    bounded = Boolean(default=True, description="Consider only the bounded region of the sequence.")
+    threshold = Float(default=None, val_min=0, val_max=1, description="Minimum overlap to consider.")
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis."""
         return isinstance(experiment, MultiRunExperiment)
 
     @property
     def _title_default(self):
+        """Default title of the analysis."""
         return "Sequence accurarcy"
 
     def describe(self):
+        """Describe the analysis."""
         return Measure(self.title, "", 0, 1, Sorting.DESCENDING),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-
+        """Compute the analysis for a single sequence. 
+        
+        Args:
+            experiment (Experiment): Experiment.
+            tracker (Tracker): Tracker.
+            sequence (Sequence): Sequence.
+            dependencies (List[Grid]): List of dependencies.
+            
+        Returns:
+            Tuple[Any]: Tuple of results.
+        """
         assert isinstance(experiment, MultiRunExperiment)
 
         objects = sequence.objects()
@@ -90,24 +119,40 @@ class SequenceAccuracy(SeparableAnalysis):
 
 @analysis_registry.register("average_accuracy")
 class AverageAccuracy(SequenceAggregator):
+    """Average accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
 
-    analysis = Include(SequenceAccuracy)
-    weighted = Boolean(default=True)
+    analysis = Include(SequenceAccuracy, description="Sequence accuracy analysis.")
+    weighted = Boolean(default=True, description="Weight accuracy by the number of frames.")
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. This analysis requires a multirun experiment."""
         return isinstance(experiment, MultiRunExperiment)
 
     @property
     def _title_default(self):
+        """Default title of the analysis."""
         return "Accurarcy"
 
     def dependencies(self):
+        """List of dependencies."""
         return self.analysis,
 
     def describe(self):
+        """Describe the analysis."""
         return Measure(self.title, "", 0, 1, Sorting.DESCENDING),
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
+        """Aggregate the results of the analysis.
+        
+        Args:    
+            tracker (Tracker): Tracker.
+            sequences (List[Sequence]): List of sequences.
+            results (Grid): Grid of results.
+            
+        Returns:
+            Tuple[Any]: Tuple of results.
+        """
+
         accuracy = 0
         frames = 0
 
@@ -126,25 +171,40 @@ class AverageAccuracy(SequenceAggregator):
 
 @analysis_registry.register("success_plot")
 class SuccessPlot(SeparableAnalysis):
+    """Success plot analysis. Computes the success plot of the tracker."""
 
-    ignore_unknown = Boolean(default=True)
-    ignore_invisible = Boolean(default=False)
-    burnin = Integer(default=0, val_min=0)
-    bounded = Boolean(default=True)
-    threshold = Float(default=None, val_min=0, val_max=1)
-    resolution = Integer(default=100, val_min=2)
+    ignore_unknown = Boolean(default=True, description="Ignore unknown regions in the groundtruth.")
+    ignore_invisible = Boolean(default=False, description="Ignore invisible regions in the groundtruth.")
+    burnin = Integer(default=0, val_min=0, description="Number of frames to skip after the initialization.")
+    bounded = Boolean(default=True, description="Consider only the bounded region of the sequence.")
+    threshold = Float(default=None, val_min=0, val_max=1, description="Minimum overlap to consider.")
+    resolution = Integer(default=100, val_min=2, description="Number of points in the plot.")
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. This analysis is only compatible with multi-run experiments."""
         return isinstance(experiment, MultiRunExperiment)
 
     @property
     def _title_default(self):
+        """Default title of the analysis."""
         return "Sequence success plot"
 
     def describe(self):
+        """Describe the analysis."""
         return Curve("Plot", 2, "S", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+        """Compute the analysis for a single sequence. 
+
+        Args:
+            experiment (Experiment): Experiment.
+            tracker (Tracker): Tracker.
+            sequence (Sequence): Sequence.
+            dependencies (List[Grid]): List of dependencies.
+
+        Returns:
+            Tuple[Any]: Tuple of results.
+        """
 
         assert isinstance(experiment, MultiRunExperiment)
 
@@ -180,24 +240,40 @@ class SuccessPlot(SeparableAnalysis):
 
 @analysis_registry.register("average_success_plot")
 class AverageSuccessPlot(SequenceAggregator):
+    """Average success plot analysis. Computes the average success plot of the tracker."""
 
     resolution = Integer(default=100, val_min=2)
     analysis = Include(SuccessPlot)
 
     def dependencies(self):
+        """List of dependencies."""
         return self.analysis,
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. This analysis is only compatible with multi-run experiments."""
         return isinstance(experiment, MultiRunExperiment)
 
     @property
     def _title_default(self):
+        """Default title of the analysis."""
         return "Success plot"
 
     def describe(self):
+        """Describe the analysis."""
         return Curve("Plot", 2, "S", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
+        """Aggregate the results of the analysis.
+        
+        Args:    
+            tracker (Tracker): Tracker. 
+            sequences (List[Sequence]): List of sequences.
+            results (Grid): Grid of results.
+            
+        Returns:
+            Tuple[Any]: Tuple of results.
+        """
+        
         axis_x = np.linspace(0, 1, self.resolution)
         axis_y = np.zeros_like(axis_x)
 
