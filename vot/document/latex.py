@@ -1,4 +1,4 @@
-
+"""This module contains functions for generating LaTeX documents with results."""
 import io
 import tempfile
 import datetime
@@ -19,25 +19,31 @@ from vot.document import StyleManager
 TRACKER_GROUP = "default"
 
 class Chunk(Container):
+    """A container that does not add a newline after the content."""
 
     def dumps(self):
+        """Returns the LaTeX representation of the container."""
         return self.dumps_content()
 
 def strip_comments(src, wrapper=True):
+    """Strips comments from a LaTeX source file."""
     return "\n".join([line for line in src.split("\n") if not line.startswith("%") and (wrapper or not line.startswith(r"\makeat"))])
 
 def insert_figure(figure):
+    """Inserts a figure into a LaTeX document."""
     buffer = io.StringIO()
     figure.save(buffer, "PGF")
     return NoEscape(strip_comments(buffer.getvalue()))
 
 def insert_mplfigure(figure, wrapper=True):
+    """Inserts a matplotlib figure into a LaTeX document."""
     buffer = io.StringIO()
     figure.savefig(buffer, format="PGF", bbox_inches='tight', pad_inches=0.01)
     return NoEscape(strip_comments(buffer.getvalue(), wrapper))
 
 
 def generate_symbols(container, trackers):
+    """Generates a LaTeX command for each tracker. The command is named after the tracker reference and contains the tracker symbol."""
 
     legend = StyleManager.default().legend(Tracker)
 
@@ -49,11 +55,24 @@ def generate_symbols(container, trackers):
     container.append(Command("makeatother"))
 
 
-def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage, build=False, multipart=True, order=None):
+def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage, build=False, multipart=True, order=None) -> str:
+    """Generates a LaTeX document with the results. The document is returned as a string. If build is True, the document is compiled and the PDF is returned.
+    
+    Args:
+        
+        trackers (list): List of trackers.
+        sequences (list): List of sequences.
+        results (dict): Dictionary of results.
+        storage (Storage): Storage object.
+        build (bool): If True, the document is compiled and the PDF is returned.
+        multipart (bool): If True, the document is split into multiple files.
+        order (list): List of tracker indices to use for ordering.
+    """
 
     order_marks = {1: "first", 2: "second", 3: "third"}
 
     def format_cell(value, order):
+        """Formats a cell in the data table."""
         cell = format_value(value)
         if order in order_marks:
             cell = Command(order_marks[order], cell)

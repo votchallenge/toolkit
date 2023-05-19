@@ -1,4 +1,4 @@
-
+"""HTML report generation. This module is used to generate HTML reports from the results of the experiments."""
 import os
 import io
 import logging
@@ -20,12 +20,14 @@ from vot.utilities.data import Grid
 ORDER_CLASSES = {1: "first", 2: "second", 3: "third"}
 
 def insert_cell(value, order):
+    """Inserts a cell into the data table."""
     attrs = dict(data_sort_value=order, data_value=value)
     if order in ORDER_CLASSES:
         attrs["cls"] = ORDER_CLASSES[order]
     td(format_value(value), **attrs)
 
 def table_cell(value):
+    """Returns a cell for the data table."""
     if isinstance(value, str):
         return value
     elif isinstance(value, Tracker):
@@ -35,6 +37,7 @@ def table_cell(value):
     return format_value(value)
 
 def grid_table(data: Grid, rows: List[str], columns: List[str]):
+    """Generates a table from a grid object."""
 
     assert data.dimensions == 2
     assert data.size(0) == len(rows) and data.size(1) == len(columns)
@@ -57,24 +60,36 @@ def grid_table(data: Grid, rows: List[str], columns: List[str]):
     return element
 
 def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage):
+    """Generates an HTML document from the results of the experiments.
+    
+    Args:
+        trackers (list): List of trackers.
+        sequences (list): List of sequences.
+        results (dict): Dictionary of results.
+        storage (Storage): Storage object.
+    """
 
     def insert_figure(figure):
+        """Inserts a matplotlib figure into the document."""
         buffer = io.StringIO()
         figure.save(buffer, "SVG")
         raw(buffer.getvalue())
 
     def insert_mplfigure(figure):
+        """Inserts a matplotlib figure into the document."""
         buffer = io.StringIO()
         figure.savefig(buffer, format="SVG", bbox_inches='tight', pad_inches=0.01, dpi=200)
         raw(buffer.getvalue())
 
     def add_style(name, linked=False):
+        """Adds a style to the document."""
         if linked:
             link(rel='stylesheet', href='file://' + os.path.join(os.path.dirname(__file__), name))
         else:
             style(read_resource(name))
 
     def add_script(name, linked=False):
+        """Adds a script to the document."""
         if linked:
             script(type='text/javascript', src='file://' + os.path.join(os.path.dirname(__file__), name))
         else:
