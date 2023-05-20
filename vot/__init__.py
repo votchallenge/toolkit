@@ -1,7 +1,7 @@
+""" Some basic functions and classes used by the toolkit. """
 
 import os
 import logging
-import typing
 
 from .version import __version__
 
@@ -75,6 +75,11 @@ class GlobalConfiguration(Attributee):
     mask_optimize_read = Boolean(default=True, description="Enables mask optimization when reading masks.")
 
     def __init__(self):
+        """Initializes the global configuration object. It reads the configuration from environment variables.
+        
+        Raises:
+            ValueError: When an invalid value is provided for an attribute.
+        """
         kwargs = {}
         for k in self.attributes():
             envname = "VOT_{}".format(k.upper())
@@ -83,6 +88,7 @@ class GlobalConfiguration(Attributee):
         super().__init__(**kwargs)
 
     def __repr__(self):
+        """Returns a string representation of the global configuration object."""
         return "<GlobalConfig debug_mode={} sequence_cache_size={} results_binary={} mask_optimize_read={}>".format(
             self.debug_mode, self.sequence_cache_size, self.results_binary, self.mask_optimize_read
         )

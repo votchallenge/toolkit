@@ -1,4 +1,4 @@
-
+""" This module is a shortcut for the CLI interface so that it can be run as a "vot" module. """
 
 # Just a shortcut for the CLI interface so that it can be run as a "vot" module.
 
