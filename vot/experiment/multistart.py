@@ -1,4 +1,6 @@
 
+""" This module implements the multistart experiment. """
+
 from typing import Callable
 
 from vot.dataset import Sequence
@@ -11,6 +13,15 @@ from vot.experiment import Experiment, experiment_registry
 from vot.tracker import Tracker, Trajectory
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
+    """Find anchor frames in the sequence. Anchor frames are frames where the given object is visible and can be used for initialization.
+    
+    Args:
+        sequence (Sequence): The sequence to be scanned.
+        anchor (str, optional): The name of the object to be used as an anchor. Defaults to "anchor".
+        
+    Returns:
+        [tuple]: A tuple containing two lists of frames. The first list contains forward anchors, the second list contains backward anchors.
+    """
     forward = []
     backward = []
     for frame in range(sequence.length):
@@ -24,10 +35,22 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
 
 @experiment_registry.register("multistart")
 class MultiStartExperiment(Experiment):
+    """The multistart experiment. The experiment works by utilizing anchor frames in the sequence. 
+    Anchor frames are frames where the given object is visible and can be used for initialization. 
+    The tracker is then initialized in each anchor frame and run until the end of the sequence either forward or backward. 
+    """
 
     anchor = String(default="anchor")
 
-    def scan(self, tracker: Tracker, sequence: Sequence):
+    def scan(self, tracker: Tracker, sequence: Sequence) -> tuple:
+        """Scan the results of the experiment for the given tracker and sequence.
+        
+        Args:
+            tracker (Tracker): The tracker to be scanned.
+            sequence (Sequence): The sequence to be scanned.
+        
+        Returns:
+            [tuple]: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object."""
     
         files = []
         complete = True
@@ -48,7 +71,18 @@ class MultiStartExperiment(Experiment):
 
         return complete, files, results
 
-    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
+    def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None) -> None:
+        """Execute the experiment for the given tracker and sequence.
+        
+        Args:
+            tracker (Tracker): The tracker to be executed.
+            sequence (Sequence): The sequence to be executed.
+            force (bool, optional): Force re-execution of the experiment. Defaults to False.
+            callback (Callable, optional): A callback function that is called after each frame. Defaults to None.
+            
+        Raises:
+            RuntimeError: If the sequence does not contain any anchors.
+        """
 
         results = self.results(tracker, sequence)
 

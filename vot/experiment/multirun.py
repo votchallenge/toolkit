@@ -1,5 +1,5 @@
-#pylint: disable=W0223
-
+"""Multi-run experiments. This module contains the implementation of multi-run experiments. 
+ Multi-run experiments are used to run a tracker multiple times on the same sequence. """
 from typing import Callable
 
 from vot.dataset import Sequence
@@ -11,11 +11,21 @@ from vot.experiment import Experiment, experiment_registry
 from vot.tracker import Tracker, Trajectory, ObjectStatus
 
 class MultiRunExperiment(Experiment):
+    """Base class for multi-run experiments. Multi-run experiments are used to run a tracker multiple times on the same sequence."""
 
     repetitions = Integer(val_min=1, default=1)
     early_stop = Boolean(default=True)
 
     def _can_stop(self, tracker: Tracker, sequence: Sequence):
+        """Check whether the experiment can be stopped early.
+        
+        Args:
+            tracker (Tracker): The tracker to be checked.
+            sequence (Sequence): The sequence to be checked.
+            
+        Returns:
+            bool: True if the experiment can be stopped early, False otherwise.
+        """
         if not self.early_stop:
             return False
         
@@ -30,6 +40,15 @@ class MultiRunExperiment(Experiment):
         return True
 
     def scan(self, tracker: Tracker, sequence: Sequence):
+        """Scan the results of the experiment for the given tracker and sequence.
+
+        Args:
+            tracker (Tracker): The tracker to be scanned.
+            sequence (Sequence): The sequence to be scanned.
+
+        Returns:
+            [tuple]: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
+        """
         
         results = self.results(tracker, sequence)
 
@@ -53,6 +72,17 @@ class MultiRunExperiment(Experiment):
         return complete, files, results
 
     def gather(self, tracker: Tracker, sequence: Sequence, objects = None, pad = False):
+        """Gather trajectories for the given tracker and sequence.
+        
+        Args:
+            tracker (Tracker): The tracker to be used.
+            sequence (Sequence): The sequence to be used.
+            objects (list, optional): The list of objects to be gathered. Defaults to None.
+            pad (bool, optional): Whether to pad the list of trajectories with None values. Defaults to False.
+            
+        Returns:
+            list: The list of trajectories.
+        """
         trajectories = list()
 
         multiobject = len(sequence.objects()) > 1
@@ -75,14 +105,28 @@ class MultiRunExperiment(Experiment):
 
 @experiment_registry.register("unsupervised")
 class UnsupervisedExperiment(MultiRunExperiment):
+    """Unsupervised experiment. This experiment is used to run a tracker multiple times on the same sequence without any supervision."""
 
     multiobject = Boolean(default=False)
 
     @property
     def _multiobject(self) -> bool:
+        """Whether the experiment is multi-object or not.
+
+        Returns:
+            bool: True if the experiment is multi-object, False otherwise.
+        """
         return self.multiobject
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
+        """Execute the experiment for the given tracker and sequence.
+
+        Args:
+            tracker (Tracker): The tracker to be used.
+            sequence (Sequence): The sequence to be used.
+            force (bool, optional): Whether to force the execution. Defaults to False.
+            callback (Callable, optional): The callback to be used. Defaults to None.
+        """
 
         from .helpers import MultiObjectHelper
 
@@ -94,6 +138,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
         helper = MultiObjectHelper(sequence)
 
         def result_name(sequence, o, i):
+            """Get the name of the result file."""
             return "%s_%s_%03d" % (sequence.name, o, i) if multiobject else "%s_%03d" % (sequence.name, i)
 
         with self._get_runtime(tracker, sequence, self._multiobject) as runtime:
@@ -134,6 +179,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 @experiment_registry.register("supervised")
 class SupervisedExperiment(MultiRunExperiment):
+    """Supervised experiment. This experiment is used to run a tracker multiple times on the same sequence with supervision (reinitialization in case of failure)."""
 
     FAILURE = 2
 
@@ -142,6 +188,14 @@ class SupervisedExperiment(MultiRunExperiment):
     failure_overlap = Float(val_min=0, val_max=1, default=0)
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
+        """Execute the experiment for the given tracker and sequence.
+
+        Args:
+            tracker (Tracker): The tracker to be used.
+            sequence (Sequence): The sequence to be used.
+            force (bool, optional): Whether to force the execution. Defaults to False.
+            callback (Callable, optional): The callback to be used. Defaults to None.
+        """
 
         results = self.results(tracker, sequence)
 

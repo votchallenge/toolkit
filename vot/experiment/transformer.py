@@ -1,3 +1,5 @@
+""" Transformer module for experiments."""
+
 import os
 from abc import abstractmethod
 from typing import List
@@ -14,21 +16,41 @@ from vot.utilities import arg_hash
 from vot.experiment import transformer_registry
 
 class Transformer(Attributee):
+    """Base class for transformers. Transformers are used to generate new modified sequences from existing ones."""
 
     def __init__(self, cache: "LocalStorage", **kwargs):
+        """Initialize the transformer.
+
+        Args:
+            cache (LocalStorage): The cache to be used for storing generated sequences.
+        """
         super().__init__(**kwargs)
         self._cache = cache
 
     @abstractmethod
     def __call__(self, sequence: Sequence) -> List[Sequence]:
+        """Generate a list of sequences from the given sequence. The generated sequences are stored in the cache if needed.
+
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        
+        Returns:
+            [list]: A list of generated sequences.
+        """
         raise NotImplementedError
 
 @transformer_registry.register("singleobject")
 class SingleObject(Transformer):
+    """Transformer that generates a sequence for each object in the given sequence."""
 
     trim = Boolean(default=False, description="Trim each generated sequence to a visible subsection for the selected object")
 
     def __call__(self, sequence: Sequence) -> List[Sequence]:
+        """Generate a list of sequences from the given sequence.
+        
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        """
         from vot.dataset.proxy import ObjectFilterSequence
         
         if len(sequence.objects()) == 1:
@@ -38,6 +60,9 @@ class SingleObject(Transformer):
         
 @transformer_registry.register("redetection")
 class Redetection(Transformer):
+    """Transformer that test redetection of the object in the sequence. The object is shown in several frames and then moved to a different location.
+    
+    This tranformer can only be used with single-object sequences."""
 
     length = Integer(default=100, val_min=1)
     initialization = Integer(default=5, val_min=1)
@@ -45,6 +70,13 @@ class Redetection(Transformer):
     scaling = Float(default=1, val_min=0.1, val_max=10)
 
     def __call__(self, sequence: Sequence) -> List[Sequence]:
+        """Generate a list of sequences from the given sequence.
+        
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        """
+
+        assert len(sequence.objects()) == 1, "Redetection transformer can only be used with single-object sequences."
 
         chache_dir = self._cache.directory(self, arg_hash(sequence.name, **self.dump()))
 
