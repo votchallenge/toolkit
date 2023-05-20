@@ -1,7 +1,7 @@
+"""Stacks are collections of experiments that are grouped together for convenience. Stacks are used to organize experiments and to run them in 
+batch mode.
+"""
 import os
-import json
-import glob
-import collections
 from typing import List, Mapping
 
 import yaml
@@ -12,6 +12,17 @@ from vot.experiment import Experiment, experiment_registry
 from vot.utilities import import_class
 
 def experiment_resolver(typename, context, **kwargs):
+    """Resolves experiment objects from stack definitions. This function is used by the stack module to resolve experiment objects from stack
+    definitions. It is not intended to be used directly.
+
+    Args:
+        typename (str): Name of the experiment class
+        context (Attributee): Context of the experiment
+        kwargs (dict): Additional arguments
+
+    Returns:
+        Experiment: Experiment object
+    """
 
     identifier = context.key
     storage = None
@@ -29,6 +40,8 @@ def experiment_resolver(typename, context, **kwargs):
         return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
 
 class Stack(Attributee):
+    """Stack class represents a collection of experiments. Stacks are used to organize experiments and to run them in batch mode.
+    """
 
     title = String(default="Stack")
     dataset = String(default=None)
@@ -37,6 +50,12 @@ class Stack(Attributee):
     experiments = Map(Object(experiment_resolver))
 
     def __init__(self, name: str, workspace: "Workspace", **kwargs):
+        """Creates a new stack object.
+
+        Args:
+            name (str): Name of the stack
+            workspace (Workspace): Workspace object
+        """
         self._workspace = workspace
         self._name = name
 
@@ -44,19 +63,32 @@ class Stack(Attributee):
 
     @property
     def workspace(self):
+        """Returns the workspace object for the stack."""
         return self._workspace
 
     @property
     def name(self):
+        """Returns the name of the stack."""
         return self._name
 
     def __iter__(self):
+        """Iterates over experiments in the stack."""
         return iter(self.experiments.values())
 
     def __len__(self):
+        """Returns the number of experiments in the stack."""
         return len(self.experiments)
 
     def __getitem__(self, identifier):
+        """Returns the experiment with the given identifier.
+
+        Args:
+            identifier (str): Identifier of the experiment
+        
+        Returns:
+            Experiment: Experiment object
+
+        """
         return self.experiments[identifier]
 
 def resolve_stack(name: str, *directories: List[str]) -> str:

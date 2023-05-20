@@ -1,4 +1,6 @@
 
+"""Results module for storing and retrieving tracker results."""
+
 import os
 import fnmatch
 from typing import List
@@ -11,22 +13,60 @@ class Results(object):
     """Generic results interface for storing and retrieving results."""
 
     def __init__(self, storage: "Storage"):
+        """Creates a new results interface.
+        
+        Args:
+            storage (Storage): Storage interface
+        """
         self._storage = storage
 
     def exists(self, name):
+        """Returns true if the given file exists in the results storage.
+
+        Args:
+            name (str): File name
+
+        Returns:
+            bool: True if the file exists
+        """
         return self._storage.isdocument(name)
 
     def read(self, name):
+        """Returns a file handle for reading the given file from the results storage.
+
+        Args:
+            name (str): File name
+
+        Returns:
+            file: File handle
+        """
         if name.endswith(".bin"):
             return self._storage.read(name, binary=True)
         return self._storage.read(name)
 
     def write(self, name: str):
+        """Returns a file handle for writing the given file to the results storage.
+
+        Args:
+            name (str): File name
+        
+        Returns:
+            file: File handle
+        """
         if name.endswith(".bin"):
             return self._storage.write(name, binary=True)
         return self._storage.write(name)
 
     def find(self, pattern):
+        """Returns a list of files matching the given pattern in the results storage.
+
+        Args:
+            pattern (str): Pattern
+
+        Returns:
+            list: List of files
+        """
+
         return fnmatch.filter(self._storage.documents(), pattern)
     
 class Trajectory(object):
@@ -38,12 +78,28 @@ class Trajectory(object):
 
     @classmethod
     def exists(cls, results: Results, name: str) -> bool:
-        """Returns true if the trajectory exists in the results storage."""
+        """Returns true if the trajectory exists in the results storage.
+        
+        Args:
+            results (Results): Results storage
+            name (str): Trajectory name (without extension)
+            
+        Returns:
+            bool: True if the trajectory exists
+        """
         return results.exists(name + ".bin") or results.exists(name + ".txt")
 
     @classmethod
     def gather(cls, results: Results, name: str) -> list:
-        """Returns a list of files that are part of the trajectory."""
+        """Returns a list of files that are part of the trajectory.
+        
+        Args:
+            results (Results): Results storage
+            name (str): Trajectory name (without extension)
+            
+        Returns:
+            list: List of files
+        """
 
         if results.exists(name + ".bin"):
             files = [name + ".bin"]
@@ -59,9 +115,25 @@ class Trajectory(object):
 
     @classmethod
     def read(cls, results: Results, name: str) -> 'Trajectory':
-        """Reads a trajectory from the results storage."""
+        """Reads a trajectory from the results storage.
+        
+        Args:
+            results (Results): Results storage
+            name (str): Trajectory name (without extension)
+            
+        Returns:
+            Trajectory: Trajectory
+        """
 
         def parse_float(line):
+            """Parses a float from a line.
+            
+            Args:
+                line (str): Line
+                
+            Returns:
+                float: Float value
+            """
             if not line.strip():
                 return None
             return float(line.strip())
@@ -90,6 +162,11 @@ class Trajectory(object):
         return trajectory
 
     def __init__(self, length: int):
+        """Creates a new trajectory of the given length.
+
+        Args:
+            length (int): Trajectory length
+        """
         self._regions = [Special(Trajectory.UNKNOWN)] * length
         self._properties = dict()
 
@@ -134,9 +211,25 @@ class Trajectory(object):
         return self._regions[frame]
 
     def regions(self) -> List[Region]:
+        """ Returns the list of regions. 
+        
+        Returns:
+            List[Region]: List of regions
+        """
         return copy(self._regions)
 
     def properties(self, frame: int = None) -> dict:
+        """Returns the properties for the given frame or all properties if frame is None.
+
+        Args:
+            frame (int, optional): Frame index. Defaults to None.
+
+        Raises:
+            IndexError: Frame index out of bounds
+
+        Returns:
+            dict: Properties
+        """
 
         if frame is None:
             return tuple(self._properties.keys())
@@ -147,9 +240,20 @@ class Trajectory(object):
         return {k : v[frame] for k, v in self._properties.items() if not v[frame] is None}
 
     def __len__(self):
+        """Returns the length of the trajectory.
+
+        Returns:
+            int: Length
+        """
         return len(self._regions)
 
     def write(self, results: Results, name: str):
+        """Writes the trajectory to the results storage. 
+
+        Args:
+            results (Results): Results storage
+            name (str): Trajectory name (without extension)
+        """
         from vot import config
 
         if config.results_binary:

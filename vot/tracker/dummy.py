@@ -1,3 +1,5 @@
+""" Dummy tracker for testing purposes. """
+
 from __future__ import absolute_import
 import os
 from sys import path

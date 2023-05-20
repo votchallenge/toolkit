@@ -1,3 +1,4 @@
+"""Tests for the experiment stack module."""
 
 import unittest
 import yaml
@@ -11,6 +12,7 @@ class NoWorkspace:
 
     @property
     def storage(self):
+        """Returns the storage object for the workspace. """
         return NullStorage()
 
 class TestStacks(unittest.TestCase):
