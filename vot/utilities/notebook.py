@@ -1,9 +1,15 @@
+""" This module contains functions for visualization in Jupyter notebooks. """
 
 import os
 import io
 from threading import Thread, Condition
 
 def is_notebook():
+    """ Returns True if the current environment is a Jupyter notebook. 
+    
+    Returns:
+        bool: True if the current environment is a Jupyter notebook.    
+    """
     try:
         from IPython import get_ipython
         if get_ipython() is None:
@@ -24,8 +30,14 @@ if is_notebook():
     from vot.utilities.draw import ImageDrawHandle
 
     class SequenceView(object):
+        """ A widget for visualizing a sequence. """
 
         def __init__(self):
+            """ Initializes a new instance of the SequenceView class. 
+            
+            Args:
+                sequence (Sequence): The sequence to visualize.
+            """
 
             self._handle = ImageDrawHandle(sequence.frame(0).image())
 
@@ -43,16 +55,34 @@ if is_notebook():
             self._buttons = widgets.HBox(children=(frame, self._button_restart, self._button_next, button_play, frame2))
 
         def _push_image(handle):
+            """ Pushes an image to the widget. 
+
+            Args:
+                handle (ImageDrawHandle): The image handle.
+            """
             with io.BytesIO() as output:
                 handle.snapshot.save(output, format="PNG")
                 return output.getvalue()
 
     def visualize_tracker(tracker: "Tracker", sequence: "Sequence"):
+        """ Visualizes a tracker in a Jupyter notebook.
+
+        Args:
+            tracker (Tracker): The tracker to visualize.
+            sequence (Sequence): The sequence to visualize.
+        """
         from IPython.display import display
         from ipywidgets import widgets
         from vot.utilities.draw import ImageDrawHandle
 
         def encode_image(handle):
+            """ Encodes an image so that it can be displayed in a Jupyter notebook.
+            
+            Args:
+                handle (ImageDrawHandle): The image handle.
+            
+            Returns:
+                bytes: The encoded image."""
             with io.BytesIO() as output:
                 handle.snapshot.save(output, format="PNG")
                 return output.getvalue()
@@ -75,6 +105,7 @@ if is_notebook():
         image.value = encode_image(handle)
 
         def run():
+            """ Runs the tracker. """
 
             runtime = tracker.runtime()
 
@@ -98,6 +129,7 @@ if is_notebook():
 
 
         def update_image():
+            """ Updates the image. """
             handle.image(sequence.frame(state["frame"]).image())
             handle.style(color="green").region(sequence.frame(state["frame"]).groundtruth())
             if state["region"]:
@@ -106,6 +138,7 @@ if is_notebook():
             frame.value = "Frame: " + str(state["frame"] - 1)
 
         def on_click(button):
+            """ Handles a button click. """
             if button == button_next:
                 with condition:
                     state["auto"] = False
@@ -126,6 +159,7 @@ if is_notebook():
         widgets.jslink((frame, "value"), (frame2, "value"))
 
         def on_update(_):
+            """ Handles a widget update."""
             with condition:
                 if state["auto"]:
                     condition.notify()
@@ -137,11 +171,28 @@ if is_notebook():
         thread.start()
 
     def visualize_results(experiment: "Experiment", sequence: "Sequence"):
+        """ Visualizes the results of an experiment in a Jupyter notebook.
+        
+        Args:
+            experiment (Experiment): The experiment to visualize.
+            sequence (Sequence): The sequence to visualize.
+            
+        """
+
         from IPython.display import display
         from ipywidgets import widgets
         from vot.utilities.draw import ImageDrawHandle
 
         def encode_image(handle):
+            """ Encodes an image so that it can be displayed in a Jupyter notebook.
+            
+            Args:
+                handle (ImageDrawHandle): The image handle.
+            
+            Returns:
+                bytes: The encoded image.
+            """
+
             with io.BytesIO() as output:
                 handle.snapshot.save(output, format="PNG")
                 return output.getvalue()
@@ -164,6 +215,7 @@ if is_notebook():
         image.value = encode_image(handle)
 
         def run():
+            """ Runs the tracker. """
 
             runtime = tracker.runtime()
 
@@ -187,6 +239,7 @@ if is_notebook():
 
 
         def update_image():
+            """ Updates the image. """
             handle.image(sequence.frame(state["frame"]).image())
             handle.style(color="green").region(sequence.frame(state["frame"]).groundtruth())
             if state["region"]:
@@ -195,6 +248,7 @@ if is_notebook():
             frame.value = "Frame: " + str(state["frame"] - 1)
 
         def on_click(button):
+            """ Handles a button click. """
             if button == button_next:
                 with condition:
                     state["auto"] = False
@@ -215,6 +269,7 @@ if is_notebook():
         widgets.jslink((frame, "value"), (frame2, "value"))
 
         def on_update(_):
+            """ Handles a widget update."""
             with condition:
                 if state["auto"]:
                     condition.notify()

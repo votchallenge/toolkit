@@ -1,3 +1,5 @@
+"""Command line interface for the toolkit. This module provides a command line interface for the toolkit. It is used to run experiments, manage trackers and datasets, and to perform other tasks."""
+
 import os
 import sys
 import argparse
@@ -18,6 +20,7 @@ class EnvDefault(argparse.Action):
     """Argparse action that resorts to a value in a specified envvar if no value is provided via program arguments.
     """
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
+        """Initialize the action"""
         if not default and envvar:
             if envvar in os.environ:
                 default = os.environ[envvar]
@@ -30,6 +33,7 @@ class EnvDefault(argparse.Action):
                                          **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
+        """Call the action"""
         if self.separator:
             values = values.split(self.separator)
         setattr(namespace, self.dest, values)
@@ -61,6 +65,15 @@ def do_test(config: argparse.Namespace):
     tracker = trackers[config.tracker]
 
     def visualize(axes, frame: Frame, reference, state):
+        """Visualize the frame and the state of the tracker. 
+        
+        Args:
+            axes (matplotlib.axes.Axes): The axes to draw on.
+            frame (Frame): The frame to draw.
+            reference (list): List of references.
+            state (ObjectStatus): The state of the tracker.
+            
+        """
         axes.clear()
         handle.image(frame.channel())
         if not isinstance(state, list):
@@ -85,6 +98,11 @@ def do_test(config: argparse.Namespace):
         context = {"continue" : True}
 
         def on_press(event):
+            """Callback for key press event.
+            
+            Args:
+                event (matplotlib.backend_bases.Event): The event.
+            """
             if event.key == 'q':
                 context["continue"] = False
 
@@ -140,6 +158,11 @@ def do_test(config: argparse.Namespace):
             runtime.stop()
 
 def do_workspace(config: argparse.Namespace):
+    """Initialize / manage a workspace.
+
+    Args:
+        config (argparse.Namespace): Configuration
+    """
 
     from vot.workspace import WorkspaceException
 
@@ -171,6 +194,11 @@ def do_workspace(config: argparse.Namespace):
         logger.error("Error during workspace initialization: %s", we)
 
 def do_evaluate(config: argparse.Namespace):
+    """Run an evaluation for a tracker on an experiment stack and a set of sequences.
+    
+    Args:
+        config (argparse.Namespace): Configuration    
+    """
 
     from vot.experiment import run_experiment
 
@@ -207,6 +235,11 @@ def do_evaluate(config: argparse.Namespace):
         logger.error("Evaluation interrupted by tracker error: {}".format(te))
 
 def do_analysis(config: argparse.Namespace):
+    """Run an analysis for a tracker on an experiment stack and a set of sequences.
+
+    Args:
+        config (argparse.Namespace): Configuration
+    """
 
     from vot.analysis import AnalysisProcessor, process_stack_analyses
     from vot.document import generate_document
@@ -281,12 +314,11 @@ def do_pack(config: argparse.Namespace):
     """Package results to a ZIP file so that they can be submitted to a challenge.
 
     Args:
-        config ([type]): [description]
+        config (argparse.Namespace): Configuration
     """
 
     import zipfile, io
     from shutil import copyfileobj
-    from vot.utilities import flatten
 
     workspace = Workspace.load(config.workspace)
 
@@ -397,6 +429,7 @@ def main():
             logger.setLevel(logging.DEBUG)
 
         def check_version():
+            """Check if a newer version of the toolkit is available."""
             update, version = check_updates()
             if update:
                 logger.warning("A newer version of the VOT toolkit is available (%s), please update.", version)

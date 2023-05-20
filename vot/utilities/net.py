@@ -1,3 +1,4 @@
+""" Network utilities for the toolkit. """
 
 import os
 import re
@@ -10,20 +11,54 @@ import requests
 from vot import ToolkitException, get_logger
 
 class NetworkException(ToolkitException):
+    """ Exception raised when a network error occurs. """  
     pass
 
 def get_base_url(url):
+    """ Returns the base url of a given url. 
+    
+    Args:
+        url (str): The url to parse.
+        
+    Returns:
+        str: The base url."""
     return url.rsplit('/', 1)[0]
     
 def is_absolute_url(url):
+    """ Returns True if the given url is absolute.
+
+    Args:
+        url (str): The url to parse.
+
+    Returns:
+        bool: True if the url is absolute, False otherwise.
+    """
+    
     return bool(urlparse(url).netloc)
 
 def join_url(url_base, url_path):
+    """ Joins a base url with a path. 
+
+    Args:
+        url_base (str): The base url.
+        url_path (str): The path to join.
+    
+    Returns:
+        str: The joined url.
+    """
     if is_absolute_url(url_path):
         return url_path
     return urljoin(url_base, url_path)
 
 def get_url_from_gdrive_confirmation(contents):
+    """ Returns the url of a google drive file from the confirmation page.
+    
+    Args:
+        contents (str): The contents of the confirmation page.
+        
+    Returns:    
+        str: The url of the file.
+    """
     url = ''
     for line in contents.splitlines():
         m = re.search(r'href="(\/uc\?export=download[^"]+)', line)
@@ -45,10 +80,26 @@ def get_url_from_gdrive_confirmation(contents):
 
 
 def is_google_drive_url(url):
+    """ Returns True if the given url is a google drive url. 
+
+    Args:
+        url (str): The url to parse.
+
+    Returns:
+        bool: True if the url is a google drive url, False otherwise.
+    """
     m = re.match(r'^https?://drive.google.com/uc\?id=.*$', url)
     return m is not None
 
 def download_json(url):
+    """ Downloads a JSON file from the given url.
+
+    Args:
+        url (str): The url to parse.
+
+    Returns:
+        dict: The JSON content.
+    """
     try:
         return requests.get(url).json()
     except requests.exceptions.RequestException as e:
@@ -56,6 +107,20 @@ def download_json(url):
 
 
 def download(url, output, callback=None, chunk_size=1024*32, retry=10):
+    """ Downloads a file from the given url. Supports google drive urls. 
+    callback for progress report, automatically resumes download if connection is closed.
+
+    Args:
+        url (str): The url to parse.
+        output (str): The output file path or file handle.
+        callback (function): The callback function for progress report.
+        chunk_size (int): The chunk size for download.
+        retry (int): The number of retries.
+
+    Raises:
+        NetworkException: If the file is not available.
+    """
+    
     logger = get_logger()
 
     with requests.session() as sess:
@@ -153,6 +218,15 @@ def download(url, output, callback=None, chunk_size=1024*32, retry=10):
 
 
 def download_uncompress(url, path):
+    """ Downloads a file from the given url and uncompress it to the given path. 
+
+    Args:
+        url (str): The url to parse.
+        path (str): The path to uncompress the file.
+
+    Raises:
+        NetworkException: If the file is not available.
+    """
     from vot.utilities import extract_files
     _, ext = os.path.splitext(urlparse(url).path)
     tmp_file = tempfile.mktemp(suffix=ext)

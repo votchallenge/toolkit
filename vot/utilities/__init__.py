@@ -1,3 +1,5 @@
+""" This module contains various utility functions and classes used throughout the toolkit. """
+
 import os
 import sys
 import csv
@@ -42,10 +44,14 @@ def import_class(classpath: str) -> typing.Type:
         return getattr(module, classname)
 
 def alias(*args):
-    """
+    """ Decorator for registering class aliases. Aliases are used to refer to classes by a short name.
+
+    Args:
+        *args: A list of strings representing aliases for the class.
     """
 
-    def register(cls):
+    def register(cls: typing.Type):
+        """ Register the class with the given aliases.  """
         assert cls is not None
         for name in args:
             if name in __ALIASES:
@@ -57,9 +63,25 @@ def alias(*args):
     return register
 
 def class_fullname(o):
+    """Returns the full name of the class of the given object.
+    
+    Args:
+        o: The object to get the class name from.
+        
+    Returns:
+        The full name of the class of the given object.
+    """
     return class_string(o.__class__)
 
 def class_string(kls):
+    """Returns the full name of the given class.
+
+    Args:
+        kls: The class to get the name from.
+
+    Returns:
+        The full name of the given class.
+    """
     assert inspect.isclass(kls)
     module = kls.__module__
     if module is None or module == str.__class__.__module__:
@@ -68,9 +90,25 @@ def class_string(kls):
         return module + '.' + kls.__name__
 
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
+    """Flips the given size tuple.
+
+    Args:
+        size: The size tuple to flip.
+        
+    Returns:
+        The flipped size tuple.
+    """
     return (size[1], size[0])
 
 def flatten(nested_list):
+    """Flattens a nested list.
+
+    Args:
+        nested_list: The nested list to flatten.
+
+    Returns:
+        The flattened list.
+    """
     return [item for sublist in nested_list for item in sublist]
 
 from vot.utilities.notebook import is_notebook
@@ -90,21 +128,31 @@ class Progress(object):
     """
 
     class StreamProxy(object):
+        """Proxy class for tqdm to enable silent mode."""
 
         def write(self, x):
+            """Write function used by tqdm."""
             # Avoid print() second call (useless \n)
             if len(x.rstrip()) > 0:
                 tqdm.write(x)
 
         def flush(self):
+            """Flush function used by tqdm."""
             #return getattr(self.file, "flush", lambda: None)()
             pass
 
     @staticmethod
     def logstream():
+        """Returns a stream proxy that can be used to redirect output to the progress bar."""
         return Progress.StreamProxy()
 
     def __init__(self, description="Processing", total=100):
+        """Creates a new progress bar.
+
+        Args:
+            description: The description of the progress bar.
+            total: The total number of steps.
+        """
         silent = get_logger().level > logging.INFO
 
         if not silent:
@@ -118,9 +166,22 @@ class Progress(object):
             self._total = total if not silent else 0
 
     def _percent(self, n):
+        """Returns the percentage of the given value.
+
+        Args:
+            n: The value to compute the percentage of.
+
+        Returns:
+            The percentage of the given value.
+        """
         return int((n * 100) / self._total)
 
     def absolute(self, value):
+        """Sets the progress to the given value.
+
+        Args:
+            value: The value to set the progress to.
+        """
         if self._tqdm is None:
             if self._total == 0:
                 return
@@ -132,6 +193,11 @@ class Progress(object):
             self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
         
     def relative(self, n):
+        """Increments the progress by the given value.
+
+        Args:
+            n: The value to increment the progress by.
+        """
         if self._tqdm is None:
             if self._total == 0:
                 return
@@ -143,6 +209,11 @@ class Progress(object):
             self._tqdm.update(n)  # will also set self.n = b * bsize 
 
     def total(self, t):
+        """Sets the total number of steps.
+
+        Args:
+            t: The total number of steps.
+        """
         if self._tqdm is None:
             if self._total == 0:
                 return
@@ -154,16 +225,26 @@ class Progress(object):
             self._tqdm.refresh()
 
     def __enter__(self):
+        """Enters the context manager."""
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """Exits the context manager."""
         self.close()
 
     def close(self):
+        """Closes the progress bar."""
         if self._tqdm:
             self._tqdm.close()
 
 def extract_files(archive, destination, callback = None):
+    """Extracts all files from the given archive to the given destination.
+
+    Args:
+        archive: The archive to extract the files from.
+        destination: The destination to extract the files to.
+        callback: An optional callback function that is called after each file is extracted.
+    """
     from zipfile import ZipFile
 
     with ZipFile(file=archive) as zip_file:
@@ -272,6 +353,14 @@ def which(program: str) -> str:
     """
 
     def is_exe(fpath):
+        """Checks if the given path is an executable file.
+        
+        Args:
+            fpath (str): Path to check
+            
+        Returns:
+            bool: True if the path is an executable file
+        """
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
     fpath, _ = os.path.split(program)
@@ -287,6 +376,15 @@ def which(program: str) -> str:
     return None
 
 def normalize_path(path, root=None):
+    """Normalizes the given path by making it absolute and removing redundant parts.
+
+    Args:
+        path (str): Path to normalize
+        root (str, optional): Root path to use if the given path is relative. Defaults to None.
+
+    Returns:
+        str: Normalized path
+    """
     if os.path.isabs(path):
         return path
     if not root:
@@ -294,6 +392,14 @@ def normalize_path(path, root=None):
     return os.path.normpath(os.path.join(root, path))
 
 def localize_path(path):
+    """Converts path to local format (backslashes on Windows, slashes on Linux)
+
+    Args:
+        path (str): Path to convert
+
+    Returns:
+        str: Converted path
+    """
     if sys.platform.startswith("win"):
         return path.replace("/", "\\")
     else:
@@ -315,6 +421,18 @@ def to_string(n: Any) -> str:
         return str(n)
 
 def to_number(val, max_n = None, min_n = None, conversion=int):
+    """Converts the given value to a number and checks if it is within the given range. If the value is not a number, 
+     a RuntimeError is raised.
+      
+    Args:
+        val (Any): Value to convert
+        max_n (int, optional): Maximum allowed value. Defaults to None.
+        min_n (int, optional): Minimum allowed value. Defaults to None.
+        conversion (function, optional): Conversion function. Defaults to int.
+    
+    Returns:
+        int: Converted value
+    """
     try:
         n = conversion(val)
 
@@ -330,6 +448,15 @@ def to_number(val, max_n = None, min_n = None, conversion=int):
         raise RuntimeError("Number conversion error")
 
 def to_logical(val):
+    """Converts the given value to a logical value (True/False). If the value is not a logical value,
+    a RuntimeError is raised.
+
+    Args:
+        val (Any): Value to convert
+
+    Returns:
+        bool: Converted value
+    """
     try:
         if isinstance(val, str):
             return val.lower() in ['true', '1', 't', 'y', 'yes']
@@ -340,6 +467,15 @@ def to_logical(val):
         raise RuntimeError("Logical value conversion error")
 
 def format_size(num, suffix="B"):
+    """Formats the given number as a human-readable size string. 
+
+    Args:
+        num (int): Number to format
+        suffix (str, optional): Suffix to use. Defaults to "B".
+
+    Returns:
+        str: Formatted string
+    """
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(num) < 1024.0:
             return f"{num:3.1f}{unit}{suffix}"
@@ -347,8 +483,24 @@ def format_size(num, suffix="B"):
     return f"{num:.1f}Yi{suffix}"
 
 def singleton(class_):
+    """Singleton decorator for classes. 
+
+    Args:
+        class_ (class): Class to decorate
+
+    Returns:
+        class: Decorated class
+
+    Example:
+        @singleton
+        class MyClass:
+            pass
+            
+        a = MyClass()
+    """
     instances = {}
     def getinstance(*args, **kwargs):
+        """Returns the singleton instance of the class. If the instance does not exist, it is created."""
         if class_ not in instances:
             instances[class_] = class_(*args, **kwargs)
         return instances[class_]
@@ -362,6 +514,12 @@ class ColoredFormatter(Formatter):
         """An empty class used to copy :class:`~logging.LogRecord` objects without reinitializing them."""
 
     def __init__(self, **kwargs):
+        """Initializes the formatter.
+
+        Args:
+            **kwargs: Keyword arguments passed to the base class
+
+        """
         super().__init__(**kwargs)
         colorama.init()
 
@@ -397,11 +555,20 @@ class ColoredFormatter(Formatter):
 
 
 class ThreadPoolExecutor(futures.ThreadPoolExecutor):
+    """Thread pool executor with a shutdown method that waits for all threads to finish. 
+    """
+
     def __init__(self, *args, **kwargs):
+        """Initializes the thread pool executor."""
         super().__init__(*args, **kwargs)
         #self._work_queue = Queue.Queue(maxsize=maxsize)
 
     def shutdown(self, wait=True):
+        """Shuts down the thread pool executor. If wait is True, waits for all threads to finish.
+
+        Args:
+            wait (bool, optional): Wait for all threads to finish. Defaults to True.
+        """
         import queue
         with self._shutdown_lock:
             self._shutdown = True
