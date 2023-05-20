@@ -1,3 +1,4 @@
+"""Storage abstraction for the workspace."""
 
 import os
 import pickle
@@ -122,81 +123,133 @@ class Storage(ABC):
         pass
 
 class NullStorage(Storage):
-    """An implementation of dummy storage that does not save anything
-    """
+    """An implementation of dummy storage that does not save anything."""
 
-    #docstr_coverage:inherited
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+        """Returns results object for the given tracker, experiment, sequence combination."""
         return Results(self)
 
     def __repr__(self) -> str:
+        """Returns a string representation of the storage object."""
         return "<Null storage: {}>".format(self._root)
 
-    #docstr_coverage:inherited
     def write(self, name, binary=False):
+        """Opens the given file entry for writing, returns opened handle."""
         if binary:
             return open(os.devnull, "wb")
         else:
             return open(os.devnull, "w")
 
-    #docstr_coverage:inherited
     def documents(self):
+        """Lists documents in the storage."""
         return []
 
-    #docstr_coverage:inherited
     def folders(self):
+        """Lists folders in the storage. Reuturns an empty list.
+        
+        Returns:
+            list: Empty list"""
         return []
 
-    #docstr_coverage:inherited
     def read(self, name, binary=False):
+        """Opens the given file entry for reading, returns opened handle.
+        
+        Returns:
+            None: Returns None.
+        """
         return None
 
-    #docstr_coverage:inherited
     def isdocument(self, name):
+        """Checks if given name is a document/file in this storage.
+        
+        Returns:
+            bool: Returns False."""
         return False
 
-    #docstr_coverage:inherited
     def isfolder(self, name):
+        """Checks if given name is a folder in this storage.
+        
+        Returns:
+            bool: Returns False.
+        """
         return False
 
-    #docstr_coverage:inherited
     def delete(self, name) -> bool:
+        """Deletes a given document.
+        
+        Returns:
+            bool: Returns False since nothing is deleted."""
         return False
 
-    #docstr_coverage:inherited
     def substorage(self, name):
+        """Returns a substorage, storage object with root in a subfolder."""
         return NullStorage()
 
-    #docstr_coverage:inherited
     def copy(self, localfile, destination):
+        """Copy a document to another location. Does nothing."""
         return
 
 class LocalStorage(Storage):
-    """Storage backed by the local filesystem.
-    """
+    """Storage backed by the local filesystem. This is the default real storage implementation."""
 
     def __init__(self, root: str):
+        """Creates a new local storage object.
+        
+        Args:
+            root (str): Root path of the storage.
+        """
         self._root = root
         self._results = os.path.join(root, "results")
 
     def __repr__(self) -> str:
+        """Returns a string representation of the storage object."""
         return "<Local storage: {}>".format(self._root)
 
     @property
     def base(self) -> str:
+        """Returns the base path of the storage."""
         return self._root
 
     def results(self, tracker: Tracker, experiment: Experiment, sequence: Sequence):
+        """Returns results object for the given tracker, experiment, sequence combination.
+
+        Args:
+            tracker (Tracker): Selected tracker
+            experiment (Experiment): Selected experiment
+            sequence (Sequence): Selected sequence
+
+        Returns:
+            Results: Results object
+        """
         storage = LocalStorage(os.path.join(self._results, tracker.reference, experiment.identifier, sequence.name))
         return Results(storage)
 
     def documents(self):
+        """Lists documents in the storage.
+
+        Returns:
+            list: List of document names.
+        """
         return [name for name in os.listdir(self._root) if os.path.isfile(os.path.join(self._root, name))]
 
     def folders(self):
+        """Lists folders in the storage.
+        
+        Returns:
+            list: List of folder names.
+        """
         return [name for name in os.listdir(self._root) if os.path.isdir(os.path.join(self._root, name))]
 
     def write(self, name: str, binary: bool = False):
+        """Opens the given file entry for writing, returns opened handle.
+
+        Args:
+            name (str): File name.
+            binary (bool, optional): Open file in binary mode. Defaults to False.
+
+        Returns:
+            file: Opened file handle.
+        """
         full = os.path.join(self.base, name)
         os.makedirs(os.path.dirname(full), exist_ok=True)
 
@@ -206,6 +259,15 @@ class LocalStorage(Storage):
             return open(full, mode="w", newline="")
 
     def read(self, name, binary=False):
+        """Opens the given file entry for reading, returns opened handle.
+        
+        Args:
+            name (str): File name.
+            binary (bool, optional): Open file in binary mode. Defaults to False.
+            
+        Returns:
+            file: Opened file handle.
+        """
         full = os.path.join(self.base, name)
 
         if binary:
@@ -214,6 +276,14 @@ class LocalStorage(Storage):
             return open(full, mode="r", newline="")
 
     def delete(self, name) -> bool:
+        """Deletes a given document. Returns True if successful, False otherwise.
+        
+        Args:
+            name (str): File name.
+            
+        Returns:
+            bool: Returns True if successful, False otherwise.
+        """
         full = os.path.join(self.base, name)
         if os.path.isfile(full):
             os.unlink(full)
@@ -221,15 +291,49 @@ class LocalStorage(Storage):
         return False
 
     def isdocument(self, name):
+        """Checks if given name is a document/file in this storage.
+
+        Args:
+            name (str): Name of the entry to check
+
+        Returns:
+            bool: Returns True if entry is a document, False otherwise.
+        """
         return os.path.isfile(os.path.join(self._root, name))
 
     def isfolder(self, name):
+        """Checks if given name is a folder in this storage.
+        
+        Args:
+            name (str): Name of the entry to check
+            
+        Returns:
+            bool: Returns True if entry is a folder, False otherwise.
+        """
         return os.path.isdir(os.path.join(self._root, name))
 
     def substorage(self, name):
+        """Returns a substorage, storage object with root in a subfolder.
+        
+        Args:
+            name (str): Name of the entry, must be a folder
+
+        Returns:
+            Storage: Storage object
+        """
         return LocalStorage(os.path.join(self.base, name))
 
     def copy(self, localfile, destination):
+        """Copy a document to another location in the storage.
+        
+        Args:
+            localfile (str): Original location
+            destination (str): New location
+            
+        Raises:
+            IOError: If the destination is an absolute path.
+            
+        """
         import shutil
         if os.path.isabs(destination):
             raise IOError("Only relative paths allowed")
@@ -240,6 +344,17 @@ class LocalStorage(Storage):
         shutil.move(localfile, os.path.join(self.base, full))
 
     def directory(self, *args):
+        """Returns a path to a directory in the storage.
+        
+        Args:
+            *args: Path segments.
+
+        Returns:
+            str: Path to the directory.
+        
+        Raises:
+            ValueError: If the path is not a directory.
+        """
         segments = []
         for arg in args:
             if arg is None:

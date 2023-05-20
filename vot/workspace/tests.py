@@ -1,4 +1,4 @@
-
+"""Tests for workspace related methods and classes."""
 
 import logging
 import tempfile

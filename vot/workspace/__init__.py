@@ -1,3 +1,4 @@
+"""This module contains the Workspace class that represents the main junction of trackers, datasets and experiments."""
 
 import os
 import typing
@@ -29,6 +30,15 @@ class StackLoader(Attribute):
     """
 
     def coerce(self, value, context: typing.Optional[CoerceContext]):
+        """Coerce a value to a Stack object
+        
+        Args:
+            value (typing.Any): Value to coerce
+            context (typing.Optional[CoerceContext]): Coercion context
+            
+        Returns:
+            Stack: Coerced value
+        """
         importlib.import_module("vot.analysis")
         importlib.import_module("vot.experiment")
         if isinstance(value, str):
@@ -44,7 +54,15 @@ class StackLoader(Attribute):
         else:
             return Stack(None, context.parent, **value)
 
-    def dump(self, value):
+    def dump(self, value: "Stack") -> str:
+        """Dump a Stack object to a string or a dictionary
+        
+        Args:
+            value (Stack): Value to dump
+            
+        Returns:
+            str: Dumped value
+        """
         if value.name is None:
             return value.dump()
         else:
