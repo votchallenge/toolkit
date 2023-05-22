@@ -268,7 +268,7 @@ def do_analysis(config: argparse.Namespace):
     if config.workers == 1:
 
         if config.debug:
-            from vot.analysis._processor import DebugExecutor
+            from vot.analysis.processor import DebugExecutor
             logging.getLogger("concurrent.futures").setLevel(logging.DEBUG)
             executor = DebugExecutor()
         else:
