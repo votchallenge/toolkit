@@ -6,3 +6,36 @@ enables efficient execution of large-scale evaluations.
 
 .. automodule:: vot.analysis
    :members:
+
+.. automodule:: vot.analysis.parallel
+   :members:
+
+Accuracy analysis
+-----------------
+
+.. automodule:: vot.analysis.accuracy
+   :members:
+
+Failure analysis
+----------------
+
+.. automodule:: vot.analysis.failure
+   :members:
+
+Long-term measures
+------------------
+
+.. automodule:: vot.analysis.longterm
+   :members:
+
+Multi-start measures
+--------------------
+
+.. automodule:: vot.analysis.multistart
+   :members:
+
+Supervision analysis
+--------------------
+
+.. automodule:: vot.analysis.supervision
+   :members:
