@@ -202,7 +202,7 @@ def download_dataset_meta(url, path):
 
             if os.path.isfile(os.path.join(sequence_directory, "sequence")):
                 refdata = read_properties(os.path.join(sequence_directory, "sequence"))
-                if refdata["uid"] == sequence["annotations"]["uid"]:
+                if "uid" in refdata and refdata["uid"] == sequence["annotations"]["uid"]:
                     logger.info('Sequence "%s" already downloaded.', sequence["name"])
                     progress.relative(1)
                     continue
