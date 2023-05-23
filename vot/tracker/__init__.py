@@ -826,7 +826,7 @@ class MultiObjectTrackerRuntime(TrackerRuntime):
         """
 
         super().__init__(runtime.tracker)
-        if self._runtime.multiobject:
+        if runtime.multiobject:
             self._runtime = runtime
         else:
             self._runtime = [runtime]
