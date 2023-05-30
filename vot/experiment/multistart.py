@@ -24,7 +24,7 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
     """
     forward = []
     backward = []
-    for frame in range(sequence.length):
+    for frame in range(len(sequence)):
         values = sequence.values(frame)
         if anchor in values:
             if values[anchor] > 0:
@@ -105,15 +105,15 @@ class MultiStartExperiment(Experiment):
                 if reverse:
                     proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
                 else:
-                    proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                    proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
-                trajectory = Trajectory(proxy.length)
+                trajectory = Trajectory(len(proxy))
 
                 _, elapsed = runtime.initialize(proxy.frame(0), self._get_initialization(proxy, 0))
 
                 trajectory.set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
 
-                for frame in range(1, proxy.length):
+                for frame in range(1, len(proxy)):
                     object, elapsed = runtime.update(proxy.frame(frame))
 
                     object.properties["time"] = elapsed

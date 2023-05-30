@@ -1,3 +1,6 @@
+""" Dataset adapter for the TrackingNet dataset. Note that the dataset is organized a different way than the VOT datasets,
+annotated frames are stored in a separate directory. The dataset also contains train and test splits. The loader 
+assumes that only one of the splits is used at a time and that the path is given to this part of the dataset. """
 
 import os
 import glob
@@ -7,7 +10,7 @@ from collections import OrderedDict
 import six
 
 from vot.dataset import Dataset, DatasetException, \
-    BaseSequence, PatternFileListChannel, SequenceData, \
+    BasedSequence, PatternFileListChannel, SequenceData, \
     Sequence
 from vot.region import Special
 from vot.region.io import read_trajectory
@@ -16,6 +19,16 @@ from vot.utilities import Progress
 logger = logging.getLogger("vot")
 
 def load_channel(source):
+    """ Load channel from the given source.
+    
+    Args:
+        source (str): Path to the source. If the source is a directory, it is
+            assumed to be a pattern file list. If the source is a file, it is
+            assumed to be a video file.
+            
+    Returns:
+        Channel: Channel object.
+    """
 
     extension = os.path.splitext(source)[1]
 
@@ -23,101 +36,94 @@ def load_channel(source):
         source = os.path.join(source, '%d.jpg')
     return PatternFileListChannel(source)
 
-class TrackingNetSequence(BaseSequence):
 
-    def __init__(self, base, dataset=None):
-        self._base = base
-        name = os.path.splitext(os.path.basename(base))[0]
-        super().__init__(name, dataset)
+def _read_data(metadata):
+    """Internal function for reading data from the given metadata for a TrackingNet sequence.
+    
+    Args:
+        metadata (dict): Metadata dictionary.
+    
+    Returns:
+        SequenceData: Sequence data object.
+    """
 
-    @staticmethod
-    def check(path: str):
-        root = os.path.dirname(os.path.dirname(path))
-        name = os.path.splitext(os.path.basename(path))[0]
-        return os.path.isfile(path) and os.path.isdir(os.path.join(root, 'frames', name))
+    channels = {}
+    tags = {}
+    values = {}
+    groundtruth = []
 
-    def _read_metadata(self):
-        metadata = dict(fps=30)
-        metadata["channel.default"] = "color"
-        return {}
+    name = metadata["name"]
+    root = metadata["root"]
 
-    def _read(self):
+    channels["color"] = load_channel(os.path.join(root, 'frames', name))
+    metadata["channel.default"] = "color"
+    metadata["width"], metadata["height"] = six.next(six.itervalues(channels)).size
 
-        channels = {}
-        tags = {}
-        values = {}
-        groundtruth = []
+    groundtruth = read_trajectory(root)
 
-        root = os.path.dirname(os.path.dirname(self._base))
+    if len(groundtruth) == 1 and channels["color"].length > 1:
+        # We are dealing with testing dataset, only first frame is available, so we pad the
+        # groundtruth with unknowns. Only unsupervised experiment will work, but it is ok
+        groundtruth.extend([Special(Sequence.UNKNOWN)] * (channels["color"].length - 1))
 
-        channels["color"] = load_channel(os.path.join(root, 'frames', self.name))
-        self._metadata["channel.default"] = "color"
-        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
+    metadata["length"] = len(groundtruth)
 
-        groundtruth = read_trajectory(self._base)
+    objects = {"object" : groundtruth}
 
-        if len(groundtruth) == 1 and channels["color"].length > 1:
-            # We are dealing with testing dataset, only first frame is available, so we pad the
-            # groundtruth with unknowns. Only unsupervised experiment will work, but it is ok
-            groundtruth.extend([Special(Sequence.UNKNOWN)] * (channels["color"].length - 1))
+    return SequenceData(channels, objects, tags, values, len(groundtruth))
 
-        self._metadata["length"] = len(groundtruth)
+from vot.dataset import sequence_reader
 
-        objects = {"object" : groundtruth}
+sequence_reader.register("trackingnet")
+def read_sequence(path):
+    """ Read sequence from the given path. Different to VOT datasets, the sequence is not
+    a directory, but a file. From the file name the sequence name is extracted and the
+    path to image frames is inferred based on standard TrackingNet directory structure.
+    
+    Args:
+        path (str): Path to the sequence groundtruth.
+        
+    Returns:
+        Sequence: Sequence object.
+    """
+    if not os.path.isfile(path):
+        return None
 
-        return SequenceData(channels, objects, tags, values, len(groundtruth))
+    name, ext = os.path.splitext(os.path.basename(path))
 
-class TrackingNetDataset(Dataset):
+    if ext != '.txt':
+        return None
 
-    def __init__(self, path, splits=False):
-        super().__init__(path)
+    root = os.path.dirname(os.path.dirname(os.path.dirname(path)))
+ 
+    if not os.path.isfile(path) and os.path.isdir(os.path.join(root, 'frames', name)):
+        return None
+    
+    metadata = dict(fps=30)
+    metadata["channel.default"] = "color"
+    metadata["name"] = name
+    metadata["root"] = root
 
-        if not splits and not TrackingNetDataset.check(path):
-            raise DatasetException("Unsupported dataset format, expected TrackingNet")
+    return BasedSequence(name, _read_data, metadata)
 
-        sequences = []
-        if not splits:
-            for file in glob.glob(os.path.join(path, "anno", "*.txt")):
-                sequences.append(file)
-        else:
-            # Special mode to load all training splits 
-            for split in ["TRAIN_%d" % i for i in range(0, 12)]:
-                for file in glob.glob(os.path.join(path, split, "anno", "*.txt")):
-                    sequences.append(file)
+from vot.dataset import sequence_indexer
 
-        self._sequences = OrderedDict()
+sequence_indexer.register("trackingnet")
+def list_sequences(path):
+    """ List sequences in the given path. The path is expected to be the root of the TrackingNet dataset split.
+    
+    Args:
+        path (str): Path to the dataset root.
+        
+    Returns:
+        list: List of sequences.
+    """
+    for dirname in ["anno", "frames"]:
+        if not os.path.isdir(os.path.join(path, dirname)):
+            return None
 
-        with Progress("Loading dataset", len(sequences)) as progress:
-            for sequence in sequences:
-                name = os.path.splitext(os.path.basename(sequence))[0]
-                self._sequences[name] = TrackingNetSequence(sequence, dataset=self)
-                progress.relative(1)
+    sequences = list(glob.glob(os.path.join(path, "anno", "*.txt")))
 
-    @staticmethod
-    def check(path: str):
+    return sequences
 
-        for dirname in ["anno", "frames"]:
-            if not os.path.isdir(os.path.join(path, dirname)):
-                return False
-
-        return True
-
-    @property
-    def path(self):
-        return self._path
-
-    @property
-    def length(self):
-        return len(self._sequences)
-
-    def __getitem__(self, key):
-        return self._sequences[key]
-
-    def __contains__(self, key):
-        return key in self._sequences
-
-    def __iter__(self):
-        return self._sequences.values().__iter__()
-
-    def list(self):
-        return list(self._sequences.keys())
+   

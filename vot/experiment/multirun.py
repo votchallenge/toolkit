@@ -147,7 +147,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
                 trajectories = {}
 
-                for o in helper.all(): trajectories[o] = Trajectory(sequence.length)
+                for o in helper.all(): trajectories[o] = Trajectory(len(sequence))
 
                 if all([Trajectory.exists(results, result_name(sequence, o, i)) for o in trajectories.keys()]) and not force:
                     continue
@@ -160,7 +160,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
                 for x in helper.new(0):
                     trajectories[x].set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
 
-                for frame in range(1, sequence.length):
+                for frame in range(1, len(sequence)):
                     state, elapsed = runtime.update(sequence.frame(frame), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(frame)])
 
                     if not isinstance(state, list):
@@ -210,10 +210,10 @@ class SupervisedExperiment(MultiRunExperiment):
                 if self._can_stop(tracker, sequence):
                     return
 
-                trajectory = Trajectory(sequence.length)
+                trajectory = Trajectory(len(sequence))
 
                 frame = 0
-                while frame < sequence.length:
+                while frame < len(sequence):
 
                     _, elapsed = runtime.initialize(sequence.frame(frame), self._get_initialization(sequence, frame))
 
@@ -221,7 +221,7 @@ class SupervisedExperiment(MultiRunExperiment):
 
                     frame = frame + 1
 
-                    while frame < sequence.length:
+                    while frame < len(sequence):
 
                         object, elapsed = runtime.update(sequence.frame(frame))
 
@@ -232,7 +232,7 @@ class SupervisedExperiment(MultiRunExperiment):
                             frame = frame + self.skip_initialize
  
                             if self.skip_tags:
-                                while frame < sequence.length:
+                                while frame < len(sequence):
                                     if not [t for t in sequence.tags(frame) if t in self.skip_tags]:
                                         break
                                     frame = frame + 1

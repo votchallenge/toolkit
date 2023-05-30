@@ -1,11 +1,12 @@
+""" OTB dataset adapter module. OTB is one of the earliest tracking benchmarks. It is a collection of 50/100 sequences 
+with ground truth annotations. The dataset is available at http://cvlab.hanyang.ac.kr/tracker_benchmark/datasets.html.
+"""
 
-from collections import OrderedDict
 import os
-import logging
 import six
 
 from vot import get_logger
-from vot.dataset import BaseSequence, Dataset, DatasetException, PatternFileListChannel, SequenceData
+from vot.dataset import BasedSequence, DatasetException, PatternFileListChannel, SequenceData
 from vot.utilities import Progress
 from vot.region.io import parse_region
 
@@ -124,111 +125,95 @@ _SEQUENCES = {
     "Vase": {"attributes": ["SV", "FM", "IPR"]},
 }
 
-class OTBSequence(BaseSequence):
+def _load_sequence(metadata):
+    """Load a sequence from the OTB dataset.
+    
+    Args:
+        metadata (dict): Sequence metadata.
+    """
 
-    def __init__(self, root, name=None, dataset=None):
-        super().__init__(name or os.path.basename(root), dataset)
-        self._base = root
+    channels = {}
+    groundtruth = []
 
-    @staticmethod
-    def check(path: str):
-        return os.path.isfile(os.path.join(path, 'groundtruth_rect.txt'))
+    attributes = metadata.get("attributes", {})
 
-    def _read_metadata(self):
-        metadata = _SEQUENCES[self.name]
-        return {"attributes": metadata["attributes"]}
+    channels["color"] = PatternFileListChannel(os.path.join(metadata["path"], "img", "%%0%dd.jpg" % attributes.get("zeros", 4)),
+        start=attributes.get("start", 1), end=attributes.get("stop", None))
 
-    def _read(self):
+    metadata["channel.default"] = "color"
+    metadata["width"], metadata["height"] = six.next(six.itervalues(channels)).size
 
-        channels = {}
-        groundtruth = []
+    groundtruth_file = os.path.join(metadata["path"], attributes.get("groundtruth", "groundtruth_rect.txt"))
 
-        metadata = _SEQUENCES[self.name]
+    with open(groundtruth_file, 'r') as filehandle:
+        for region in filehandle.readlines():
+            groundtruth.append(parse_region(region.replace("\t", ",").replace(" ", ",")))
 
-        channels["color"] = PatternFileListChannel(os.path.join(self._base, "img", "%%0%dd.jpg" % metadata.get("zeros", 4)),
-            start=metadata.get("start", 1), end=metadata.get("stop", None))
+    metadata["length"] = len(groundtruth)
 
-        self._metadata["channel.default"] = "color"
-        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
+    if not len(channels["color"]) == len(groundtruth):
+        raise DatasetException("Length mismatch between groundtruth and images %d != %d" % (len(channels["color"]), len(groundtruth)))
+    
+    objects = {"object" : groundtruth}
 
-        groundtruth_file = os.path.join(self._base, metadata.get("groundtruth", "groundtruth_rect.txt"))
+    return SequenceData(channels, objects, {}, {}, len(groundtruth)) 
 
-        with open(groundtruth_file, 'r') as filehandle:
-            for region in filehandle.readlines():
-                groundtruth.append(parse_region(region.replace("\t", ",").replace(" ", ",")))
+from vot.dataset import sequence_reader
 
-        self._metadata["length"] = len(groundtruth)
+@sequence_reader.register("otb")
+def read_sequence(path: str):
+    """Reads a sequence from OTB dataset. The sequence is identified by the name of the folder and the
+    groundtruth_rect.txt file is expected to be present in the folder.
+    
+    Args:
+        path (str): Path to the sequence folder.
+    
+    Returns:
+        Sequence: The sequence object.
+    """
 
-        if not channels["color"].length == len(groundtruth):
-            raise DatasetException("Length mismatch between groundtruth and images %d != %d" % (channels["color"].length, len(groundtruth)))
-        
-        objects = {"object" : groundtruth}
+    if not os.path.isfile(os.path.join(path, 'groundtruth_rect.txt')):
+        return None
 
-        return SequenceData(channels, objects, {}, {}, len(groundtruth)) 
+    name = os.path.basename(path)
 
-class OTBDataset(Dataset):
+    if name not in _SEQUENCES:
+        return None
 
-    def __init__(self, path):
-        super().__init__(path)
+    metadata =  {"attributes": _SEQUENCES[name], "path": path}
+    return BasedSequence(name.strip(), _load_sequence, metadata)
 
-        dataset = _SEQUENCES
+from vot.dataset import dataset_downloader
 
-        if not OTBDataset.check(path):
-            raise DatasetException("Unknown dataset format, expected OTB")
+@dataset_downloader.register("otb50")
+def download_otb50(path: str):
+    """Downloads OTB50 dataset to the given path.
+    
+    Args:
+        path (str): Path to the dataset folder.
+    """
+    dataset = _SEQUENCES
+    dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
+    _download_dataset(path, dataset)
 
-        otb50 = all([not OTBSequence.check(os.path.join(path, sequence)) for sequence in dataset.keys() - _OTB50_SUBSET])
+@dataset_downloader.register("otb100")
+def download_otb100(path: str):
+    """Downloads OTB100 dataset to the given path.
+    
+    Args:
+        path (str): Path to the dataset folder.
+    """
+    dataset = _SEQUENCES
+    _download_dataset(path, dataset)
 
-        if otb50:
-            logger.debug("Loading OTB-50 dataset")
-        else:
-            logger.debug("Loading OTB-100 dataset")
-
-        if otb50:
-            dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
-
-        self._sequences = OrderedDict()
-
-        with Progress("Loading dataset", len(dataset)) as progress:
-
-            for name in sorted(list(dataset.keys())):
-                self._sequences[name.strip()] = OTBSequence(os.path.join(path, name), name, dataset=self)
-                progress.relative(1)
-
-    @staticmethod
-    def check(path: str):
-        for sequence in _OTB50_SUBSET:
-            return OTBSequence.check(os.path.join(path, sequence))
-
-
-    @property
-    def path(self):
-        return self._path
-
-    @property
-    def length(self):
-        return len(self._sequences)
-
-    def __getitem__(self, key):
-        return self._sequences[key]
-
-    def __contains__(self, key):
-        return key in self._sequences
-
-    def __iter__(self):
-        return self._sequences.values().__iter__()
-
-    def list(self):
-        return list(self._sequences.keys())
-
-
-def download_dataset(path: str, otb50: bool = False):
+def _download_dataset(path: str, dataset: dict):
+    """Downloads the given dataset to the given path.
+    
+    Args:
+        path (str): Path to the dataset folder.
+    """
 
     from vot.utilities.net import download_uncompress, join_url, NetworkException
-
-    dataset = _SEQUENCES
-
-    if otb50:
-        dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
 
     with Progress("Downloading", len(dataset)) as progress:
         for name, metadata in dataset.items():
@@ -243,6 +228,7 @@ def download_dataset(path: str, otb50: bool = False):
 
             progress.relative(1)
 
-
-if __name__ == "__main__":
-    download_dataset("")
+    # Write sequence list to a list.txt file
+    with open(os.path.join(path, "list.txt"), 'w') as filehandle:
+        for name in dataset.keys():
+            filehandle.write("%s\n" % name)

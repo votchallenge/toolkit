@@ -8,9 +8,9 @@ from PIL import Image
 
 from attributee import Attributee, Integer, Float, Boolean
 
-from vot.dataset import Sequence, VOTSequence, InMemorySequence
+from vot.dataset import Sequence, InMemorySequence
 from vot.dataset.proxy import FrameMapSequence
-from vot.dataset.vot import write_sequence
+from vot.dataset.common import write_sequence, read_sequence
 from vot.region import RegionType
 from vot.utilities import arg_hash
 from vot.experiment import transformer_registry
@@ -107,6 +107,6 @@ class Redetection(Transformer):
 
             write_sequence(chache_dir, generated)
 
-        source = VOTSequence(chache_dir, name=sequence.name)
-        mapping = [0] * self.initialization + [1] * (self.length - self.initialization)
+        source = read_sequence(chache_dir)
+        mapping = [0] * self.initialization + [1] * (len(self) - self.initialization)
         return [FrameMapSequence(source, mapping)]

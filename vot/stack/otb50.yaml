@@ -1,6 +1,6 @@
 title: OTB50 dataset experiment stack
 url: http://cvlab.hanyang.ac.kr/tracker_benchmark/index.html
-dataset: otb:otb50
+dataset: otb50
 experiments:
   baseline:
     type: unsupervised

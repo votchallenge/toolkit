@@ -57,7 +57,7 @@ class FailureCount(SeparableAnalysis):
                 failures = failures + count_failures(trajectory.regions())[0]
             objects_failures += failures / len(trajectories)
 
-        return objects_failures / len(objects), sequence.length
+        return objects_failures / len(objects), len(sequence)
 
 @analysis_registry.register("cumulative_failures")
 class CumulativeFailureCount(SequenceAggregator):

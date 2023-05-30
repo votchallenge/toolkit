@@ -44,7 +44,7 @@ def do_test(config: argparse.Namespace):
     Args:
         config (argparse.Namespace): Configuration
     """
-    from vot.dataset.dummy import DummySequence
+    from vot.dataset.dummy import generate_dummy
     from vot.dataset import load_sequence, Frame
     from vot.tracker import ObjectStatus
     from vot.experiment.helpers import MultiObjectHelper
@@ -89,7 +89,7 @@ def do_test(config: argparse.Namespace):
         logger.info("Generating dummy sequence")
 
         if config.sequence is None:
-            sequence = DummySequence(50, objects=3 if runtime.multiobject else 1)
+            sequence = generate_dummy(50, objects=3 if runtime.multiobject else 1)
         else:
             sequence = load_sequence(normalize_path(config.sequence))
 
@@ -131,7 +131,7 @@ def do_test(config: argparse.Namespace):
 
         for i in range(1, len(sequence)):
             
-            logger.info("Processing frame %d/%d", i, sequence.length-1)
+            logger.info("Processing frame %d/%d", i, len(sequence)-1)
             frame = sequence.frame(i)
             state, _ = runtime.update(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(i)])
 

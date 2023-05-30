@@ -86,10 +86,11 @@ class GlobalConfiguration(Attributee):
             if envname in os.environ:
                 kwargs[k] = os.environ[envname]
         super().__init__(**kwargs)
+        _logger.debug("Global configuration: %s", self)
 
     def __repr__(self):
         """Returns a string representation of the global configuration object."""
-        return "<GlobalConfig debug_mode={} sequence_cache_size={} results_binary={} mask_optimize_read={}>".format(
+        return "debug_mode={} sequence_cache_size={} results_binary={} mask_optimize_read={}".format(
             self.debug_mode, self.sequence_cache_size, self.results_binary, self.mask_optimize_read
         )
 

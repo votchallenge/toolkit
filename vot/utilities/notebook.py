@@ -121,7 +121,7 @@ if is_notebook():
                 with condition:
                     condition.wait()
 
-                    if state["frame"] == sequence.length:
+                    if state["frame"] == len(sequence):
                         state["alive"] = False
                         continue
 
@@ -231,7 +231,7 @@ if is_notebook():
                 with condition:
                     condition.wait()
 
-                    if state["frame"] == sequence.length:
+                    if state["frame"] == len(sequence):
                         state["alive"] = False
                         continue
 

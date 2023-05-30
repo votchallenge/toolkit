@@ -105,7 +105,7 @@ class AccuracyRobustness(SeparableAnalysis):
             if reverse:
                 proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
             else:
-                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
             trajectory = Trajectory.read(results, name)
 
@@ -237,7 +237,7 @@ class MultiStartFragments(SeparableAnalysis):
             if reverse:
                 proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
             else:
-                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
             trajectory = Trajectory.read(results, name)
 
@@ -317,7 +317,7 @@ class EAOCurves(SeparableAnalysis):
             if reverse:
                 proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
             else:
-                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
             trajectory = Trajectory.read(results, name)
 

@@ -367,7 +367,7 @@ class Mask(Shape):
         self._offset = offset
         if optimize:  # optimize is used when mask without an offset is given (e.g. full-image mask)
             self._optimize()
-
+            
     def __str__(self):
         """ Create string from class """
         offset_str = '%d,%d' % self.offset
