@@ -30,9 +30,11 @@ class MultiRunExperiment(Experiment):
             return False
         
         for o in sequence.objects():
+
             trajectories = self.gather(tracker, sequence, objects=[o])
             if len(trajectories) < 3:
                 return False
+        
             for trajectory in trajectories[1:]:
                 if not trajectory.equals(trajectories[0]):
                     return False

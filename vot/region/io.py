@@ -5,9 +5,9 @@ from typing import List, Union, TextIO
 import io
 
 import numpy as np
-from numba import jit
+import numba
 
-@jit(nopython=True)
+@numba.njit(cache=True)
 def mask_to_rle(m, maxstride=100000000):
     """ Converts a binary mask to RLE encoding. This is a Numba decorated function that is compiled just-in-time for faster execution.
 
@@ -63,7 +63,7 @@ def mask_to_rle(m, maxstride=100000000):
 
     return rle
 
-@jit(nopython=True)
+@numba.njit(cache=True)
 def rle_to_mask(rle, width, height):
     """ Converts RLE encoding to a binary mask. This is a Numba decorated function that is compiled just-in-time for faster execution.
 
@@ -77,7 +77,7 @@ def rle_to_mask(rle, width, height):
     """
 
     # allocate list of zeros
-    v = [0] * (width * height)
+    v = np.zeros(width * height, dtype=np.uint8)
 
     # set id of the last different element to the beginning of the vector
     idx_ = 0
@@ -90,7 +90,8 @@ def rle_to_mask(rle, width, height):
 
     # reshape vector into 2-D mask
     # return np.reshape(np.array(v, dtype=np.uint8), (height, width)) # numba bug / not supporting np.reshape
-    return np.array(v, dtype=np.uint8).reshape((height, width))
+    #return np.array(v, dtype=np.uint8).reshape((height, width))
+    return v.reshape((height, width))
 
 def create_mask_from_string(mask_encoding):
     """

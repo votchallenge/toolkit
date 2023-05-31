@@ -7,6 +7,7 @@ import re
 import hashlib
 import logging
 import inspect
+import time
 import concurrent.futures as futures
 from logging import Formatter, LogRecord
 
@@ -582,3 +583,26 @@ class ThreadPoolExecutor(futures.ThreadPoolExecutor):
         if wait:
             for t in self._threads:
                 t.join()
+
+class Timer(object):
+    """Simple timer class for measuring elapsed time."""
+
+    def __init__(self, name=None):
+        """Initializes the timer.
+
+        Args:
+            name (str, optional): Name of the timer. Defaults to None.
+        """
+        self.name = name
+
+    def __enter__(self):
+        """Starts the timer."""
+        self._tstart = time.time()
+
+    def __exit__(self, type, value, traceback):
+        """Stops the timer and prints the elapsed time."""
+        elapsed = time.time() - self._tstart
+        if self.name:
+            print('[%s]: %.4fs' % (self.name, elapsed))
+        else:
+            print('Elapsed: %.4fs' % elapsed)
