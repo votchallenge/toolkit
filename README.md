@@ -22,7 +22,7 @@ Contributors:
 Acknowledgements
 ----------------
 
-The development of this package was supported by Sloveninan research agency (ARRS) projects Z2-1866 and J2-316.
+The development of this package was supported by Slovenian research agency (ARRS) projects Z2-1866 and J2-316.
 
 License
 -------
