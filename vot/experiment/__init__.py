@@ -10,6 +10,7 @@ from class_registry import ClassRegistry
 
 from attributee import Attributee, Object, Integer, Float, Nested, List
 
+from vot import get_logger
 from vot.tracker import TrackerException
 from vot.utilities import Progress, to_number, import_class
 
@@ -265,12 +266,14 @@ class Experiment(Attributee):
         transformers = list(self.transformers)
 
         if not self._multiobject:
-            transformers.insert(0, SingleObject())
+            get_logger().debug("Adding single object transformer since experiment is not multi-object")
+            transformers.insert(0, SingleObject(cache=None))
 
         # Process sequences one transformer at the time. The number of sequences may grow
         for transformer in transformers:
             transformed = []
             for sequence in sequences:
+                get_logger().debug("Transforming sequence {} with transformer {}.{}".format(sequence.identifier, transformer.__module__, transformer.__name__))
                 transformed.extend(transformer(sequence))
             sequences = transformed
 
