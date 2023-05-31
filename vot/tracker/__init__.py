@@ -794,9 +794,9 @@ class SingleObjectTrackerRuntime(TrackerRuntime):
         """
 
         if isinstance(new, list) and len(new) != 1: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
-        status = self._runtime.initialize(frame, new, properties)
+        status, time = self._runtime.initialize(frame, new, properties)
         if isinstance(status, list): status = status[0]
-        return status
+        return status, time
 
     def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
         """Updates the tracker runtime with specified frame and objects. Returns the updated objects and the time it took to update the tracker.
@@ -811,9 +811,9 @@ class SingleObjectTrackerRuntime(TrackerRuntime):
         """
 
         if not new is None: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
-        status = self._runtime.update(frame, new, properties)
+        status, time = self._runtime.update(frame, new, properties)
         if isinstance(status, list): status = status[0]
-        return status
+        return status, time
 
 class MultiObjectTrackerRuntime(TrackerRuntime):
     """ This is a wrapper for tracker runtimes that do not support multi object tracking. STILL IN DEVELOPMENT!"""

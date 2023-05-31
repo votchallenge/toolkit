@@ -273,7 +273,7 @@ class Experiment(Attributee):
         for transformer in transformers:
             transformed = []
             for sequence in sequences:
-                get_logger().debug("Transforming sequence {} with transformer {}.{}".format(sequence.identifier, transformer.__module__, transformer.__name__))
+                get_logger().debug("Transforming sequence {} with transformer {}.{}".format(sequence.identifier, transformer.__class__.__module__, transformer.__class__.__name__))
                 transformed.extend(transformer(sequence))
             sequences = transformed
 
