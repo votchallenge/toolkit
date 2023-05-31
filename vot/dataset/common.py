@@ -170,7 +170,7 @@ def read_sequence(path):
     if not os.path.isfile(os.path.join(path, "sequence")):
         return None
 
-    return BasedSequence(path, _read_data, _read_metadata(path))
+    return BasedSequence(os.path.basename(path), _read_data, _read_metadata(path))
 
 def read_sequence_legacy(path):
     """Reads a sequence from the given path.
@@ -188,7 +188,7 @@ def read_sequence_legacy(path):
     metadata["channel.default"] = "color"
     metadata["channel.color"] = "%08d.jpg"
 
-    return BasedSequence(path, _read_data, metadata=metadata)
+    return BasedSequence(os.path.basename(path), _read_data, metadata=metadata)
 
 def download_dataset_meta(url: str, path: str) -> None:
     """Downloads the metadata of a dataset from a given URL and stores it in the given path.

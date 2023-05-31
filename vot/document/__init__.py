@@ -228,7 +228,7 @@ class DefaultStyle(PlotStyle):
     def __init__(self, number):
         """ Initializes the style. 
         
-        Arguments:
+        Args:
             number (int): The number of the style.
         """
         super().__init__()
@@ -237,7 +237,7 @@ class DefaultStyle(PlotStyle):
     def line_style(self, opacity=1):
         """ Returns the style for a line.
         
-        Arguments:
+        Args:
             opacity (float): The opacity of the line.
         """
         color = DefaultStyle.colormap((self._number % DefaultStyle.colorcount + 1) / DefaultStyle.colorcount)
@@ -248,7 +248,7 @@ class DefaultStyle(PlotStyle):
     def point_style(self):
         """ Returns the style for a point.
         
-        Arguments:
+        Args:
             color (str): The color of the point.
             opacity (float): The opacity of the line.
         """
@@ -262,8 +262,8 @@ class Legend(object):
     def __init__(self, style_factory=DefaultStyle):
         """ Initializes the legend.
         
-        Arguments:
-            style_factory (PlotStyle): The style factory.
+        Args:
+            style_factory (PlotStyleFactory): The style factory.
         """
         self._mapping = collections.OrderedDict()
         self._counter = 0
