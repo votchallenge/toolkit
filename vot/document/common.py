@@ -1,8 +1,10 @@
 """Common functions for document generation."""
 import os
 import math
+from typing import List
 
-from vot.document import ScatterPlot, LinePlot
+from vot.tracker import Tracker
+from vot.document import ScatterPlot, LinePlot, Table
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
@@ -15,13 +17,13 @@ def per_tracker(a):
     """Returns true if the analysis is per-tracker."""
     return a.axes == Axes.TRACKERS
 
-def extract_measures_table(trackers, results):
+def extract_measures_table(trackers: List[Tracker], results) -> Table:
     """Extracts a table of measures from the results. The table is a list of lists, where each list is a column. 
     The first column is the tracker name, the second column is the measure name, and the rest of the columns are the values for each tracker.
     
     Args:
         trackers (list): List of trackers.
-        results (dict): Dictionary of results.
+        results (dict): Dictionary of results. It is a dictionary of dictionaries, where the first key is the experiment, and the second key is the analysis. The value is a list of results for each tracker.
     """
     table_header = [[], [], []]
     table_data = dict()
@@ -77,10 +79,18 @@ def extract_measures_table(trackers, results):
             order[v[1]] = j
         table_order.append(order)
 
-    return table_header, table_data, table_order
+    return Table(table_header, table_data, table_order)
 
-def extract_plots(trackers, results, order=None):
-    """Extracts a list of plots from the results. The list is a list of tuples, where each tuple is a pair of strings and a plot."""
+def extract_plots(trackers: List[Tracker], results, order=None):
+    """Extracts a list of plots from the results. The list is a list of tuples, where each tuple is a pair of strings and a plot.
+    
+    Args:
+        trackers (list): List of trackers.
+        results (dict): Dictionary of results. It is a dictionary of dictionaries, where the first key is the experiment, and the second key is the analysis. The value is a list of results for each tracker.
+        
+    Returns:
+        list: List of plots.
+    """
     plots = dict()
     j = 0
 
@@ -131,7 +141,16 @@ def extract_plots(trackers, results, order=None):
     return plots
 
 def format_value(data):
-    """Formats a value for display."""
+    """Formats a value for display. If the value is a string, it is returned as is. If the value is an integer, it is returned as a string. 
+    If the value is a float, it is returned as a string with 3 decimal places. Otherwise, the value is converted to a string.
+
+    Args:
+        data: Value to format.
+
+    Returns:
+        str: Formatted value.
+    
+    """
     if data is None:
         return "N/A"
     if isinstance(data, str):
