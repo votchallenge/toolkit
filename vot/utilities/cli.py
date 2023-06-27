@@ -234,31 +234,32 @@ def do_evaluate(config: argparse.Namespace):
     except TrackerException as te:
         logger.error("Evaluation interrupted by tracker error: {}".format(te))
 
-def do_analysis(config: argparse.Namespace):
+def do_analysis(args: argparse.Namespace):
     """Run an analysis for a tracker on an experiment stack and a set of sequences. Analysis results are serialized
     to disk either as a JSON file or as a YAML file.
 
     Args:
-        config (argparse.Namespace): Configuration
+        args (argparse.Namespace): Configuration
     """
+    from vot import config
 
     from vot.analysis import AnalysisProcessor, process_stack_analyses
     from vot.document import generate_serialized
 
-    workspace = Workspace.load(config.workspace)
+    workspace = Workspace.load(args.workspace)
 
-    logger.debug("Loaded workspace in '%s'", config.workspace)
+    logger.debug("Loaded workspace in '%s'", args.workspace)
 
-    global_registry = [os.path.abspath(x) for x in config.registry]
+    global_registry = [os.path.abspath(x) for x in args.registry]
 
-    registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
+    registry = Registry(list(workspace.registry) + global_registry, root=args.workspace)
 
     logger.debug("Found data for %d trackers", len(registry))
 
-    if not config.trackers:
+    if not args.trackers:
         trackers = workspace.list_results(registry)
     else:
-        trackers = registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
+        trackers = registry.resolve(*args.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
     if not trackers:
         logger.warning("No trackers resolved, stopping.")
@@ -266,9 +267,9 @@ def do_analysis(config: argparse.Namespace):
 
     logger.debug("Running analysis for %d trackers", len(trackers))
 
-    if config.workers == 1:
+    if config.worker_pool_size == 1:
 
-        if config.debug:
+        if args.debug:
             from vot.analysis.processor import DebugExecutor
             logging.getLogger("concurrent.futures").setLevel(logging.DEBUG)
             executor = DebugExecutor()
@@ -278,9 +279,9 @@ def do_analysis(config: argparse.Namespace):
 
     else:
         from concurrent.futures import ProcessPoolExecutor
-        executor = ProcessPoolExecutor(config.workers)
+        executor = ProcessPoolExecutor(config.worker_pool_size)
 
-    if config.nocache:
+    if not config.persistent_cache:
         from cachetools import LRUCache
         cache = LRUCache(1000)
     else:
@@ -295,19 +296,19 @@ def do_analysis(config: argparse.Namespace):
             if results is None:
                 return
 
-            if config.name is None:
+            if args.name is None:
                 name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
             else:
-                name = config.name
+                name = args.name
 
             storage = workspace.storage.substorage("analysis")
 
-            if config.format == "json":
+            if args.format == "json":
                 generate_serialized(trackers, workspace.dataset, results, storage, "json", name)
-            elif config.format == "yaml":
+            elif args.format == "yaml":
                 generate_serialized(trackers, workspace.dataset, results, storage, "yaml", name)
             else:
-                raise ValueError("Unknown format '{}'".format(config.format))
+                raise ValueError("Unknown format '{}'".format(args.format))
 
             logger.info("Analysis successful, report available as %s", name)
 
@@ -455,8 +456,6 @@ def main():
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     analysis_parser.add_argument("--format", choices=("json", "yaml"), default="json", help='Analysis output format')
     analysis_parser.add_argument("--name", required=False, help='Analysis output name')
-    analysis_parser.add_argument("--workers", default=1, required=False, help='Number of parallel workers', type=int)
-    analysis_parser.add_argument("--nocache", default=False, required=False, help="Do not cache data to disk", action='store_true')
 
     report_parser = subparsers.add_parser('report', help='Generate report document')
     report_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')

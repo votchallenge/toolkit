@@ -34,6 +34,8 @@ def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin:
     Returns:
         np.ndarray: List of overlaps."""
 
+    assert len(trajectory) == len(groundtruth), "Trajectory and groundtruth must have the same length."
+
     overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds))
     mask = np.ones(len(overlaps), dtype=bool)
 

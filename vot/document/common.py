@@ -29,6 +29,9 @@ def extract_measures_table(trackers: List[Tracker], results) -> Table:
     table_data = dict()
     column_order = []
 
+    def safe(value, default):
+        return value if not value is None else default
+
     for experiment, eresults in results.items():
         for analysis, aresults in eresults.items():
             descriptions = analysis.describe()
@@ -63,22 +66,24 @@ def extract_measures_table(trackers: List[Tracker], results) -> Table:
     for i, order in enumerate(column_order):
         values = [(v[i], k) for k, v in table_data.items()]
         if order == Sorting.ASCENDING:
-            values = sorted(values, key=lambda x: x[0] or -math.inf, reverse=False)
+            values = sorted(values, key=lambda x: safe(x[0], -math.inf), reverse=False)
         elif order == Sorting.DESCENDING:
-            values = sorted(values, key=lambda x: x[0] or math.inf, reverse=True)
+            values = sorted(values, key=lambda x: safe(x[0], math.inf), reverse=True)
         else:
             table_order.append(None)
             continue
+        
         order = dict()
         j = 0
         value = None
+    
         # Take into account that some values are the same
         for k, v in enumerate(values):
             j = j if value == v[0] else k + 1
             value = v[0]
             order[v[1]] = j
         table_order.append(order)
-
+ 
     return Table(table_header, table_data, table_order)
 
 def extract_plots(trackers: List[Tracker], results, order=None):
