@@ -23,10 +23,10 @@ from attributee import Attributee, Object, Nested, String, Callable, Integer, Li
 
 from vot import __version__ as version
 from vot import get_logger
-from vot.dataset import Sequence
+from vot.dataset import Sequence, FrameList
 from vot.tracker import Tracker
 from vot.analysis import Axes
-from vot.experiment import Experiment
+#from vot.workspace import Storage, Workspace
 from vot.utilities import class_fullname
 from vot.utilities.data import Grid
 
@@ -77,9 +77,94 @@ class Plot(object):
         """ Returns the axes of the plot."""
         return self._axes
 
-    def save(self, output, fmt):
-        """ Saves the plot to a file."""
+    def save(self, output: str, fmt: str):
+        """ Saves the plot to a file.
+        
+        Args:
+            output (str): The output file.
+            fmt (str): The format of the output file.
+        """
         self._figure.savefig(output, format=fmt, bbox_inches='tight', transparent=True)
+
+    @property
+    def identifier(self):
+        """ Returns the identifier of the plot."""
+        return self._identifier
+
+class Video(object):
+    """ Base class for all videos. """
+
+    def __init__(self, identifier: str, frames: FrameList, fps: int = 30, trait = None):
+        """ Initializes the video object.
+        
+        Args:
+            identifier (str): The identifier of the video.
+            frames (FrameList): The frames of the video.
+            fps (int): The frames per second of the video.
+            trait (str): The trait of the video.    
+        """
+
+        self._identifier = identifier
+        self._frames = frames
+        self._fps = fps
+        self._manager = StyleManager.default()
+
+    def __call__(self, frame: int, key, data):
+        """ Draws the data on the frame."""
+        self.draw(frame, key, data)
+
+    def draw(self, frame: int, key, data):
+        """ Draws the data on the plot."""
+        raise NotImplementedError
+
+    def render(self, frame: int):
+        """ Renders the frame and returns it as a NumPy array."""
+        raise NotImplementedError
+
+    def save(self, output: str, fmt: str):
+        import tempfile
+        import shutil
+        import os
+        import cv2
+
+        supported_mappings = {
+            "mp4": "mp4v",
+            "avi": "XVID"
+        }
+
+        if not fmt in supported_mappings:
+            raise ValueError("Unsupported video format: {}".format(fmt))
+
+        fourcc = cv2.VideoWriter_fourcc(*supported_mappings[fmt])
+
+        frame = self.render(0)
+        height, width, _ = frame.shape
+        
+        if not isinstance(output, str):
+            fd, tempname = tempfile.mkstemp()
+            os.close(fd)
+        else: 
+            tempname = output
+
+        writer = cv2.VideoWriter(tempname, fourcc, self._fps, (height, width))
+        print(frame.dtype, frame.shape)
+        writer.write(frame)
+
+        for i in range(1, len(self._frames)):
+            frame = self.render(i)
+
+            writer.write(frame)
+
+        writer.release()
+
+        if tempname == output:
+            return
+        
+        shutil.copyfileobj(open(tempname, 'rb'), output)
+        #os.remove(tempname)
+
+    def __len__(self):
+        return len(self._frames)
 
     @property
     def identifier(self):
@@ -95,8 +180,7 @@ class ScatterPlot(Plot):
             return
 
         style = self._manager.plot_style(key)
-        handle = self._axes.scatter(data[0], data[1], **style.point_style())
-        #handle.set_gid("report_%s_%d" % (self._identifier, style["number"]))
+        self._axes.scatter(data[0], data[1], **style.point_style())
 
 class LinePlot(Plot):
     """ A line plot."""
@@ -117,8 +201,41 @@ class LinePlot(Plot):
 
         style = self._manager.plot_style(key)
 
-        handle = self._axes.plot(x, y, **style.line_style())
-       # handle[0].set_gid("report_%s_%d" % (self._identifier, style["number"]))
+        self._axes.plot(x, y, **style.line_style())
+
+class ObjectVideo(Video):
+
+    def __init__(self, identifier: str, frames: FrameList, trait=None):
+        super().__init__(identifier, frames, trait)
+        self._regions = {}
+
+    def draw(self, frame, key, data):
+        from vot.region import Region
+        assert isinstance(data, Region)
+
+        if not key in self._regions:
+            self._regions[key] = [None] * len(self)
+
+        self._regions[key][frame] = data
+
+    def render(self, frame: int):
+        from vot.utilities.draw import ImageDrawHandle
+
+        assert frame >= 0 and frame < len(self)
+
+        handle = ImageDrawHandle(self._frames.frame(frame).image())
+
+        for key, regions in self._regions.items():
+            if regions[frame] is None:
+                continue
+
+            style = self._manager.plot_style(key)
+
+            handle.style(**style.region_style())
+            regions[frame].draw(handle)
+
+        return handle.array
+
 
 class ResultsJSONEncoder(json.JSONEncoder):
     """ JSON encoder for results. """
@@ -220,6 +337,10 @@ class PlotStyle(object):
         """ Returns the style for a point."""
         raise NotImplementedError
 
+    def region_style(self):
+        """ Returns the style for a region, used with DrawHandle."""
+        raise NotImplementedError
+
 class DefaultStyle(PlotStyle):
     """ The default style for a plot."""
 
@@ -257,6 +378,11 @@ class DefaultStyle(PlotStyle):
         color = DefaultStyle.colormap((self._number % DefaultStyle.colorcount + 1) / DefaultStyle.colorcount)
         marker = DefaultStyle.markers[self._number % len(DefaultStyle.markers)]
         return dict(marker=marker, c=[color])
+
+    def region_style(self):
+        """ Returns the style for a region, used with DrawHandle."""
+        color = DefaultStyle.colormap((self._number % DefaultStyle.colorcount + 1) / DefaultStyle.colorcount)
+        return dict(color=color, fill=True)
 
 class Legend(object):
     """ A legend for a plot."""
@@ -498,7 +624,7 @@ class StackAnalysesPlots(SeparableReport):
 
     async def perexperiment(self, experiment, trackers, sequences):
 
-        from vot.document.common import extract_plots
+        from vot.report.common import extract_plots
 
         analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            
 
@@ -517,7 +643,7 @@ class StackAnalysesTable(SeparableReport):
 
     async def perexperiment(self, experiment, trackers, sequences):
 
-        from vot.document.common import extract_measures_table
+        from vot.report.common import extract_measures_table
 
         analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            
 

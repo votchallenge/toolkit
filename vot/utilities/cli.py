@@ -244,7 +244,7 @@ def do_analysis(args: argparse.Namespace):
     from vot import config
 
     from vot.analysis import AnalysisProcessor, process_stack_analyses
-    from vot.document import generate_serialized
+    from vot.report import generate_serialized
 
     workspace = Workspace.load(args.workspace)
 
@@ -323,7 +323,7 @@ def do_report(config: argparse.Namespace):
         config (argparse.Namespace): Configuration
     """
 
-    from vot.document import generate_document
+    from vot.report import generate_document
 
     if config.name is None:
         name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())

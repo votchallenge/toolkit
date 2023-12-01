@@ -4,7 +4,7 @@ import math
 from typing import List
 
 from vot.tracker import Tracker
-from vot.document import ScatterPlot, LinePlot, Table
+from vot.report import ScatterPlot, LinePlot, Table
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):

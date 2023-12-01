@@ -6,15 +6,15 @@ import datetime
 from typing import List
 
 import dominate
-from dominate.tags import h1, h2, table, thead, tbody, tr, th, td, div, p, li, ol, span, style, link, script
+from dominate.tags import h1, h2, table, thead, tbody, tr, th, td, div, p, li, ol, span, style, link, script, video
 from dominate.util import raw
 
 from vot import toolkit_version, check_debug
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.workspace import Storage
-from vot.document.common import format_value, read_resource, merge_repeats, extract_measures_table, extract_plots
-from vot.document import StyleManager, Table, Plot
+from vot.report.common import format_value, read_resource, merge_repeats
+from vot.report import StyleManager, Table, Plot, Video
 from vot.utilities.data import Grid
 
 ORDER_CLASSES = {1: "first", 2: "second", 3: "third"}
@@ -68,6 +68,15 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
         reports (dict): List of reports as tuples of (name, data).
         storage (Storage): Storage object.
     """
+
+    def insert_video(data: Video):
+        """Insert a video into the document."""
+        name = data.identifier + ".avi"
+
+        data.save(storage.write(name), "avi")
+
+        with video(src=name, controls=True, preload="auto", autoplay=False, loop=False, width="100%", height="100%"):
+            raw("Your browser does not support the video tag.")
 
     def insert_figure(figure):
         """Inserts a matplotlib figure into the document."""
@@ -152,10 +161,15 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
                 if isinstance(item, Table):
                     make_table(item)
                 if isinstance(item, Plot):
-                    plot = item
                     with div(cls="plot"):
                         p(key)
-                        insert_figure(plot)
-                        
+                        insert_figure(item)
+                if isinstance(item, Video):
+                    with div(cls="video"):
+                        p(key)
+                        insert_video(item)
+                else:
+                    logger.warning("Unsupported report item type %s", item)
+
     with storage.write("report.html") as filehandle:
         filehandle.write(doc.render())

@@ -13,8 +13,8 @@ from vot import toolkit_version, get_logger
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.workspace import Storage
-from vot.document.common import format_value, read_resource, merge_repeats
-from vot.document import StyleManager, Plot, Table
+from vot.report.common import format_value, read_resource, merge_repeats
+from vot.report import StyleManager, Plot, Table
 
 TRACKER_GROUP = "default"
 
@@ -147,6 +147,8 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
 
                 logger.debug("Saving plot %s", item.identifier)
                 item.save(key + "_" + item.identifier + '.pdf', "PDF")
+            else:
+                logger.warning("Unsupported report item type %s", item)
 
     # TODO: Move to separate function
     #if build:
