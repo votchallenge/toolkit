@@ -867,11 +867,12 @@ class BasedSequence(Sequence):
         Returns:
             Region: Groundtruth region
         """
-        data = self.__preload()
-        if len(self.objects()) != 1:
+        objids = self.objects()
+            
+        if len(objids) != 1:
             raise DatasetException("More than one object in sequence")
 
-        id = next(iter(data.objects))
+        id = next(iter(objids))
         return self.object(id, index)
 
     def tags(self, index: int = None) -> List[str]:

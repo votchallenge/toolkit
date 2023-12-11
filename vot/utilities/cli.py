@@ -48,6 +48,7 @@ def do_test(config: argparse.Namespace):
     from vot.dataset import load_sequence, Frame
     from vot.tracker import ObjectStatus
     from vot.experiment.helpers import MultiObjectHelper
+    from vot.dataset.proxy import ObjectsHideFilterSequence
 
     trackers = Registry(config.registry)
 
@@ -93,6 +94,9 @@ def do_test(config: argparse.Namespace):
         else:
             sequence = load_sequence(normalize_path(config.sequence))
 
+        if config.ignore:
+            sequence = ObjectsHideFilterSequence(sequence, config.ignore)
+
         logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
         context = {"continue" : True}
@@ -110,7 +114,8 @@ def do_test(config: argparse.Namespace):
             import matplotlib.pylab as plt
             from vot.utilities.draw import MatplotlibDrawHandle
             figure = plt.figure()
-            figure.canvas.set_window_title('VOT Test')
+            if hasattr(figure.canvas, "set_window_title"):
+                figure.canvas.set_window_title('VOT Test')
             axes = figure.add_subplot(1, 1, 1)
             axes.set_aspect("equal")
             handle = MatplotlibDrawHandle(axes, size=sequence.size)
@@ -439,6 +444,7 @@ def main():
     test_parser.add_argument("tracker", help='Tracker identifier', nargs="?")
     test_parser.add_argument("--visualize", "-g", default=False, required=False, help='Visualize results of the test session', action='store_true')
     test_parser.add_argument("--sequence", "-s", required=False, help='Path to sequence to use instead of dummy')
+    test_parser.add_argument("--ignore", required=False, help='Object IDs to ignore', type=lambda x: x.split(","), default=[])
 
     workspace_parser = subparsers.add_parser('initialize', help='Setup a new workspace and download data')
     workspace_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')

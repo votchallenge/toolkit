@@ -2,11 +2,11 @@
 
 import os
 from abc import abstractmethod
-from typing import List
+import typing
 
 from PIL import Image
 
-from attributee import Attributee, Integer, Float, Boolean
+from attributee import Attributee, Integer, Float, Boolean, String, List
 
 from vot.dataset import Sequence, InMemorySequence
 from vot.dataset.proxy import FrameMapSequence
@@ -28,7 +28,7 @@ class Transformer(Attributee):
         self._cache = cache
 
     @abstractmethod
-    def __call__(self, sequence: Sequence) -> List[Sequence]:
+    def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
         """Generate a list of sequences from the given sequence. The generated sequences are stored in the cache if needed.
 
         Args:
@@ -45,7 +45,7 @@ class SingleObject(Transformer):
 
     trim = Boolean(default=False, description="Trim each generated sequence to a visible subsection for the selected object")
 
-    def __call__(self, sequence: Sequence) -> List[Sequence]:
+    def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
         """Generate a list of sequences from the given sequence.
         
         Args:
@@ -69,7 +69,7 @@ class Redetection(Transformer):
     padding = Float(default=2, val_min=0)
     scaling = Float(default=1, val_min=0.1, val_max=10)
 
-    def __call__(self, sequence: Sequence) -> List[Sequence]:
+    def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
         """Generate a list of sequences from the given sequence.
         
         Args:
@@ -110,3 +110,19 @@ class Redetection(Transformer):
         source = read_sequence(chache_dir)
         mapping = [0] * self.initialization + [1] * (len(self) - self.initialization)
         return [FrameMapSequence(source, mapping)]
+
+@transformer_registry.register("ignore")
+class IgnoreObjects(Transformer):
+    """Transformer that hides objects with certain ids from the sequence."""
+
+    ids = List(String(), default=[], description="List of ids to be ignored")
+
+    def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
+        """Generate a list of sequences from the given sequence.
+        
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        """
+        from vot.dataset.proxy import ObjectsHideFilterSequence
+        
+        return [ObjectsHideFilterSequence(sequence, self.ids)]

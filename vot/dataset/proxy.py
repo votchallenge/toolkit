@@ -26,7 +26,7 @@ class ProxySequence(Sequence):
         Returns:
             int: Length of the sequence.
         """
-        return len(self)
+        return len(self._source)
 
     def frame(self, index: int) -> Frame:
         """Returns a frame object for the given index. Forwards the request to the source sequence.
@@ -385,3 +385,26 @@ class ObjectFilterSequence(ProxySequence):
             index (int): Index of the frame.
         """
         return self._source.object(self._id, index)
+    
+class ObjectsHideFilterSequence(ProxySequence):
+    """A proxy sequence that virtually removes specified objects from the sequence. Note that the object is not removed from the sequence, but only hidden when listing them.
+    """
+
+    def __init__(self, source: Sequence, ids: Set[str]):
+        """Creates an object hide filter proxy sequence.
+    
+        Args:
+            source (Sequence): Source sequence object
+            ids (Set[str]): IDs of the objects that will be hidden in the proxy sequence.
+        """
+        super().__init__(source)
+        self._ids = ids
+    
+    def objects(self):
+        """Returns a dictionary of all objects in the sequence.
+        
+        Returns:
+            Dict[str, Object]: Dictionary of all objects in the sequence.
+        """
+        objects = self._source.objects()
+        return {id for id in objects if id not in self._ids}

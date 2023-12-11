@@ -279,7 +279,7 @@ def _region_raster(a: np.ndarray, bounds: Tuple[int, int, int, int], t: int, o: 
 
 @numba.njit(cache=True)
 def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optional[Tuple[int, int]] = None,
-        bo: Optional[Tuple[int, int]] = None, bounds: Optional[Tuple[int, int]] = None):
+        bo: Optional[Tuple[int, int]] = None, bounds: Optional[Tuple[int, int]] = None, ignore: Optional[np.array] = None, it: Optional[int] = None, io: Optional[Tuple[int, int]] = None):
     """ Calculate the overlap between two regions. This is a Numba implementation of the function that is compiled to machine code for faster execution.
     
     Args:
@@ -322,11 +322,21 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optio
     intersection = 0
     union_ = 0
 
-    for i in range(a1.size):
-        if a1[i] != 0 or a2[i] != 0:
-            union_ += 1
-            if a1[i] != 0 and a2[i] != 0:
-                intersection += 1
+    if not ignore is None and it != _TYPE_EMPTY:
+        m3 = _region_raster(ignore, raster_bounds, it, io)
+        a3 = m3.ravel()
+        for i in range(a1.size):
+            if m3[i] != 0:
+                if a1[i] != 0 or a2[i] != 0:
+                    union_ += 1
+                    if a1[i] != 0 and a2[i] != 0:
+                        intersection += 1
+    else:
+        for i in range(a1.size):
+            if a1[i] != 0 or a2[i] != 0:
+                union_ += 1
+                if a1[i] != 0 and a2[i] != 0:
+                    intersection += 1
 
     return float(intersection) / float(union_) if union_ > 0 else float(0)
 
@@ -335,62 +345,57 @@ from vot.region.shapes import Shape, Rectangle, Polygon, Mask
 
 Bounds = Tuple[int, int]
 
-def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Bounds] = None):
-    """ Calculate the overlap between two regions. The function first rasterizes both regions to 2-D binary masks and calculates overlap between them
-
-    Args:
-        reg1: first region
-        reg2: second region
-        bounds: 2-tuple with the bounds of the image (width, height)
-
-    Returns:
-        float with the overlap between the two regions. Note that overlap is one by definition if both regions are empty.
-    
-    """
-
-    if isinstance(reg1, Rectangle):
-        data1 = np.round(reg1._data)
+def _infer_meta(reg: Region):
+    if isinstance(reg, Rectangle):
+        data1 = np.round(reg._data)
         offset1 = (0, 0)
         type1 = _TYPE_RECTANGLE
-    elif isinstance(reg1, Polygon):
-        data1 = np.round(reg1._points)
+    elif isinstance(reg, Polygon):
+        data1 = np.round(reg._points)
         offset1 = (0, 0)
         type1 = _TYPE_POLYGON
-    elif isinstance(reg1, Mask):
-        data1 = reg1.mask
-        offset1 = reg1.offset
+    elif isinstance(reg, Mask):
+        data1 = reg.mask
+        offset1 = reg.offset
         type1 = _TYPE_MASK
     else:
         data1 = np.zeros((1, 1))
         offset1 = (0, 0)
         type1 = _TYPE_EMPTY
 
-    if isinstance(reg2, Rectangle):
-        data2 = np.round(reg2._data)
-        offset2 = (0, 0)
-        type2 = _TYPE_RECTANGLE
-    elif isinstance(reg2, Polygon):
-        data2 = np.round(reg2._points)
-        offset2 = (0, 0)
-        type2 = _TYPE_POLYGON
-    elif isinstance(reg2, Mask):
-        data2 = reg2.mask
-        offset2 = reg2.offset
-        type2 = _TYPE_MASK
-    else:
-        data2 = np.zeros((1, 1))
-        offset2 = (0, 0)
-        type2 = _TYPE_EMPTY
+    return data1, offset1, type1
+
+def calculate_overlap(reg1: Shape, reg2: Shape, bounds: Optional[Bounds] = None, ignore: Optional[Shape] = None):
+    """ Calculate the overlap between two regions. The function first rasterizes both regions to 2-D binary masks and calculates overlap between them
+
+    Args:
+        reg1: first region
+        reg2: second region
+        bounds: 2-tuple with the bounds of the image (width, height)
+        ignore: region to ignore when calculating overlap, usually a mask
+
+    Returns:
+        float with the overlap between the two regions. Note that overlap is one by definition if both regions are empty.
+    
+    """
+
+    data1, offset1, type1 = _infer_meta(reg1)
+    data2, offset2, type2 = _infer_meta(reg2)
+
+    if not ignore is None:
+        ignore_data, ignore_offset, ignore_type = _infer_meta(ignore)
+        return _calculate_overlap(data1, data2, type1, type2, offset1, offset2, bounds, ignore_data, ignore_type, ignore_offset)
 
     return _calculate_overlap(data1, data2, type1, type2, offset1, offset2, bounds)
 
-def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Bounds] = None):
+def calculate_overlaps(first: List[Region], second: List[Region], bounds: Optional[Bounds] = None, ignore: Optional[List[Region]] = None):
     """ Calculate the overlap between two lists of regions. The function first rasterizes both regions to 2-D binary masks and calculates overlap between them
 
     Args:
         first: first list of regions
         second: second list of regions
         bounds: 2-tuple with the bounds of the image (width, height)
+        ignore: list of regions to ignore when calculating overlap, usually a list of masks
 
     Returns:
         list of floats with the overlap between the two regions. Note that overlap is one by definition if both regions are empty.
@@ -400,4 +405,9 @@ def calculate_overlaps(first: List[Region], second: List[Region], bounds: Option
     """
     if not len(first) == len(second):
         raise RegionException("List not of the same size {} != {}".format(len(first), len(second)))
+    
+    if not ignore is None:
+        if not len(first) == len(ignore):
+            raise RegionException("List not of the same size {} != {}".format(len(first), len(ignore)))
+        return [calculate_overlap(pairs[0], pairs[1], bounds=bounds, ignore=ignore[i]) for i, pairs in enumerate(zip(first, second))]
     return [calculate_overlap(pairs[0], pairs[1], bounds=bounds) for i, pairs in enumerate(zip(first, second))]
