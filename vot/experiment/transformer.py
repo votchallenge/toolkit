@@ -108,7 +108,7 @@ class Redetection(Transformer):
             write_sequence(chache_dir, generated)
 
         source = read_sequence(chache_dir)
-        mapping = [0] * self.initialization + [1] * (len(self) - self.initialization)
+        mapping = [0] * self.initialization + [1] * (len(source) - self.initialization)
         return [FrameMapSequence(source, mapping)]
 
 @transformer_registry.register("ignore")
