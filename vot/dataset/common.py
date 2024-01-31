@@ -319,5 +319,11 @@ def write_sequence(directory: str, sequence: Sequence):
         with open(os.path.join(directory, "%s.value" % value), "w") as fp:
             fp.write(data)
 
-    write_trajectory(os.path.join(directory, "groundtruth.txt"), [f.groundtruth() for f in sequence])
+    # Write groundtruth in case of single object
+    if len(sequence.objects()) == 1:
+        write_trajectory(os.path.join(directory, "groundtruth.txt"), [f.groundtruth() for f in sequence])
+    else:
+        for id in sequence.objects():
+            write_trajectory(os.path.join(directory, "groundtruth_%s.txt" % id), [f.object(id) for f in sequence])
+
     write_properties(os.path.join(directory, "sequence"), metadata)

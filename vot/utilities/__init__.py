@@ -157,8 +157,8 @@ class Progress(object):
         silent = get_logger().level > logging.INFO
 
         if not silent:
-            self._tqdm = tqdm(disable=False if is_notebook() else None,
-                bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]")
+            self._tqdm = tqdm(disable=False if is_notebook() else None, 
+                bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]", file=sys.stdout, leave=False)
             self._tqdm.desc = description
             self._tqdm.total = total
         if silent or self._tqdm.disable:

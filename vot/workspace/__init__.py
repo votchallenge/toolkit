@@ -14,7 +14,7 @@ from ..dataset import Dataset, load_dataset
 from ..tracker import Registry, Tracker
 from ..stack import Stack, resolve_stack
 from ..utilities import normalize_path
-from ..document import ReportConfiguration
+from ..report import ReportConfiguration
 from .storage import LocalStorage, Storage, NullStorage
 
 

@@ -1,21 +1,21 @@
-Document module
+Report module
 ============
 
-.. automodule:: vot.document
+.. automodule:: vot.report
    :members:
 
-.. automodule:: vot.document.common
+.. automodule:: vot.report.common
    :members:
 
-HTML document generation
+HTML report generation
 ------------------------
 
-.. automodule:: vot.document
+.. automodule:: vot.report
    :members:
 
-LaTeX document generation
+LaTeX report generation
 -------------------------
 
-.. automodule:: vot.document.latex
+.. automodule:: vot.report.latex
    :members:
 

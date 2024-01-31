@@ -48,6 +48,7 @@ def do_test(config: argparse.Namespace):
     from vot.dataset import load_sequence, Frame
     from vot.tracker import ObjectStatus
     from vot.experiment.helpers import MultiObjectHelper
+    from vot.dataset.proxy import ObjectsHideFilterSequence
 
     trackers = Registry(config.registry)
 
@@ -93,6 +94,9 @@ def do_test(config: argparse.Namespace):
         else:
             sequence = load_sequence(normalize_path(config.sequence))
 
+        if config.ignore:
+            sequence = ObjectsHideFilterSequence(sequence, config.ignore)
+
         logger.info("Obtaining runtime for tracker %s", tracker.identifier)
 
         context = {"continue" : True}
@@ -110,7 +114,8 @@ def do_test(config: argparse.Namespace):
             import matplotlib.pylab as plt
             from vot.utilities.draw import MatplotlibDrawHandle
             figure = plt.figure()
-            figure.canvas.set_window_title('VOT Test')
+            if hasattr(figure.canvas, "set_window_title"):
+                figure.canvas.set_window_title('VOT Test')
             axes = figure.add_subplot(1, 1, 1)
             axes.set_aspect("equal")
             handle = MatplotlibDrawHandle(axes, size=sequence.size)
@@ -234,15 +239,101 @@ def do_evaluate(config: argparse.Namespace):
     except TrackerException as te:
         logger.error("Evaluation interrupted by tracker error: {}".format(te))
 
-def do_analysis(config: argparse.Namespace):
-    """Run an analysis for a tracker on an experiment stack and a set of sequences.
+def do_analysis(args: argparse.Namespace):
+    """Run an analysis for a tracker on an experiment stack and a set of sequences. Analysis results are serialized
+    to disk either as a JSON file or as a YAML file.
+
+    Args:
+        args (argparse.Namespace): Configuration
+    """
+    from vot import config
+
+    from vot.analysis import AnalysisProcessor, process_stack_analyses
+    from vot.report import generate_serialized
+
+    workspace = Workspace.load(args.workspace)
+
+    logger.debug("Loaded workspace in '%s'", args.workspace)
+
+    global_registry = [os.path.abspath(x) for x in args.registry]
+
+    registry = Registry(list(workspace.registry) + global_registry, root=args.workspace)
+
+    logger.debug("Found data for %d trackers", len(registry))
+
+    if not args.trackers:
+        trackers = workspace.list_results(registry)
+    else:
+        trackers = registry.resolve(*args.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
+
+    if not trackers:
+        logger.warning("No trackers resolved, stopping.")
+        return
+
+    logger.debug("Running analysis for %d trackers", len(trackers))
+
+    if config.worker_pool_size == 1:
+
+        if args.debug:
+            from vot.analysis.processor import DebugExecutor
+            logging.getLogger("concurrent.futures").setLevel(logging.DEBUG)
+            executor = DebugExecutor()
+        else:
+            from vot.utilities import ThreadPoolExecutor
+            executor = ThreadPoolExecutor(1)
+
+    else:
+        from concurrent.futures import ProcessPoolExecutor
+        executor = ProcessPoolExecutor(config.worker_pool_size)
+
+    if not config.persistent_cache:
+        from cachetools import LRUCache
+        cache = LRUCache(1000)
+    else:
+        cache = Cache(workspace.storage.substorage("cache").substorage("analysis"))
+
+    try:
+
+        with AnalysisProcessor(executor, cache):
+
+            results = process_stack_analyses(workspace, trackers)
+
+            if results is None:
+                return
+
+            if args.name is None:
+                name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
+            else:
+                name = args.name
+
+            storage = workspace.storage.substorage("analysis")
+
+            if args.format == "json":
+                generate_serialized(trackers, workspace.dataset, results, storage, "json", name)
+            elif args.format == "yaml":
+                generate_serialized(trackers, workspace.dataset, results, storage, "yaml", name)
+            else:
+                raise ValueError("Unknown format '{}'".format(args.format))
+
+            logger.info("Analysis successful, report available as %s", name)
+
+    finally:
+
+        executor.shutdown(wait=True)
+
+def do_report(config: argparse.Namespace):
+    """Generate a report for a one or multiple trackers on an experiment stack and a set of sequences.
 
     Args:
         config (argparse.Namespace): Configuration
     """
 
-    from vot.analysis import AnalysisProcessor, process_stack_analyses
-    from vot.document import generate_document
+    from vot.report import generate_document
+
+    if config.name is None:
+        name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
+    else:
+        name = config.name
 
     workspace = Workspace.load(config.workspace)
 
@@ -265,50 +356,8 @@ def do_analysis(config: argparse.Namespace):
 
     logger.debug("Running analysis for %d trackers", len(trackers))
 
-    if config.workers == 1:
-
-        if config.debug:
-            from vot.analysis.processor import DebugExecutor
-            logging.getLogger("concurrent.futures").setLevel(logging.DEBUG)
-            executor = DebugExecutor()
-        else:
-            from vot.utilities import ThreadPoolExecutor
-            executor = ThreadPoolExecutor(1)
-
-    else:
-        from concurrent.futures import ProcessPoolExecutor
-        executor = ProcessPoolExecutor(config.workers)
-
-    if config.nocache:
-        from cachetools import LRUCache
-        cache = LRUCache(1000)
-    else:
-        cache = Cache(workspace.storage.substorage("cache").substorage("analysis"))
-
-    try:
-
-        with AnalysisProcessor(executor, cache):
-
-            results = process_stack_analyses(workspace, trackers)
-
-            if results is None:
-                return
-
-            if config.name is None:
-                name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
-            else:
-                name = config.name
-
-            storage = workspace.storage.substorage("analysis").substorage(name)
-
-            generate_document(config.format, workspace.report, trackers, workspace.dataset, results, storage)
-
-            logger.info("Analysis successful, report available as %s", name)
-
-    finally:
-
-        executor.shutdown(wait=True)
-
+    generate_document(workspace, trackers, config.format, name)
+    
     
 def do_pack(config: argparse.Namespace):
     """Package results to a ZIP file so that they can be submitted to a challenge.
@@ -395,6 +444,7 @@ def main():
     test_parser.add_argument("tracker", help='Tracker identifier', nargs="?")
     test_parser.add_argument("--visualize", "-g", default=False, required=False, help='Visualize results of the test session', action='store_true')
     test_parser.add_argument("--sequence", "-s", required=False, help='Path to sequence to use instead of dummy')
+    test_parser.add_argument("--ignore", required=False, help='Object IDs to ignore', type=lambda x: x.split(","), default=[])
 
     workspace_parser = subparsers.add_parser('initialize', help='Setup a new workspace and download data')
     workspace_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
@@ -410,10 +460,14 @@ def main():
     analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
-    analysis_parser.add_argument("--format", choices=("html", "latex", "pdf", "json", "yaml"), default="html", help='Analysis output format')
+    analysis_parser.add_argument("--format", choices=("json", "yaml"), default="json", help='Analysis output format')
     analysis_parser.add_argument("--name", required=False, help='Analysis output name')
-    analysis_parser.add_argument("--workers", default=1, required=False, help='Number of parallel workers', type=int)
-    analysis_parser.add_argument("--nocache", default=False, required=False, help="Do not cache data to disk", action='store_true')
+
+    report_parser = subparsers.add_parser('report', help='Generate report document')
+    report_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
+    report_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
+    report_parser.add_argument("--format", choices=("html", "latex", "pdf_plots", "png_plots"), default="html", help='Analysis output format')
+    report_parser.add_argument("--name", required=False, help='Document output name')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
@@ -446,6 +500,9 @@ def main():
         elif args.action == "analysis":
             check_version()
             do_analysis(args)
+        elif args.action == "report":
+            check_version()
+            do_report(args)
         elif args.action == "pack":
             check_version()
             do_pack(args)

@@ -13,8 +13,8 @@ from vot import toolkit_version, get_logger
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.workspace import Storage
-from vot.document.common import format_value, read_resource, merge_repeats, extract_measures_table, extract_plots
-from vot.document import StyleManager
+from vot.report.common import format_value, read_resource, merge_repeats
+from vot.report import StyleManager, Plot, Table
 
 TRACKER_GROUP = "default"
 
@@ -54,19 +54,16 @@ def generate_symbols(container, trackers):
 
     container.append(Command("makeatother"))
 
-
-def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage, build=False, multipart=True, order=None) -> str:
+def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], reports, storage: Storage, multipart=True) -> str:
     """Generates a LaTeX document with the results. The document is returned as a string. If build is True, the document is compiled and the PDF is returned.
     
     Args:
         
         trackers (list): List of trackers.
         sequences (list): List of sequences.
-        results (dict): Dictionary of results.
+        reports (list): List of results tuples.
         storage (Storage): Storage object.
-        build (bool): If True, the document is compiled and the PDF is returned.
         multipart (bool): If True, the document is split into multiple files.
-        order (list): List of tracker indices to use for ordering.
     """
 
     order_marks = {1: "first", 2: "second", 3: "third"}
@@ -80,13 +77,6 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
 
     logger = get_logger()
 
-    table_header, table_data, table_order = extract_measures_table(trackers, results)
-
-    if order is not None:
-        ordered_trackers = [trackers[i] for i in order]
-    else:
-        ordered_trackers = trackers
-
     doc = Document(page_numbers=True)
 
     doc.preamble.append(Package('pgf'))
@@ -99,74 +89,73 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
     doc.preamble.append(UnsafeCommand('newcommand', r'\second', options=1, extra_arguments=r'{\color{green} #1 }'))
     doc.preamble.append(UnsafeCommand('newcommand', r'\third', options=1, extra_arguments=r'{\color{blue} #1 }'))
 
+    # TODO: make table more general (now it assumes a tracker per row)
+    def make_table(doc, table):
+
+        if len(table.header[2]) == 0:
+            logger.debug("No measures found, skipping table")
+        else:
+
+            # Generate data table
+            with doc.create(LongTable("l " * (len(table.header[2]) + 1))) as data_table:
+                data_table.add_hline()
+                data_table.add_row([" "] + [MultiColumn(c[1], data=c[0].identifier) for c in merge_repeats(table.header[0])])
+                data_table.add_hline()
+                data_table.add_row([" "] + [MultiColumn(c[1], data=c[0].title) for c in merge_repeats(table.header[1])])
+                data_table.add_hline()
+                data_table.add_row(["Tracker"] + [" " + c.abbreviation + " " for c in table.header[2]])
+                data_table.add_hline()
+                data_table.end_table_header()
+                data_table.add_hline()
+
+                for tracker, data in table.data.items():
+                    data_table.add_row([UnsafeCommand("Tracker", [tracker.reference, TRACKER_GROUP])] +
+                        [format_cell(x, order[tracker] if not order is None else None) for x, order in zip(data, table.order)])
+
     if multipart:
         container = Chunk()
-        generate_symbols(container, ordered_trackers)
+        generate_symbols(container, trackers)
         with storage.write("symbols.tex") as out:
             container.dump(out)
         doc.preamble.append(Command("input", "symbols.tex"))
     else:
-        generate_symbols(doc.preamble, ordered_trackers)
+        generate_symbols(doc.preamble, trackers)
 
-    doc.preamble.append(Command('title', 'VOT report'))
+    doc.preamble.append(Command('title', 'VOT toolkit report'))
     doc.preamble.append(Command('author', 'Toolkit version ' + toolkit_version()))
     doc.preamble.append(Command('date', datetime.datetime.now().isoformat()))
     doc.append(NoEscape(r'\maketitle'))
 
+    for key, section in reports.items():
 
-    if len(table_header[2]) == 0:
-        logger.debug("No measures found, skipping table")
-    else:
+        doc.append(Section(key))
 
-        # Generate data table
-        with doc.create(LongTable("l " * (len(table_header[2]) + 1))) as data_table:
-            data_table.add_hline()
-            data_table.add_row([" "] + [MultiColumn(c[1], data=c[0].identifier) for c in merge_repeats(table_header[0])])
-            data_table.add_hline()
-            data_table.add_row([" "] + [MultiColumn(c[1], data=c[0].title) for c in merge_repeats(table_header[1])])
-            data_table.add_hline()
-            data_table.add_row(["Tracker"] + [" " + c.abbreviation + " " for c in table_header[2]])
-            data_table.add_hline()
-            data_table.end_table_header()
-            data_table.add_hline()
+        for item in section:
+            if isinstance(item, Table):
+                make_table(doc, item)
+            if isinstance(item, Plot):
+                plot = item
+                with doc.create(Figure(position='htbp')) as container:
+                    if multipart:
+                        plot_name = plot.identifier + ".pdf"
+                        with storage.write(plot_name, binary=True) as out:
+                            plot.save(out, "PDF")
+                        container.add_image(plot_name)
+                    else:
+                        container.append(insert_figure(plot))
+                    container.add_caption(plot.identifier)
 
-            for tracker in ordered_trackers:
-                data = table_data[tracker]
-                data_table.add_row([UnsafeCommand("Tracker", [tracker.reference, TRACKER_GROUP])] +
-                    [format_cell(x, order[tracker] if not order is None else None) for x, order in zip(data, table_order)])
+                logger.debug("Saving plot %s", item.identifier)
+                item.save(key + "_" + item.identifier + '.pdf', "PDF")
+            else:
+                logger.warning("Unsupported report item type %s", item)
 
-    if order is not None:
-        z_order = [0] * len(order)
-        for i, j in enumerate(order):
-            z_order[max(order) - i] = j
-    else:
-        z_order = list(range(len(trackers)))
-
-    plots = extract_plots(trackers, results, z_order)
-
-    for experiment, experiment_plots in plots.items():
-        if len(experiment_plots) == 0:
-            continue
-
-        doc.append(Section("Experiment " + experiment.identifier))
-
-        for title, plot in experiment_plots:
-
-            with doc.create(Figure(position='htbp')) as container:
-                if multipart:
-                    plot_name = plot.identifier + ".pdf"
-                    with storage.write(plot_name, binary=True) as out:
-                        plot.save(out, "PDF")
-                    container.add_image(plot_name)
-                else:
-                    container.append(insert_figure(plot))
-                container.add_caption(title)
-                
-    if build:
-        temp = tempfile.mktemp()
-        logger.debug("Generating to temporary output %s", temp)
-        doc.generate_pdf(temp, clean_tex=True)
-        storage.copy(temp + ".pdf", "report.pdf")
-    else:
-        with storage.write("report.tex") as out:
-            doc.dump(out)
+    # TODO: Move to separate function
+    #if build:
+    #    temp = tempfile.mktemp()
+    #    logger.debug("Generating to temporary output %s", temp)
+    #    doc.generate_pdf(temp, clean_tex=True)
+    #    storage.copy(temp + ".pdf", "report.pdf")
+    #else:
+    with storage.write("report.tex") as out:
+        doc.dump(out)

@@ -481,8 +481,8 @@ class QualityAuxiliary(SeparableAnalysis):
 
     def describe(self):
         """Describes the analysis."""
-        return Measure("Non-reported Error", "NRE", 0, 1, Sorting.DESCENDING), \
-            Measure("Drift-rate Error", "DRE", 0, 1, Sorting.DESCENDING), \
+        return Measure("Non-reported Error", "NRE", 0, 1, Sorting.ASCENDING), \
+            Measure("Drift-rate Error", "DRE", 0, 1, Sorting.ASCENDING), \
             Measure("Absence-detection Quality", "ADQ", 0, 1, Sorting.DESCENDING),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
@@ -562,8 +562,8 @@ class AverageQualityAuxiliary(SequenceAggregator):
 
     def describe(self):
         """Describes the analysis."""
-        return Measure("Non-reported Error", "NRE", 0, 1, Sorting.DESCENDING), \
-            Measure("Drift-rate Error", "DRE", 0, 1, Sorting.DESCENDING), \
+        return Measure("Non-reported Error", "NRE", 0, 1, Sorting.ASCENDING), \
+            Measure("Drift-rate Error", "DRE", 0, 1, Sorting.ASCENDING), \
             Measure("Absence-detection Quality", "ADQ", 0, 1, Sorting.DESCENDING),
 
     def compatible(self, experiment: Experiment):

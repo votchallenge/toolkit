@@ -604,7 +604,7 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         self._interval = interval
         self._countdown = 0
         self._time = 0
-        self._out = None
+        self._status = None
 
     @property
     def multiobject(self):
@@ -615,13 +615,13 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         """Stops the tracker runtime."""
         self._runtime.stop()
         self._time = 0
-        self._out = None
+        self._status = None
 
     def restart(self):
         """Restarts the tracker runtime, usually stars a new process."""
         self._runtime.restart()
         self._time = 0
-        self._out = None
+        self._status = None
 
     def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
         """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
@@ -635,9 +635,9 @@ class RealtimeTrackerRuntime(TrackerRuntime):
             Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker.
         """
         self._countdown = self._grace
-        self._out = None
+        self._status = None
 
-        out, prop, time = self._runtime.initialize(frame, new, properties)
+        status, time = self._runtime.initialize(frame, new, properties)
 
         if time > self._interval:
             if self._countdown > 0:
@@ -645,11 +645,11 @@ class RealtimeTrackerRuntime(TrackerRuntime):
                 self._time = 0
             else:
                 self._time = time - self._interval
-                self._out = out
+                self._status = status
         else:
             self._time = 0
 
-        return out, prop, time
+        return status, time
 
 
     def update(self, frame: Frame, _: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
@@ -666,12 +666,12 @@ class RealtimeTrackerRuntime(TrackerRuntime):
 
         if self._time > self._interval:
             self._time = self._time - self._interval
-            return self._out, dict(), 0
+            return self._status, 0
         else:
-            self._out = None
+            self._status = None
             self._time = 0
 
-        out, prop, time = self._runtime.update(frame, properties)
+        status, time = self._runtime.update(frame, properties)
 
         if time > self._interval:
             if self._countdown > 0:
@@ -679,9 +679,9 @@ class RealtimeTrackerRuntime(TrackerRuntime):
                 self._time = 0
             else:
                 self._time = time - self._interval
-                self._out = out
+                self._status = status
 
-        return out, prop, time
+        return status, time
 
 
 class PropertyInjectorTrackerRuntime(TrackerRuntime):
@@ -810,7 +810,10 @@ class SingleObjectTrackerRuntime(TrackerRuntime):
             Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
         """
 
-        if not new is None: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
+        if not new is None and isinstance(new, list) and len(new) != 0:
+            raise TrackerException("Only supports single object tracking", tracker=self.tracker)
+        if new is None: 
+            new = []
         status, time = self._runtime.update(frame, new, properties)
         if isinstance(status, list): status = status[0]
         return status, time

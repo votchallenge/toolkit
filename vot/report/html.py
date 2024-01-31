@@ -6,15 +6,15 @@ import datetime
 from typing import List
 
 import dominate
-from dominate.tags import h1, h2, table, thead, tbody, tr, th, td, div, p, li, ol, span, style, link, script
+from dominate.tags import h1, h2, table, thead, tbody, tr, th, td, div, p, li, ol, span, style, link, script, video
 from dominate.util import raw
 
 from vot import toolkit_version, check_debug
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.workspace import Storage
-from vot.document.common import format_value, read_resource, merge_repeats, extract_measures_table, extract_plots
-from vot.document import StyleManager
+from vot.report.common import format_value, read_resource, merge_repeats
+from vot.report import StyleManager, Table, Plot, Video
 from vot.utilities.data import Grid
 
 ORDER_CLASSES = {1: "first", 2: "second", 3: "third"}
@@ -59,15 +59,24 @@ def grid_table(data: Grid, rows: List[str], columns: List[str]):
 
     return element
 
-def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage):
+def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], reports, storage: Storage):
     """Generates an HTML document from the results of the experiments.
     
     Args:
         trackers (list): List of trackers.
         sequences (list): List of sequences.
-        results (dict): Dictionary of results.
+        reports (dict): List of reports as tuples of (name, data).
         storage (Storage): Storage object.
     """
+
+    def insert_video(data: Video):
+        """Insert a video into the document."""
+        name = data.identifier + ".avi"
+
+        data.save(storage.write(name), "avi")
+
+        with video(src=name, controls=True, preload="auto", autoplay=False, loop=False, width="100%", height="100%"):
+            raw("Your browser does not support the video tag.")
 
     def insert_figure(figure):
         """Inserts a matplotlib figure into the document."""
@@ -98,9 +107,6 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
 
     logger = logging.getLogger("vot")
 
-    table_header, table_data, table_order = extract_measures_table(trackers, results)
-    plots = extract_plots(trackers, results)
-
     legend = StyleManager.default().legend(Tracker)
 
     doc = dominate.document(title='VOT report')
@@ -114,50 +120,56 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
         add_script("table.js", linked)
         add_script("report.js", linked)
 
-    with doc:
-
-        h1("VOT report")
-
-        with ol(cls="metadata"):
-            li('Toolkit version: ' + toolkit_version())
-            li('Created: ' + datetime.datetime.now().isoformat())
-
-        if len(table_header[2]) == 0:
+    # TODO: make table more general (now it assumes a tracker per row)
+    def make_table(data: Table):
+        if len(data.header[2]) == 0:
             logger.debug("No measures found, skipping table")
         else:
             with table(cls="overview-table pure-table pure-table-horizontal pure-table-striped"):
                 with thead():
                     with tr():
                         th()
-                        [th(c[0].identifier, colspan=c[1]) for c in merge_repeats(table_header[0])]
+                        [th(c[0].identifier, colspan=c[1]) for c in merge_repeats(data.header[0])]
                     with tr():
                         th()
-                        [th(c[0].title, colspan=c[1]) for c in merge_repeats(table_header[1])]
+                        [th(c[0].title, colspan=c[1]) for c in merge_repeats(data.header[1])]
                     with tr():
                         th("Trackers")
-                        [th(c.abbreviation, data_sort="int" if order else "") for c, order in zip(table_header[2], table_order)]
+                        [th(c.abbreviation, data_sort="int" if order else "") for c, order in zip(data.header[2], data.order)]
                 with tbody():
-                    for tracker, data in table_data.items():
+                    for tracker, row in data.data.items():
                         with tr(data_tracker=tracker.reference):
                             with td():
                                 insert_mplfigure(legend.figure(tracker))
                                 span(tracker.label)
-                            for value, order in zip(data, table_order):
+                            for value, order in zip(row, data.order):
                                 insert_cell(value, order[tracker] if not order is None else None)
 
-        for experiment, experiment_plots in plots.items():
-            if len(experiment_plots) == 0:
-                continue
+    with doc:
 
-            h2("Experiment {}".format(experiment.identifier), cls="experiment")
+        h1("VOT toolkit report document")
 
-            with div(cls="plots"):
+        with ol(cls="metadata"):
+            li('Toolkit version: ' + toolkit_version())
+            li('Created: ' + datetime.datetime.now().isoformat())
 
-                for title, plot in experiment_plots:
+        for key, section in reports.items():
+
+            h2(key, cls="section")
+
+            for item in section:
+                if isinstance(item, Table):
+                    make_table(item)
+                if isinstance(item, Plot):
                     with div(cls="plot"):
-                        p(title)
-                        insert_figure(plot)
-                        
+                        p(key)
+                        insert_figure(item)
+                if isinstance(item, Video):
+                    with div(cls="video"):
+                        p(key)
+                        insert_video(item)
+                else:
+                    logger.warning("Unsupported report item type %s", item)
 
     with storage.write("report.html") as filehandle:
         filehandle.write(doc.render())

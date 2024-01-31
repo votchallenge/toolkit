@@ -284,8 +284,7 @@ class InMemoryChannel(Channel):
 
         self._images.append(image)
 
-    @property
-    def length(self) -> int:
+    def __len__(self) -> int:
         """Returns the length of the sequence channel in number of frames
         
         Returns:
@@ -868,11 +867,12 @@ class BasedSequence(Sequence):
         Returns:
             Region: Groundtruth region
         """
-        data = self.__preload()
-        if len(self.objects()) != 1:
+        objids = self.objects()
+            
+        if len(objids) != 1:
             raise DatasetException("More than one object in sequence")
 
-        id = next(iter(data.objects))
+        id = next(iter(objids))
         return self.object(id, index)
 
     def tags(self, index: int = None) -> List[str]:
@@ -951,7 +951,7 @@ class InMemorySequence(Sequence):
         Raises:
             DatasetException: If images are not provided for all channels
         """
-        super().__init__(name, None)
+        super().__init__(name)
         self._channels = {c: InMemoryChannel() for c in channels}
         self._tags = {}
         self._values = {}
@@ -1014,7 +1014,8 @@ class InMemorySequence(Sequence):
             List[str]: List of channel names
 
         """
-        return self._channels.keys()
+        print(self._channels.keys())
+        return set(self._channels.keys())
     
     def frame(self, index : int) -> "Frame":
         """Returns the specified frame. The frame is returned as a Frame object.
@@ -1133,15 +1134,14 @@ class InMemorySequence(Sequence):
             tuple: Sequence size
         """
         return self.channel().size
-    
-    @property
+
     def channels(self) -> list:
         """Returns a list of channel names 
         
         Returns:
             list: List of channel names
         """
-        return self._channels.keys()
+        return set(self._channels.keys())
 
 def download_bundle(url: str, path: str = "."):
     """Downloads a dataset bundle as a ZIP file and decompresses it.
