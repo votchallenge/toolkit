@@ -1,14 +1,11 @@
-import logging
-import functools
-import threading
+"""This module contains classes and functions for analysis of tracker performance. The analysis is performed on the results of an experiment."""
+
 from collections import namedtuple
-from enum import Enum, Flag, auto
-from typing import List, Optional, Tuple, Dict, Any, Set, Union, NamedTuple
+from enum import Enum, auto
+from typing import List, Optional, Tuple, Any
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor
 import importlib
 
-from cachetools import Cache
 from class_registry import ClassRegistry
 
 from attributee import Attributee, String
@@ -26,8 +23,12 @@ analysis_registry = ClassRegistry("vot_analysis")
 class MissingResultsException(ToolkitException):
     """Exception class that denotes missing results during analysis
     """
-    pass
-
+    def __init__(self, *args: object) -> None:
+        """Constructor"""
+        if not args:
+            args = ["Missing results"]
+        super().__init__(*args)
+        
 class Sorting(Enum):
     """Sorting direction enumeration class
     """
@@ -67,19 +68,24 @@ class Result(ABC):
 
     @property
     def name(self) -> str:
+        """Name of the result, used in reports"""
         return self._name
 
     @property
     def abbreviation(self) -> str:
+        """Abbreviation, if empty, then name is used. Can be used to define a shorter text representation."""
         return self._abbreviation
 
     @property
     def description(self) -> str:
+        """Description of the result, used in reports"""
         return self._description
 
 class Label(Result):
+    """Label describes a single categorical output of an analysis. Can have a set of possible values."""
 
     def __init__(self, *args, **kwargs):
+        """Constructor."""
         super().__init__(*args, **kwargs)
 
 class Measure(Result):
@@ -89,6 +95,19 @@ class Measure(Result):
 
     def __init__(self, name: str, abbreviation: Optional[str] = None, minimal: Optional[float] = None, \
         maximal: Optional[float] = None, direction: Optional[Sorting] = Sorting.UNSORTABLE):
+        """Constructor for Measure class.
+        
+        Arguments:
+            name {str} -- Name of the measure, used in reports
+
+        Keyword Arguments:
+            abbreviation {Optional[str]} -- Abbreviation, if empty, then name is used.
+            Can be used to define a shorter text representation. (default: {None})
+            minimal {Optional[float]} -- Minimal value of the measure. If None, then the measure is not bounded from below. (default: {None})
+            maximal {Optional[float]} -- Maximal value of the measure. If None, then the measure is not bounded from above. (default: {None})
+            direction {Optional[Sorting]} -- Direction of sorting. If Sorting.UNSORTABLE, then the measure is not sortable. (default: {Sorting.UNSORTABLE})
+
+        """
 
         super().__init__(name, abbreviation)
         self._minimal = minimal
@@ -97,14 +116,17 @@ class Measure(Result):
 
     @property
     def minimal(self) -> float:
+        """Minimal value of the measure. If None, then the measure is not bounded from below."""
         return self._minimal
 
     @property
     def maximal(self) -> float:
+        """Maximal value of the measure. If None, then the measure is not bounded from above."""
         return self._maximal
 
     @property
     def direction(self) -> Sorting:
+        """Direction of sorting. If Sorting.UNSORTABLE, then the measure is not sortable."""
         return self._direction
 
 class Drawable(Result):
@@ -124,11 +146,30 @@ class Drawable(Result):
 
     @property
     def trait(self):
+        """Trait of the data, used for specification"""
         return self._trait
 
 class Multidimensional(Drawable):
+    """Base class for multidimensional results. This class is used to describe results that can be visualized in a scatter plot."""
+
     def __init__(self, name: str, dimensions: int, abbreviation: Optional[str] = None, minimal: Optional[Tuple[float]] = None, \
         maximal: Optional[Tuple[float]] = None, labels: Optional[Tuple[str]] = None, trait: Optional[str] = None):
+        """Constructor for Multidimensional class.
+        
+        Arguments:
+            name {str} -- Name of the measure, used in reports
+            dimensions {int} -- Number of dimensions of the result
+            
+        Keyword Arguments:
+            abbreviation {Optional[str]} -- Abbreviation, if empty, then name is used.
+            Can be used to define a shorter text representation. (default: {None})
+            minimal {Optional[Tuple[float]]} -- Minimal value of the measure. If None, then the measure is not bounded from below. (default: {None})
+            maximal {Optional[Tuple[float]]} -- Maximal value of the measure. If None, then the measure is not bounded from above. (default: {None})
+            labels {Optional[Tuple[str]]} -- Labels for each dimension. (default: {None})
+            trait {Optional[str]} -- Trait of the data, used for specification . Defaults to None.
+            
+        """
+
         assert(dimensions > 1)
         super().__init__(name, abbreviation, trait)
         self._dimensions = dimensions
@@ -138,15 +179,19 @@ class Multidimensional(Drawable):
 
     @property
     def dimensions(self):
+        """Number of dimensions of the result"""
         return self._dimensions
 
     def minimal(self, i):
+        """Minimal value of the i-th dimension. If None, then the measure is not bounded from below."""
         return self._minimal[i]
 
     def maximal(self, i):
+        """Maximal value of the i-th dimension. If None, then the measure is not bounded from above."""
         return self._maximal[i]
 
     def label(self, i):
+        """Label for the i-th dimension."""
         return self._labels[i]
 
 class Point(Multidimensional):
@@ -160,6 +205,20 @@ class Plot(Drawable):
 
     def __init__(self, name: str, abbreviation: Optional[str] = None, wrt: str = "frames", minimal: Optional[float] = None, \
         maximal: Optional[float] = None, trait: Optional[str] = None):
+        """Constructor for Plot class.
+        
+        Arguments:
+            name {str} -- Name of the measure, used in reports
+            
+        Keyword Arguments:
+            abbreviation {Optional[str]} -- Abbreviation, if empty, then name is used.
+            Can be used to define a shorter text representation. (default: {None})
+            wrt {str} -- Unit of the independent variable. (default: {"frames"})
+            minimal {Optional[float]} -- Minimal value of the measure. If None, then the measure is not bounded from below. (default: {None})
+            maximal {Optional[float]} -- Maximal value of the measure. If None, then the measure is not bounded from above. (default: {None})
+            trait {Optional[str]} -- Trait of the data, used for specification . Defaults to None.
+            
+        """
         super().__init__(name, abbreviation, trait)
         self._wrt = wrt
         self._minimal = minimal
@@ -167,15 +226,17 @@ class Plot(Drawable):
 
     @property
     def minimal(self):
+        """Minimal value of the measure. If None, then the measure is not bounded from below."""
         return self._minimal
 
     @property
     def maximal(self):
+        """Maximal value of the measure. If None, then the measure is not bounded from above."""
         return self._maximal
-
 
     @property
     def wrt(self):
+        """Unit of the independent variable."""
         return self._wrt
 
 class Curve(Multidimensional):
@@ -183,42 +244,73 @@ class Curve(Multidimensional):
     """
 
 class Analysis(Attributee):
+    """Base class for all analysis classes. Analysis is a class that descibes computation of one or more performance metrics for a given experiment."""
 
-    name = String(default=None)
+    name = String(default=None, description="Name of the analysis")
 
     def __init__(self, **kwargs):
+        """Constructor for Analysis class.
+        
+        Keyword Arguments:
+            name {str} -- Name of the analysis (default: {None})
+        """
         super().__init__(**kwargs)
         self._identifier_cache = None
 
     def compatible(self, experiment: Experiment):
+        """Checks if the analysis is compatible with the experiment type."""
         raise NotImplementedError()
 
     @property
     def title(self) -> str:
+        """Returns the title of the analysis. If name is not set, then the default title is returned."""
+
+        if self.name is None:
+            return self._title_default
+        else:
+            return self.name
+
+    @property
+    def _title_default(self) -> str:
+        """Returns the default title of the analysis. This is used when name is not set."""
         raise NotImplementedError()
 
     def dependencies(self) -> List["Analysis"]:
+        """Returns a list of dependencies of the analysis. This is used to determine the order of execution of the analysis."""
         return []
 
     @property
     def identifier(self) -> str:
+        """Returns a unique identifier of the analysis. This is used to determine if the analysis has been already computed."""
+
         if not self._identifier_cache is None:
             return self._identifier_cache
 
         params = self.dump()
         del params["name"]
+
         confighash = arg_hash(**params)
 
         self._identifier_cache = class_fullname(self) + "@" + confighash
-
+        
         return self._identifier_cache
 
     def describe(self) -> Tuple["Result"]:
-        """Returns a tuple of descriptions of results
-        """
+        """Returns a tuple of descriptions of results of the analysis."""
         raise NotImplementedError()
 
     def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
+        """Computes the analysis for the given experiment, trackers and sequences. The dependencies are the results of the dependnent analyses.
+        The result is a grid with the results of the analysis. The grid is indexed by trackers and sequences. The axes are described by the axes() method.
+        
+        Args:
+            experiment (Experiment): Experiment to compute the analysis for.
+            trackers (List[Tracker]): List of trackers to compute the analysis for.
+            sequences (List[Sequence]): List of sequences to compute the analysis for.
+            dependencies (List[Grid]): List of dependencies of the analysis.
+            
+        Returns: Grid with the results of the analysis.
+        """
         raise NotImplementedError()
 
     @property
@@ -227,15 +319,18 @@ class Analysis(Attributee):
         raise NotImplementedError()
 
     def commit(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        """Commits the analysis for execution on default processor."""
         return AnalysisProcessor.commit_default(self, experiment, trackers, sequences)
 
     def run(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
+        """Runs the analysis on default processor."""
         return AnalysisProcessor.run_default(self, experiment, trackers, sequences)
 
 class SeparableAnalysis(Analysis):
     """Analysis that is separable with respect to trackers and/or sequences, each part can be processed in parallel
     as a separate job. The separation is determined by the result of the axes() method: Axes.BOTH means separation
-    in tracker-sequence pairs, Axes.TRACKER means separation according to  
+    in tracker-sequence pairs, Axes.TRACKER means separation according to trackers and Axes.SEQUENCE means separation
+    according to sequences.
     """
 
     SeparablePart = namedtuple("SeparablePart", ["trackers", "sequences", "tid", "sid"])
@@ -252,15 +347,13 @@ class SeparableAnalysis(Analysis):
                 note that each dependency is processed using select function to only contain 
                 information relevant for the current part of the analysis
 
-        Raises:
-            NotImplementedError: [description]
-
         Returns:
-            Tuple[Any]: [description]
+            Tuple[Any]: Tuple of results of the analysis
         """
         raise NotImplementedError()
 
     def __init__(self, **kwargs):
+        """Initializes the analysis. The axes semantic description is checked to be compatible with the dependencies."""
         super().__init__(**kwargs)
 
         # All dependencies should be mappable to individual parts. If parts contain 
@@ -270,6 +363,15 @@ class SeparableAnalysis(Analysis):
             assert all([dependency.axes != Axes.BOTH for dependency in self.dependencies()])
 
     def separate(self, trackers: List[Tracker], sequences: List[Sequence]) -> List["SeparablePart"]:
+        """Separates the analysis into parts that can be processed separately.
+        
+        Args:
+            trackers (List[Tracker]): List of trackers to compute the analysis for.
+            sequences (List[Sequence]): List of sequences to compute the analysis for.
+            
+        Returns: List of parts of the analysis.
+
+        """
         if self.axes == Axes.BOTH:
             parts = []
             for i, tracker in enumerate(trackers):
@@ -288,6 +390,17 @@ class SeparableAnalysis(Analysis):
             return parts
 
     def join(self, trackers: List[Tracker], sequences: List[Sequence], results: List[Tuple[Any]]):
+        """Joins the results of the analysis into a single grid. The results are indexed by trackers and sequences.
+
+        Args:
+            trackers (List[Tracker]): List of trackers to compute the analysis for.
+            sequences (List[Sequence]): List of sequences to compute the analysis for.
+            results (List[Tuple[Any]]): List of results of the analysis.
+
+        Returns:
+            Grid: Grid with the results of the analysis.
+        """
+
         if self.axes == Axes.BOTH:
             transformed_results = Grid(len(trackers), len(sequences))
             k = 0
@@ -356,7 +469,7 @@ class SeparableAnalysis(Analysis):
             return Grid.scalar(self.subcompute(experiment, trackers[0], sequences[0], dependencies))
         elif self.axes == Axes.TRACKERS and len(trackers) == 1:
             return Grid.scalar(self.subcompute(experiment, trackers[0], sequences, dependencies))
-        elif self.axes == Axes.BOTH and len(sequences) == 1:
+        elif self.axes == Axes.SEQUENCES and len(sequences) == 1:
             return Grid.scalar(self.subcompute(experiment, trackers, sequences[0], dependencies))
         else:
             parts = self.separate(trackers, sequences)
@@ -370,11 +483,14 @@ class SeparableAnalysis(Analysis):
 
     @property
     def axes(self) -> Axes:
+        """Returns the axes of the analysis. This is used to determine how the analysis is split into parts."""
         return Axes.BOTH
 
 class SequenceAggregator(Analysis): # pylint: disable=W0223
+    """Base class for sequence aggregators. Sequence aggregators take the results of a tracker and aggregate them over sequences."""
 
     def __init__(self, **kwargs):
+        """Base constructor."""
         super().__init__(**kwargs)
         # We only support one dependency in aggregator ...
         assert len(self.dependencies()) == 1
@@ -383,9 +499,27 @@ class SequenceAggregator(Analysis): # pylint: disable=W0223
 
     @abstractmethod
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
+        """Aggregate the results of the analysis over sequences for a single tracker.
+        
+        Args:
+            tracker (Tracker): Tracker to aggregate the results for.
+            sequences (List[Sequence]): List of sequences to aggregate the results for.
+            results (Grid): Results of the analysis for the tracker and sequences.
+            
+        """
         raise NotImplementedError()
 
     def compute(self, _: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
+        """Compute the analysis for a list of trackers and sequences.
+        
+        Args:
+            trackers (List[Tracker]): List of trackers to compute the analysis for.
+            sequences (List[Sequence]): List of sequences to compute the analysis for.
+            dependencies (List[Grid]): List of dependencies, should be one grid with results of the dependency analysis.
+            
+        Returns:
+            Grid: Grid with the results of the analysis.
+        """
         results = dependencies[0]
         transformed_results = Grid(len(trackers), 1)
 
@@ -396,6 +530,7 @@ class SequenceAggregator(Analysis): # pylint: disable=W0223
 
     @property
     def axes(self) -> Axes:
+        """The analysis is separable in trackers."""
         return Axes.TRACKERS
 
 class TrackerSeparableAnalysis(SeparableAnalysis):
@@ -404,10 +539,12 @@ class TrackerSeparableAnalysis(SeparableAnalysis):
 
     @abstractmethod
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequences: List[Sequence], dependencies: List[Grid]) -> Tuple[Any]:
+        """Compute the analysis for a single tracker."""
         raise NotImplementedError()
 
     @property
     def axes(self) -> Axes:
+        """The analysis is separable in trackers."""
         return Axes.TRACKERS
 
 class SequenceSeparableAnalysis(SeparableAnalysis):
@@ -416,18 +553,20 @@ class SequenceSeparableAnalysis(SeparableAnalysis):
 
     @abstractmethod
     def subcompute(self, experiment: Experiment, trackers: List[Tracker], sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+        """Compute the analysis for a single sequence."""
         raise NotImplementedError
 
     @property
     def axes(self) -> Axes:
+        """The analysis is separable in sequences."""
         return Axes.SEQUENCES
 
 def is_special(region: Region, code=None) -> bool:
+    """Check if the region is special (not a shape) and optionally if it has a specific code."""
     if code is None:
         return region.type == RegionType.SPECIAL
     return region.type == RegionType.SPECIAL and region.code == code
 
-from ._processor import process_stack_analyses, AnalysisProcessor, AnalysisError
-
-for module in ["vot.analysis.multistart", "vot.analysis.supervised", "vot.analysis.basic", "vot.analysis.tpr"]:
-    importlib.import_module(module)
+from .processor import process_stack_analyses, AnalysisProcessor, AnalysisError
+for module in [".multistart", ".supervised", ".accuracy", ".failures", ".longterm"]:
+    importlib.import_module(module, package="vot.analysis")

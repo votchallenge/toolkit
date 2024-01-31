@@ -1,0 +1,7 @@
+title: VOTS2023 Challenge Stack
+dataset: https://data.votchallenge.net/vots2023/dataset/description.json
+experiments:
+  baseline:
+    type: unsupervised
+    repetitions: 1
+    multiobject: True

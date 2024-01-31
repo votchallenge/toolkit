@@ -1,4 +1,4 @@
-
+""" Migration utilities for old workspaces (legacy Matlab toolkit)"""
 
 import os
 import re
@@ -11,13 +11,32 @@ from vot.tracker import is_valid_identifier
 from vot.stack import resolve_stack
 from vot.workspace import WorkspaceException
 
-def migrate_matlab_workspace(directory):
+def migrate_matlab_workspace(directory: str):
+    """ Migrates a legacy matlab workspace to the new format.
+    
+    Args:
+        directory (str): The directory of the workspace.
+        
+    Raises:
+        WorkspaceException: If the workspace is already initialized.
+        WorkspaceException: If the workspace is not a legacy workspace.
+    """
 
     logger = logging.getLogger("vot")
 
     logger.info("Attempting to migrate workspace in %s", directory)
 
     def scan_text(pattern, content, default=None):
+        """ Scans the text for a pattern and returns the first match.
+        
+        Args:
+            pattern (str): The pattern to search for.
+            content (str): The content to search in.
+            default (str): The default value if no match is found.
+            
+        Returns:
+            str: The first match or the default value.
+        """
         matches = re.findall(pattern, content)
         if not len(matches) == 1:
             return default

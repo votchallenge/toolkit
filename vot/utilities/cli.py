@@ -1,3 +1,5 @@
+"""Command line interface for the toolkit. This module provides a command line interface for the toolkit. It is used to run experiments, manage trackers and datasets, and to perform other tasks."""
+
 import os
 import sys
 import argparse
@@ -18,6 +20,7 @@ class EnvDefault(argparse.Action):
     """Argparse action that resorts to a value in a specified envvar if no value is provided via program arguments.
     """
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
+        """Initialize the action"""
         if not default and envvar:
             if envvar in os.environ:
                 default = os.environ[envvar]
@@ -30,6 +33,7 @@ class EnvDefault(argparse.Action):
                                          **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
+        """Call the action"""
         if self.separator:
             values = values.split(self.separator)
         setattr(namespace, self.dest, values)
@@ -40,8 +44,11 @@ def do_test(config: argparse.Namespace):
     Args:
         config (argparse.Namespace): Configuration
     """
-    from vot.dataset.dummy import DummySequence
-    from vot.dataset import load_sequence
+    from vot.dataset.dummy import generate_dummy
+    from vot.dataset import load_sequence, Frame
+    from vot.tracker import ObjectStatus
+    from vot.experiment.helpers import MultiObjectHelper
+
     trackers = Registry(config.registry)
 
     if not config.tracker:
@@ -57,57 +64,86 @@ def do_test(config: argparse.Namespace):
 
     tracker = trackers[config.tracker]
 
-    logger.info("Generating dummy sequence")
-
-    if config.sequence is None:
-        sequence = DummySequence(50)
-    else:
-        sequence = load_sequence(normalize_path(config.sequence))
-
-    logger.info("Obtaining runtime for tracker %s", tracker.identifier)
-
-    if config.visualize:
-        import matplotlib.pylab as plt
-        from vot.utilities.draw import MatplotlibDrawHandle
-        figure = plt.figure()
-        figure.canvas.set_window_title('VOT Test')
-        axes = figure.add_subplot(1, 1, 1)
-        axes.set_aspect("equal")
-        handle = MatplotlibDrawHandle(axes, size=sequence.size)
-        handle.style(fill=False)
-        figure.show()
-
-    runtime = None
-
+    def visualize(axes, frame: Frame, reference, state):
+        """Visualize the frame and the state of the tracker. 
+        
+        Args:
+            axes (matplotlib.axes.Axes): The axes to draw on.
+            frame (Frame): The frame to draw.
+            reference (list): List of references.
+            state (ObjectStatus): The state of the tracker.
+            
+        """
+        axes.clear()
+        handle.image(frame.channel())
+        if not isinstance(state, list):
+            state = [state]
+        for gt, st in zip(reference, state):
+            handle.style(color="green").region(gt)
+            handle.style(color="red").region(st.region)
+        
     try:
 
         runtime = tracker.runtime(log=True)
 
-        for repeat in range(1, 4):
+        logger.info("Generating dummy sequence")
 
-            logger.info("Initializing tracker ({}/{})".format(repeat, 3))
+        if config.sequence is None:
+            sequence = generate_dummy(50, objects=3 if runtime.multiobject else 1)
+        else:
+            sequence = load_sequence(normalize_path(config.sequence))
 
-            region, _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+        logger.info("Obtaining runtime for tracker %s", tracker.identifier)
+
+        context = {"continue" : True}
+
+        def on_press(event):
+            """Callback for key press event.
+            
+            Args:
+                event (matplotlib.backend_bases.Event): The event.
+            """
+            if event.key == 'q':
+                context["continue"] = False
+
+        if config.visualize:
+            import matplotlib.pylab as plt
+            from vot.utilities.draw import MatplotlibDrawHandle
+            figure = plt.figure()
+            figure.canvas.set_window_title('VOT Test')
+            axes = figure.add_subplot(1, 1, 1)
+            axes.set_aspect("equal")
+            handle = MatplotlibDrawHandle(axes, size=sequence.size)
+            context["click"] = figure.canvas.mpl_connect('key_press_event', on_press)
+            handle.style(fill=False)
+            figure.show()
+
+        helper = MultiObjectHelper(sequence)
+
+        logger.info("Initializing tracker")
+
+        frame = sequence.frame(0)
+        state, _ = runtime.initialize(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(0)])
+
+        if config.visualize:
+            visualize(axes, frame, [frame.object(x) for x in helper.objects(0)], state)
+            figure.canvas.draw()
+
+        for i in range(1, len(sequence)):
+            
+            logger.info("Processing frame %d/%d", i, len(sequence)-1)
+            frame = sequence.frame(i)
+            state, _ = runtime.update(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(i)])
 
             if config.visualize:
-                axes.clear()
-                handle.image(sequence.frame(0).channel())
-                handle.style(color="green").region(sequence.frame(0).groundtruth())
-                handle.style(color="red").region(region)
+                visualize(axes, frame, [frame.object(x) for x in helper.objects(i)], state)
                 figure.canvas.draw()
+                figure.canvas.flush_events()
 
-            for i in range(1, sequence.length):
-                logger.info("Updating on frame %d/%d", i, sequence.length-1)
-                region, _, _ = runtime.update(sequence.frame(i))
+            if not context["continue"]:
+                break
 
-                if config.visualize:
-                    axes.clear()
-                    handle.image(sequence.frame(i).channel())
-                    handle.style(color="green").region(sequence.frame(i).groundtruth())
-                    handle.style(color="red").region(region)
-                    figure.canvas.draw()
-
-            logger.info("Stopping tracker")
+        logger.info("Stopping tracker")
 
         runtime.stop()
 
@@ -122,6 +158,11 @@ def do_test(config: argparse.Namespace):
             runtime.stop()
 
 def do_workspace(config: argparse.Namespace):
+    """Initialize / manage a workspace.
+
+    Args:
+        config (argparse.Namespace): Configuration
+    """
 
     from vot.workspace import WorkspaceException
 
@@ -153,18 +194,23 @@ def do_workspace(config: argparse.Namespace):
         logger.error("Error during workspace initialization: %s", we)
 
 def do_evaluate(config: argparse.Namespace):
+    """Run an evaluation for a tracker on an experiment stack and a set of sequences.
+    
+    Args:
+        config (argparse.Namespace): Configuration    
+    """
 
     from vot.experiment import run_experiment
 
     workspace = Workspace.load(config.workspace)
 
-    logger.info("Loaded workspace in '%s'", config.workspace)
+    logger.debug("Loaded workspace in '%s'", config.workspace)
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
-    registry = Registry(workspace.registry + global_registry, root=config.workspace)
+    registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
 
-    logger.info("Found data for %d trackers", len(registry))
+    logger.debug("Found data for %d trackers", len(registry))
 
     trackers = registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
@@ -177,7 +223,7 @@ def do_evaluate(config: argparse.Namespace):
 
     try:
         for tracker in trackers:
-            logger.info("Evaluating tracker %s", tracker.identifier)
+            logger.debug("Evaluating tracker %s", tracker.identifier)
             for experiment in workspace.stack:
                 run_experiment(experiment, tracker, workspace.dataset, config.force, config.persist)
 
@@ -189,19 +235,24 @@ def do_evaluate(config: argparse.Namespace):
         logger.error("Evaluation interrupted by tracker error: {}".format(te))
 
 def do_analysis(config: argparse.Namespace):
+    """Run an analysis for a tracker on an experiment stack and a set of sequences.
+
+    Args:
+        config (argparse.Namespace): Configuration
+    """
 
     from vot.analysis import AnalysisProcessor, process_stack_analyses
     from vot.document import generate_document
 
     workspace = Workspace.load(config.workspace)
 
-    logger.info("Loaded workspace in '%s'", config.workspace)
+    logger.debug("Loaded workspace in '%s'", config.workspace)
 
     global_registry = [os.path.abspath(x) for x in config.registry]
 
-    registry = Registry(workspace.registry + global_registry, root=config.workspace)
+    registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
 
-    logger.info("Found data for %d trackers", len(registry))
+    logger.debug("Found data for %d trackers", len(registry))
 
     if not config.trackers:
         trackers = workspace.list_results(registry)
@@ -217,7 +268,7 @@ def do_analysis(config: argparse.Namespace):
     if config.workers == 1:
 
         if config.debug:
-            from vot.analysis._processor import DebugExecutor
+            from vot.analysis.processor import DebugExecutor
             logging.getLogger("concurrent.futures").setLevel(logging.DEBUG)
             executor = DebugExecutor()
         else:
@@ -263,7 +314,7 @@ def do_pack(config: argparse.Namespace):
     """Package results to a ZIP file so that they can be submitted to a challenge.
 
     Args:
-        config ([type]): [description]
+        config (argparse.Namespace): Configuration
     """
 
     import zipfile, io
@@ -271,11 +322,9 @@ def do_pack(config: argparse.Namespace):
 
     workspace = Workspace.load(config.workspace)
 
-    logger.info("Loaded workspace in '%s'", config.workspace)
+    logger.debug("Loaded workspace in '%s'", config.workspace)
 
-    registry = Registry(workspace.registry + config.registry, root=config.workspace)
-
-    logger.info("Found data for %d trackers", len(registry))
+    registry = Registry(list(workspace.registry) + config.registry, root=config.workspace)
 
     tracker = registry[config.tracker]
 
@@ -287,8 +336,8 @@ def do_pack(config: argparse.Namespace):
     with Progress("Scanning", len(workspace.dataset) * len(workspace.stack)) as progress:
 
         for experiment in workspace.stack:
-            for sequence in workspace.dataset:
-                sequence = experiment.transform(sequence)
+            sequences = experiment.transform(workspace.dataset)
+            for sequence in sequences:
                 complete, files, results = experiment.scan(tracker, sequence)
                 all_files.extend([(f, experiment.identifier, sequence.name, results) for f in files])
                 if not complete:
@@ -300,7 +349,7 @@ def do_pack(config: argparse.Namespace):
         logger.error("Unable to continue, experiments not complete")
         return
 
-    logger.info("Collected %d files, compressing to archive ...", len(all_files))
+    logger.debug("Collected %d files, compressing to archive ...", len(all_files))
 
     timestamp = datetime.now()
 
@@ -315,8 +364,11 @@ def do_pack(config: argparse.Namespace):
         with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True), mode="w") as archive:
             for f in all_files:
                 info = zipfile.ZipInfo(filename=os.path.join(f[1], f[2], f[0]), date_time=timestamp.timetuple())
-                with io.TextIOWrapper(archive.open(info, mode="w")) as fout, f[3].read(f[0]) as fin:
-                    copyfileobj(fin, fout)
+                with archive.open(info, mode="w") as fout, f[3].read(f[0]) as fin:
+                    if isinstance(fin, io.TextIOBase):
+                        copyfileobj(fin, io.TextIOWrapper(fout))
+                    else:
+                        copyfileobj(fin, fout)
                 progress.relative(1)
 
             info = zipfile.ZipInfo(filename="manifest.yml", date_time=timestamp.timetuple())
@@ -326,13 +378,13 @@ def do_pack(config: argparse.Namespace):
     logger.info("Result packaging successful, archive available in %s", archive_name)
 
 def main():
-    """Entrypoint to the VOT Command Line Interface utility, should be executed as a program and provided with arguments.
+    """Entrypoint to the toolkit Command Line Interface utility, should be executed as a program and provided with arguments.
     """
     stream = logging.StreamHandler()
     stream.setFormatter(ColoredFormatter())
     logger.addHandler(stream)
 
-    parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Utility', prog="vot")
+    parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Interface', prog="vot")
     parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')
     parser.add_argument("--registry", default=".", help='Tracker registry paths', required=False, action=EnvDefault, \
         separator=os.path.pathsep, envvar='VOT_REGISTRY')
@@ -373,22 +425,29 @@ def main():
 
         logger.setLevel(logging.INFO)
 
-        if args.debug or check_debug:
+        if args.debug or check_debug():
             logger.setLevel(logging.DEBUG)
 
-        update, version = check_updates()
-        if update:
-            logger.warning("A newer version of the VOT toolkit is available (%s), please update.", version)
+        def check_version():
+            """Check if a newer version of the toolkit is available."""
+            update, version = check_updates()
+            if update:
+                logger.warning("A newer version of the VOT toolkit is available (%s), please update.", version)
 
         if args.action == "test":
+            check_version()
             do_test(args)
         elif args.action == "initialize":
+            check_version()
             do_workspace(args)
         elif args.action == "evaluate":
+            check_version()
             do_evaluate(args)
         elif args.action == "analysis":
+            check_version()
             do_analysis(args)
         elif args.action == "pack":
+            check_version()
             do_pack(args)
         else:
             parser.print_help()

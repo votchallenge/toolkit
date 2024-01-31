@@ -1,0 +1,11 @@
+title: VOT-TIR2016 challenge
+dataset: http://data.votchallenge.net/vot2016/vot-tir2016.zip
+url: http://www.votchallenge.net/vot2016/
+experiments:
+  baseline:
+    type: supervised
+    repetitions: 15
+    skip_initialize: 5
+    analyses:
+      - type: supervised_average_ar
+        sensitivity: 30

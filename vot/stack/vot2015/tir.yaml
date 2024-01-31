@@ -1,0 +1,11 @@
+title: VOT-TIR2015 challenge
+dataset: http://www.cvl.isy.liu.se/research/datasets/ltir/version1.0/ltir_v1_0_8bit.zip
+url: http://www.votchallenge.net/vot2015/
+experiments:
+  baseline:
+    type: supervised
+    repetitions: 15
+    skip_initialize: 5
+    analyses:
+      - type: supervised_average_ar
+        sensitivity: 30

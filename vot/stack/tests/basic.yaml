@@ -1,0 +1,7 @@
+title: VOT Basic Test Stack
+url: http://www.votchallenge.net/
+dataset: https://data.votchallenge.net/toolkit/test.zip
+experiments:
+  baseline:
+    type: unsupervised
+    repetitions: 1

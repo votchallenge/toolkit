@@ -1,0 +1,11 @@
+title: VOT-RGBD2019 challenge
+dataset: http://data.votchallenge.net/vot2019/rgbd/description.json
+url: http://www.votchallenge.net/vot2019/
+experiments:
+  rgbd-unsupervised:
+    type: unsupervised
+    repetitions: 1
+    analyses:
+      - type: average_tpr
+      - type: pr_curve
+      - type: f_curve

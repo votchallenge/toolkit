@@ -1,15 +1,16 @@
+""" OTB dataset adapter module. OTB is one of the earliest tracking benchmarks. It is a collection of 50/100 sequences 
+with ground truth annotations. The dataset is available at http://cvlab.hanyang.ac.kr/tracker_benchmark/datasets.html.
+"""
 
-from collections import OrderedDict
 import os
-import logging
 import six
 
-from vot.dataset import BaseSequence, Dataset, DatasetException, PatternFileListChannel
+from vot import get_logger
+from vot.dataset import BasedSequence, DatasetException, PatternFileListChannel, SequenceData
 from vot.utilities import Progress
-from vot.region import parse
+from vot.region.io import parse_region
 
-logger = logging.getLogger("vot")
-
+logger = get_logger()
 
 _BASE_URL = "http://cvlab.hanyang.ac.kr/tracker_benchmark/seq/"
 
@@ -17,8 +18,8 @@ _OTB50_SUBSET = ["Basketball", "Biker", "Bird1", "BlurBody", "BlurCar2", "BlurFa
     "Car1", "Car4", "CarDark", "CarScale", "ClifBar", "Couple", "Crowds", "David", "Deer", "Diving",
     "DragonBaby", "Dudek", "Football", "Freeman4", "Girl", "Human3", "Human4", "Human6", "Human9",
     "Ironman", "Jump", "Jumping", "Liquor", "Matrix", "MotorRolling", "Panda", "RedTeam", "Shaking",
-    "Singer2", "Skating1", "Skating2", "Skiing", "Soccer", "Surfer", "Sylvester", "Tiger2",
-    "Trellis", "Walking", "Walking2", "Woman" ]
+    "Singer2", "Skating1", "Skating2_1", "Skating2_2", "Skiing", "Soccer", "Surfer", "Sylvester", "Tiger2",
+    "Trellis", "Walking", "Walking2", "Woman"]
 
 _SEQUENCES = {
     "Basketball": {"attributes": ["IV", "OCC", "DEF", "OPR", "BC"]},
@@ -39,7 +40,7 @@ _SEQUENCES = {
     "Crowds": {"attributes": ["IV", "DEF", "BC"]},
     "David": {"attributes": ["IV", "SV", "OCC", "DEF", "MB", "IPR", "OPR"], "start": 300, "stop": 770},
     "Deer": {"attributes": ["MB", "FM", "IPR", "BC", "LR"]},
-    "Diving": {"attributes": ["SV", "DEF", "IPR"]},
+    "Diving": {"attributes": ["SV", "DEF", "IPR"], "stop": 215},
     "DragonBaby": {"attributes": ["SV", "OCC", "MB", "FM", "IPR", "OPR", "OV"]},
     "Dudek": {"attributes": ["SV", "OCC", "DEF", "FM", "IPR", "OPR", "OV", "BC"]},
     "Football": {"attributes": ["OCC", "IPR", "OPR", "BC"]},
@@ -60,7 +61,8 @@ _SEQUENCES = {
     "Shaking": {"attributes": ["IV", "SV", "IPR", "OPR", "BC"]},
     "Singer2": {"attributes": ["IV", "DEF", "IPR", "OPR", "BC"]},
     "Skating1": {"attributes": ["IV", "SV", "OCC", "DEF", "OPR", "BC"]},
-    "Skating2": {"objects": 2, "attributes": ["SV", "OCC", "DEF", "FM", "OPR"]},
+    "Skating2_1": {"attributes": ["SV", "OCC", "DEF", "FM", "OPR"], "base": "Skating2", "groundtruth" : "groundtruth_rect.1.txt"},
+    "Skating2_2": {"attributes": ["SV", "OCC", "DEF", "FM", "OPR"], "base": "Skating2", "groundtruth" : "groundtruth_rect.2.txt"},
     "Skiing": {"attributes": ["IV", "SV", "DEF", "IPR", "OPR"]},
     "Soccer": {"attributes": ["IV", "SV", "OCC", "MB", "FM", "IPR", "OPR", "BC"]},
     "Surfer": {"attributes": ["SV", "FM", "IPR", "OPR", "LR"]},
@@ -72,10 +74,10 @@ _SEQUENCES = {
     "Woman": {"attributes": ["IV", "SV", "OCC", "DEF", "MB", "FM", "OPR"]},
     # OTB-100 sequences
     "Bird2": {"attributes": ["OCC", "DEF", "FM", "IPR", "OPR"]},
-    "BlurCar1": {"attributes": ["MB", "FM"]},
-    "BlurCar3": {"attributes": ["MB", "FM"]},
-    "BlurCar4": {"attributes": ["MB", "FM"]},
-    "Board": {"attributes": ["SV", "MB", "FM", "OPR", "OV", "BC"]},
+    "BlurCar1": {"attributes": ["MB", "FM"], "start": 247},
+    "BlurCar3": {"attributes": ["MB", "FM"], "start": 3},
+    "BlurCar4": {"attributes": ["MB", "FM"], "start": 18},
+    "Board": {"attributes": ["SV", "MB", "FM", "OPR", "OV", "BC"], "zeros": 5},
     "Bolt2": {"attributes": ["DEF", "BC"]},
     "Boy": {"attributes": ["SV", "MB", "FM", "IPR", "OPR"]},
     "Car2": {"attributes": ["IV", "SV", "MB", "FM", "BC"]},
@@ -103,8 +105,8 @@ _SEQUENCES = {
     "Human5": {"attributes": ["SV", "OCC", "DEF"]},
     "Human7": {"attributes": ["IV", "SV", "OCC", "DEF", "MB", "FM"]},
     "Human8": {"attributes": ["IV", "SV", "DEF"]},
-    "Jogging1": {"attributes": ["OCC", "DEF", "OPR"], "base": "Jogging"},
-    "Jogging2": {"attributes": ["OCC", "DEF", "OPR"], "base": "Jogging"},
+    "Jogging1": {"attributes": ["OCC", "DEF", "OPR"], "base": "Jogging", "groundtruth" : "groundtruth_rect.1.txt"},
+    "Jogging2": {"attributes": ["OCC", "DEF", "OPR"], "base": "Jogging", "groundtruth" : "groundtruth_rect.2.txt"},
     "KiteSurf": {"attributes": ["IV", "OCC", "IPR", "OPR"]},
     "Lemming": {"attributes": ["IV", "SV", "OCC", "FM", "OPR", "OV"]},
     "Man": {"attributes": ["IV"]},
@@ -123,106 +125,95 @@ _SEQUENCES = {
     "Vase": {"attributes": ["SV", "FM", "IPR"]},
 }
 
-class OTBSequence(BaseSequence):
+def _load_sequence(metadata):
+    """Load a sequence from the OTB dataset.
+    
+    Args:
+        metadata (dict): Sequence metadata.
+    """
 
-    def __init__(self, root, name=None, dataset=None):
+    channels = {}
+    groundtruth = []
 
-        metadata = _SEQUENCES[self.name]
-        self._base = os.path.join(root, metadata.get("base", name))
+    attributes = metadata.get("attributes", {})
 
-        super().__init__(name, dataset)
+    channels["color"] = PatternFileListChannel(os.path.join(metadata["path"], "img", "%%0%dd.jpg" % attributes.get("zeros", 4)),
+        start=attributes.get("start", 1), end=attributes.get("stop", None))
 
-    @staticmethod
-    def check(path: str):
-        return os.path.isfile(os.path.join(path, 'groundtruth_rect.txt'))
+    metadata["channel.default"] = "color"
+    metadata["width"], metadata["height"] = six.next(six.itervalues(channels)).size
 
-    def _read_metadata(self):
-        
-        metadata = _SEQUENCES[self.name]
+    groundtruth_file = os.path.join(metadata["path"], attributes.get("groundtruth", "groundtruth_rect.txt"))
 
-        return {"attributes": metadata["attributes"]}
+    with open(groundtruth_file, 'r') as filehandle:
+        for region in filehandle.readlines():
+            groundtruth.append(parse_region(region.replace("\t", ",").replace(" ", ",")))
 
-    def _read(self):
+    metadata["length"] = len(groundtruth)
 
-        channels = {}
-        groundtruth = []
+    if not len(channels["color"]) == len(groundtruth):
+        raise DatasetException("Length mismatch between groundtruth and images %d != %d" % (len(channels["color"]), len(groundtruth)))
+    
+    objects = {"object" : groundtruth}
 
-        metadata = _SEQUENCES[self.name]
+    return SequenceData(channels, objects, {}, {}, len(groundtruth)) 
 
-        channels["color"] = PatternFileListChannel(os.path.join(self._base, "img", "%04d.jpg"),
-            start=metadata.get("start", 1), end=metadata.get("end", None))
-         
-        self._metadata["channel.default"] = "color"
-        self._metadata["width"], self._metadata["height"] = six.next(six.itervalues(channels)).size
+from vot.dataset import sequence_reader
 
-        groundtruth_file = os.path.join(self._base, "groundtruth_rect.txt")
+@sequence_reader.register("otb")
+def read_sequence(path: str):
+    """Reads a sequence from OTB dataset. The sequence is identified by the name of the folder and the
+    groundtruth_rect.txt file is expected to be present in the folder.
+    
+    Args:
+        path (str): Path to the sequence folder.
+    
+    Returns:
+        Sequence: The sequence object.
+    """
 
-        with open(groundtruth_file, 'r') as filehandle:
-            for region in filehandle.readlines():
-                groundtruth.append(parse(region))
+    if not os.path.isfile(os.path.join(path, 'groundtruth_rect.txt')):
+        return None
 
-        self._metadata["length"] = len(groundtruth)
+    name = os.path.basename(path)
 
-        if not channels["color"].length == len(groundtruth):
-            raise DatasetException("Length mismatch between groundtruth and images")
+    if name not in _SEQUENCES:
+        return None
 
-        return channels, groundtruth, {}, {}
+    metadata =  {"attributes": _SEQUENCES[name], "path": path}
+    return BasedSequence(name.strip(), _load_sequence, metadata)
 
-class GOT10kDataset(Dataset):
+from vot.dataset import dataset_downloader
 
-    def __init__(self, path, otb50: bool = False):
-        super().__init__(path)
+@dataset_downloader.register("otb50")
+def download_otb50(path: str):
+    """Downloads OTB50 dataset to the given path.
+    
+    Args:
+        path (str): Path to the dataset folder.
+    """
+    dataset = _SEQUENCES
+    dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
+    _download_dataset(path, dataset)
 
-        dataset = _SEQUENCES
+@dataset_downloader.register("otb100")
+def download_otb100(path: str):
+    """Downloads OTB100 dataset to the given path.
+    
+    Args:
+        path (str): Path to the dataset folder.
+    """
+    dataset = _SEQUENCES
+    _download_dataset(path, dataset)
 
-        if otb50:
-            dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
-
-        self._sequences = OrderedDict()
-
-        with Progress("Loading dataset", len(dataset)) as progress:
-
-            for name in sorted(list(dataset.keys())):
-                self._sequences[name.strip()] = OTBSequence(path, name, dataset=self)
-                progress.relative(1)
-
-    @staticmethod
-    def check(path: str):
-        if os.path.isfile(os.path.join(path, 'list.txt')):
-            return False
-
-        for sequence in _OTB50_SUBSET:
-            return OTBSequence.check(os.path.join(path, sequence))
-
-    @property
-    def path(self):
-        return self._path
-
-    @property
-    def length(self):
-        return len(self._sequences)
-
-    def __getitem__(self, key):
-        return self._sequences[key]
-
-    def __contains__(self, key):
-        return key in self._sequences
-
-    def __iter__(self):
-        return self._sequences.values().__iter__()
-
-    def list(self):
-        return list(self._sequences.keys())
-
-
-def download_dataset(path: str, otb50: bool = False):
+def _download_dataset(path: str, dataset: dict):
+    """Downloads the given dataset to the given path.
+    
+    Args:
+        path (str): Path to the dataset folder.
+    """
 
     from vot.utilities.net import download_uncompress, join_url, NetworkException
-
-    dataset = _SEQUENCES
-
-    if otb50:
-        dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
 
     with Progress("Downloading", len(dataset)) as progress:
         for name, metadata in dataset.items():
@@ -237,6 +228,7 @@ def download_dataset(path: str, otb50: bool = False):
 
             progress.relative(1)
 
-
-if __name__ == "__main__":
-    download_dataset("")
+    # Write sequence list to a list.txt file
+    with open(os.path.join(path, "list.txt"), 'w') as filehandle:
+        for name in dataset.keys():
+            filehandle.write("%s\n" % name)

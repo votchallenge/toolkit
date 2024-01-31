@@ -1,1 +1,4 @@
-__version__ = '0.5.1'
+"""
+Toolkit version
+"""
+__version__ = '0.6.4'

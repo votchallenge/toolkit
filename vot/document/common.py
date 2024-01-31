@@ -1,3 +1,4 @@
+"""Common functions for document generation."""
 import os
 import math
 
@@ -5,11 +6,23 @@ from vot.document import ScatterPlot, LinePlot
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
+    """Reads a resource file from the package directory. The file is read as a string."""
     path = os.path.join(os.path.dirname(__file__), name)
     with open(path, "r") as filehandle:
         return filehandle.read()
 
+def per_tracker(a):
+    """Returns true if the analysis is per-tracker."""
+    return a.axes == Axes.TRACKERS
+
 def extract_measures_table(trackers, results):
+    """Extracts a table of measures from the results. The table is a list of lists, where each list is a column. 
+    The first column is the tracker name, the second column is the measure name, and the rest of the columns are the values for each tracker.
+    
+    Args:
+        trackers (list): List of trackers.
+        results (dict): Dictionary of results.
+    """
     table_header = [[], [], []]
     table_data = dict()
     column_order = []
@@ -19,7 +32,7 @@ def extract_measures_table(trackers, results):
             descriptions = analysis.describe()
 
             # Ignore all non per-tracker results
-            if analysis.axes != Axes.TRACKERS:
+            if not per_tracker(analysis):
                 continue
 
             for i, description in enumerate(descriptions):
@@ -30,6 +43,9 @@ def extract_measures_table(trackers, results):
                     table_header[1].append(analysis)
                     table_header[2].append(description)
                     column_order.append(description.direction)
+
+            if aresults is None:
+                continue
 
             for tracker, values in zip(trackers, aresults):
                 if not tracker in table_data:
@@ -63,9 +79,8 @@ def extract_measures_table(trackers, results):
 
     return table_header, table_data, table_order
 
-
-
-def extract_plots(trackers, results):
+def extract_plots(trackers, results, order=None):
+    """Extracts a list of plots from the results. The list is a list of tuples, where each tuple is a pair of strings and a plot."""
     plots = dict()
     j = 0
 
@@ -75,7 +90,7 @@ def extract_plots(trackers, results):
             descriptions = analysis.describe()
 
             # Ignore all non per-tracker results
-            if analysis.axes != Axes.TRACKERS:
+            if not per_tracker(analysis):
                 continue
 
             for i, description in enumerate(descriptions):
@@ -103,17 +118,20 @@ def extract_plots(trackers, results):
                 else:
                     continue
 
-                for tracker, values in zip(trackers, aresults):
+                for t in order if order is not None else range(len(trackers)):
+                    tracker = trackers[t]
+                    values = aresults[t, 0]
                     data = values[i] if not values is None else None
                     plot(tracker, data)
 
-                experiment_plots.append((description.name, plot))
+                experiment_plots.append((analysis.title + " - " + description.name, plot))
 
         plots[experiment] = experiment_plots
 
     return plots
 
 def format_value(data):
+    """Formats a value for display."""
     if data is None:
         return "N/A"
     if isinstance(data, str):
@@ -125,6 +143,7 @@ def format_value(data):
     return str(data)
 
 def merge_repeats(objects):
+    """Merges repeated objects in a list into a list of tuples (object, count)."""
     
     if not objects:
         return []

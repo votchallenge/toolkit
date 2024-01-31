@@ -1,6 +1,6 @@
 title: VOT2013 challenge
 url: http://www.votchallenge.net/vot2013/
-dataset: vot:vot2013
+dataset: http://data.votchallenge.net/vot2013/dataset/description.json
 deprecated: True
 experiments:
   baseline:

@@ -1,16 +1,15 @@
-
+"""This module contains functions for generating LaTeX documents with results."""
 import io
-import logging
 import tempfile
 import datetime
 from typing import List
 
 from pylatex.base_classes import Container
 from pylatex.package import Package
-from pylatex import Document, Section, Command, LongTable, MultiColumn, MultiRow, Figure, UnsafeCommand
+from pylatex import Document, Section, Command, LongTable, MultiColumn, Figure, UnsafeCommand
 from pylatex.utils import NoEscape
 
-from vot import toolkit_version
+from vot import toolkit_version, get_logger
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.workspace import Storage
@@ -20,25 +19,31 @@ from vot.document import StyleManager
 TRACKER_GROUP = "default"
 
 class Chunk(Container):
+    """A container that does not add a newline after the content."""
 
     def dumps(self):
+        """Returns the LaTeX representation of the container."""
         return self.dumps_content()
 
 def strip_comments(src, wrapper=True):
+    """Strips comments from a LaTeX source file."""
     return "\n".join([line for line in src.split("\n") if not line.startswith("%") and (wrapper or not line.startswith(r"\makeat"))])
 
 def insert_figure(figure):
+    """Inserts a figure into a LaTeX document."""
     buffer = io.StringIO()
     figure.save(buffer, "PGF")
     return NoEscape(strip_comments(buffer.getvalue()))
 
 def insert_mplfigure(figure, wrapper=True):
+    """Inserts a matplotlib figure into a LaTeX document."""
     buffer = io.StringIO()
     figure.savefig(buffer, format="PGF", bbox_inches='tight', pad_inches=0.01)
     return NoEscape(strip_comments(buffer.getvalue(), wrapper))
 
 
 def generate_symbols(container, trackers):
+    """Generates a LaTeX command for each tracker. The command is named after the tracker reference and contains the tracker symbol."""
 
     legend = StyleManager.default().legend(Tracker)
 
@@ -50,20 +55,37 @@ def generate_symbols(container, trackers):
     container.append(Command("makeatother"))
 
 
-def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage, build=False, multipart=True):
+def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], results, storage: Storage, build=False, multipart=True, order=None) -> str:
+    """Generates a LaTeX document with the results. The document is returned as a string. If build is True, the document is compiled and the PDF is returned.
+    
+    Args:
+        
+        trackers (list): List of trackers.
+        sequences (list): List of sequences.
+        results (dict): Dictionary of results.
+        storage (Storage): Storage object.
+        build (bool): If True, the document is compiled and the PDF is returned.
+        multipart (bool): If True, the document is split into multiple files.
+        order (list): List of tracker indices to use for ordering.
+    """
 
     order_marks = {1: "first", 2: "second", 3: "third"}
 
     def format_cell(value, order):
+        """Formats a cell in the data table."""
         cell = format_value(value)
         if order in order_marks:
             cell = Command(order_marks[order], cell)
         return cell
 
-    logger = logging.getLogger("vot")
+    logger = get_logger()
 
     table_header, table_data, table_order = extract_measures_table(trackers, results)
-    plots = extract_plots(trackers, results)
+
+    if order is not None:
+        ordered_trackers = [trackers[i] for i in order]
+    else:
+        ordered_trackers = trackers
 
     doc = Document(page_numbers=True)
 
@@ -79,17 +101,18 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
 
     if multipart:
         container = Chunk()
-        generate_symbols(container, trackers)
+        generate_symbols(container, ordered_trackers)
         with storage.write("symbols.tex") as out:
             container.dump(out)
         doc.preamble.append(Command("input", "symbols.tex"))
     else:
-        generate_symbols(doc.preamble, trackers)
+        generate_symbols(doc.preamble, ordered_trackers)
 
     doc.preamble.append(Command('title', 'VOT report'))
     doc.preamble.append(Command('author', 'Toolkit version ' + toolkit_version()))
     doc.preamble.append(Command('date', datetime.datetime.now().isoformat()))
     doc.append(NoEscape(r'\maketitle'))
+
 
     if len(table_header[2]) == 0:
         logger.debug("No measures found, skipping table")
@@ -107,9 +130,19 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
             data_table.end_table_header()
             data_table.add_hline()
 
-            for tracker, data in table_data.items():
+            for tracker in ordered_trackers:
+                data = table_data[tracker]
                 data_table.add_row([UnsafeCommand("Tracker", [tracker.reference, TRACKER_GROUP])] +
                     [format_cell(x, order[tracker] if not order is None else None) for x, order in zip(data, table_order)])
+
+    if order is not None:
+        z_order = [0] * len(order)
+        for i, j in enumerate(order):
+            z_order[max(order) - i] = j
+    else:
+        z_order = list(range(len(trackers)))
+
+    plots = extract_plots(trackers, results, z_order)
 
     for experiment, experiment_plots in plots.items():
         if len(experiment_plots) == 0:
@@ -131,7 +164,7 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
                 
     if build:
         temp = tempfile.mktemp()
-        logger.debug("Generating to tempourary output %s", temp)
+        logger.debug("Generating to temporary output %s", temp)
         doc.generate_pdf(temp, clean_tex=True)
         storage.copy(temp + ".pdf", "report.pdf")
     else:

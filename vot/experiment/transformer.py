@@ -1,36 +1,82 @@
+""" Transformer module for experiments."""
+
 import os
 from abc import abstractmethod
+from typing import List
 
 from PIL import Image
 
-from attributee import Attributee, Integer, Float
+from attributee import Attributee, Integer, Float, Boolean
 
-from vot.dataset import Sequence, VOTSequence, InMemorySequence
+from vot.dataset import Sequence, InMemorySequence
 from vot.dataset.proxy import FrameMapSequence
-from vot.dataset.vot import write_sequence
+from vot.dataset.common import write_sequence, read_sequence
 from vot.region import RegionType
 from vot.utilities import arg_hash
 from vot.experiment import transformer_registry
 
 class Transformer(Attributee):
+    """Base class for transformers. Transformers are used to generate new modified sequences from existing ones."""
 
     def __init__(self, cache: "LocalStorage", **kwargs):
+        """Initialize the transformer.
+
+        Args:
+            cache (LocalStorage): The cache to be used for storing generated sequences.
+        """
         super().__init__(**kwargs)
         self._cache = cache
 
     @abstractmethod
-    def __call__(self, sequence: Sequence) -> Sequence:
+    def __call__(self, sequence: Sequence) -> List[Sequence]:
+        """Generate a list of sequences from the given sequence. The generated sequences are stored in the cache if needed.
+
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        
+        Returns:
+            [list]: A list of generated sequences.
+        """
         raise NotImplementedError
 
+@transformer_registry.register("singleobject")
+class SingleObject(Transformer):
+    """Transformer that generates a sequence for each object in the given sequence."""
+
+    trim = Boolean(default=False, description="Trim each generated sequence to a visible subsection for the selected object")
+
+    def __call__(self, sequence: Sequence) -> List[Sequence]:
+        """Generate a list of sequences from the given sequence.
+        
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        """
+        from vot.dataset.proxy import ObjectFilterSequence
+        
+        if len(sequence.objects()) == 1:
+            return [sequence]
+        
+        return [ObjectFilterSequence(sequence, id, self.trim) for id in sequence.objects()]
+        
 @transformer_registry.register("redetection")
 class Redetection(Transformer):
+    """Transformer that test redetection of the object in the sequence. The object is shown in several frames and then moved to a different location.
+    
+    This tranformer can only be used with single-object sequences."""
 
     length = Integer(default=100, val_min=1)
     initialization = Integer(default=5, val_min=1)
     padding = Float(default=2, val_min=0)
     scaling = Float(default=1, val_min=0.1, val_max=10)
 
-    def __call__(self, sequence: Sequence) -> Sequence:
+    def __call__(self, sequence: Sequence) -> List[Sequence]:
+        """Generate a list of sequences from the given sequence.
+        
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        """
+
+        assert len(sequence.objects()) == 1, "Redetection transformer can only be used with single-object sequences."
 
         chache_dir = self._cache.directory(self, arg_hash(sequence.name, **self.dump()))
 
@@ -61,6 +107,6 @@ class Redetection(Transformer):
 
             write_sequence(chache_dir, generated)
 
-        source = VOTSequence(chache_dir, name=sequence.name)
-        mapping = [0] * self.initialization + [1] * (self.length - self.initialization)
-        return FrameMapSequence(source, mapping)
+        source = read_sequence(chache_dir)
+        mapping = [0] * self.initialization + [1] * (len(self) - self.initialization)
+        return [FrameMapSequence(source, mapping)]

@@ -1,4 +1,5 @@
-import math
+"""This module contains the implementation of the accuracy-robustness analysis and EAO analysis for the multistart experiment."""
+
 from typing import List, Tuple, Any
 
 import numpy as np
@@ -16,6 +17,16 @@ from vot.analysis import MissingResultsException, Measure, Plot, Analysis, Axes,
 from vot.utilities.data import Grid
 
 def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
+    """Compute the EAO curve for a single sequence. The curve is computed as the average overlap at each frame.
+    
+    Args:
+        overlaps (List): List of overlaps for each frame.
+        success (List[bool]): List of success flags for each frame.
+        curve_length (int): Length of the curve.
+        
+    Returns:
+        List[float]: EAO curve.
+    """
     phi = curve_length * [float(0)]
     active = curve_length * [float(0)]
 
@@ -38,6 +49,7 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
 
 @analysis_registry.register("multistart_ar")
 class AccuracyRobustness(SeparableAnalysis):
+    """This analysis computes the accuracy-robustness curve for the multistart experiment."""
 
     burnin = Integer(default=10, val_min=0)
     grace = Integer(default=10, val_min=0)
@@ -45,10 +57,12 @@ class AccuracyRobustness(SeparableAnalysis):
     threshold = Float(default=0.1, val_min=0, val_max=1)
 
     @property
-    def title(self):
+    def _title_default(self):
+        """Title of the analysis."""
         return "AR Analysis"
 
     def describe(self):
+        """Return the description of the analysis."""
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR",
@@ -56,9 +70,21 @@ class AccuracyRobustness(SeparableAnalysis):
              None, None
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
         return isinstance(experiment, MultiStartExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+        """Compute the accuracy-robustness for each sequence.
+        
+        Args:
+            experiment (Experiment): Experiment.
+            tracker (Tracker): Tracker.
+            sequence (Sequence): Sequence.
+            dependencies (List[Grid]): List of dependencies.
+            
+        Returns:
+            Tuple[Any]: Accuracy, robustness, AR curve, robustness, length of the sequence.
+        """
 
         results = experiment.results(tracker, sequence)
 
@@ -79,7 +105,7 @@ class AccuracyRobustness(SeparableAnalysis):
             if reverse:
                 proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
             else:
-                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
             trajectory = Trajectory.read(results, name)
 
@@ -107,17 +133,21 @@ class AccuracyRobustness(SeparableAnalysis):
 
 @analysis_registry.register("multistart_average_ar")
 class AverageAccuracyRobustness(SequenceAggregator):
+    """This analysis computes the average accuracy-robustness curve for the multistart experiment."""
 
     analysis = Include(AccuracyRobustness)
 
     @property
-    def title(self):
+    def _title_default(self):
+        """Title of the analysis."""
         return "AR Analysis"
 
     def dependencies(self):
+        """Return the dependencies of the analysis."""
         return self.analysis, 
 
     def describe(self):
+        """Return the description of the analysis."""
         return Measure("Accuracy", "A", minimal=0, maximal=1, direction=Sorting.DESCENDING), \
              Measure("Robustness", "R", minimal=0, direction=Sorting.DESCENDING), \
              Point("AR plot", dimensions=2, abbreviation="AR",
@@ -125,9 +155,20 @@ class AverageAccuracyRobustness(SequenceAggregator):
              None, None
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
         return isinstance(experiment, MultiStartExperiment)
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
+        """Aggregate the results of the analysis.
+        
+        Args:
+            tracker (Tracker): Tracker.
+            sequences (List[Sequence]): List of sequences.
+            results (Grid): Grid of results.
+            
+        Returns:
+            Tuple[Any]: Aggregated results.
+        """
         total_accuracy = 0
         total_robustness = 0
         weight_accuracy = 0
@@ -145,6 +186,7 @@ class AverageAccuracyRobustness(SequenceAggregator):
 
 @analysis_registry.register("multistart_fragments")
 class MultiStartFragments(SeparableAnalysis):
+    """This analysis computes the accuracy-robustness curve for the multistart experiment."""
 
     burnin = Integer(default=10, val_min=0)
     grace = Integer(default=10, val_min=0)
@@ -152,16 +194,29 @@ class MultiStartFragments(SeparableAnalysis):
     threshold = Float(default=0.1, val_min=0, val_max=1)
 
     @property
-    def title(self):
+    def _title_default(self):
+        """Title of the analysis."""
         return "Fragment Analysis"
 
     def describe(self):
+        """Return the description of the analysis."""
         return Curve("Success", 2, "Sc", minimal=(0, 0), maximal=(1,1), trait="points"), Curve("Accuracy", 2, "Ac", minimal=(0, 0), maximal=(1,1), trait="points")
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
         return isinstance(experiment, MultiStartExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+        """Compute the analysis for a single sequence. The sequence must contain at least one anchor.
+        
+        Args:
+            experiment (Experiment): Experiment.
+            tracker (Tracker): Tracker.
+            sequence (Sequence): Sequence.
+            dependencies (List[Grid]): List of dependencies.
+            
+        Returns:
+            Tuple[Any]: Results of the analysis."""
 
         results = experiment.results(tracker, sequence)
 
@@ -182,7 +237,7 @@ class MultiStartFragments(SeparableAnalysis):
             if reverse:
                 proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
             else:
-                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
             trajectory = Trajectory.read(results, name)
 
@@ -208,6 +263,7 @@ class MultiStartFragments(SeparableAnalysis):
 # TODO: remove high
 @analysis_registry.register("multistart_eao_curves")
 class EAOCurves(SeparableAnalysis):
+    """This analysis computes the expected average overlap curve for the multistart experiment."""
 
     burnin = Integer(default=10, val_min=0)
     grace = Integer(default=10, val_min=0)
@@ -217,17 +273,31 @@ class EAOCurves(SeparableAnalysis):
     high = Integer()
 
     @property
-    def title(self):
+    def _title_default(self):
+        """Title of the analysis."""
         return "EAO Curve"
 
     def describe(self):
+        """Return the description of the analysis."""
         return Plot("Expected average overlap", "EAO", minimal=0, maximal=1, wrt="frames", trait="eao"),
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
         return isinstance(experiment, MultiStartExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-
+        """Compute the analysis for a single sequence. The sequence must contain at least one anchor.
+        
+        Args:
+            experiment (Experiment): Experiment.
+            tracker (Tracker): Tracker.
+            sequence (Sequence): Sequence.
+            dependencies (List[Grid]): List of dependencies.
+            
+        Returns:
+            Tuple[Any]: Results of the analysis.
+        """
+        
         results = experiment.results(tracker, sequence)
 
         forward, backward = find_anchors(sequence, experiment.anchor)
@@ -247,7 +317,7 @@ class EAOCurves(SeparableAnalysis):
             if reverse:
                 proxy = FrameMapSequence(sequence, list(reversed(range(0, i + 1))))
             else:
-                proxy = FrameMapSequence(sequence, list(range(i, sequence.length)))
+                proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
             trajectory = Trajectory.read(results, name)
 
@@ -279,23 +349,38 @@ class EAOCurves(SeparableAnalysis):
 #TODO: remove high
 @analysis_registry.register("multistart_eao_curve")
 class EAOCurve(SequenceAggregator):
+    """This analysis computes the expected average overlap curve for the multistart experiment. It is an aggregator of the curves for individual sequences."""
 
     curves = Include(EAOCurves)
     
     @property
-    def title(self):
+    def _title_default(self):
+        """Title of the analysis."""
         return "EAO Curve"
 
     def describe(self):
+        """Return the description of the analysis."""
         return Plot("Expected average overlap", "EAO", minimal=0, maximal=1, wrt="frames", trait="eao"),
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
         return isinstance(experiment, MultiStartExperiment)
 
     def dependencies(self):
+        """Return the dependencies of the analysis."""
         return self.curves,
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
+        """Aggregate the results of the analysis for multiple sequences. The sequences must contain at least one anchor.
+        
+        Args:
+            tracker (Tracker): Tracker.
+            sequences (List[Sequence]): List of sequences.
+            results (Grid): Grid of results.
+
+        Returns:
+            Tuple[Any]: Results of the analysis.
+        """
 
         eao_curve = self.curves.high * [float(0)]
         eao_weights = self.curves.high * [float(0)]
@@ -309,29 +394,46 @@ class EAOCurve(SequenceAggregator):
 
 @analysis_registry.register("multistart_eao_score")
 class EAOScore(Analysis):
+    """This analysis computes the expected average overlap score for the multistart experiment. It does this by computing the EAO curve and then integrating it."""
 
     low = Integer()
     high = Integer()
     eaocurve = Include(EAOCurve)
 
     @property
-    def title(self):
+    def _title_default(self):
+        """Title of the analysis."""
         return "EAO analysis"
 
     def describe(self):
+        """Return the description of the analysis."""
         return Measure("Expected average overlap", "EAO", minimal=0, maximal=1, direction=Sorting.DESCENDING),
 
     def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
         return isinstance(experiment, MultiStartExperiment)
 
     def dependencies(self):
+        """Return the dependencies of the analysis."""
         return self.eaocurve,
 
     def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
+        """Compute the analysis for multiple sequences. The sequences must contain at least one anchor.
+        
+        Args:
+            experiment (Experiment): Experiment.
+            trackers (List[Tracker]): List of trackers.
+            sequences (List[Sequence]): List of sequences.
+            dependencies (List[Grid]): List of dependencies.
+            
+        Returns:
+            Grid: Grid of results.
+        """
 
         return dependencies[0].foreach(lambda x, i, j: (float(np.mean(x[0][self.low:self.high + 1])), ) )
 
     @property
     def axes(self):
+        """Return the axes of the analysis."""
         return Axes.TRACKERS
 

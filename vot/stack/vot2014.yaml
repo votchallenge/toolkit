@@ -1,5 +1,5 @@
 title: VOT2014 challenge
-dataset: vot:vot2014
+dataset: http://data.votchallenge.net/vot2014/dataset/description.json
 url: http://www.votchallenge.net/vot2014/
 deprecated: True
 experiments:

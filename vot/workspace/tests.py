@@ -1,4 +1,4 @@
-
+"""Tests for workspace related methods and classes."""
 
 import logging
 import tempfile
@@ -9,8 +9,12 @@ from vot.workspace.storage import Cache, LocalStorage
 from vot.workspace import Workspace, NullStorage
 
 class TestStacks(unittest.TestCase):
+    """Tests for workspace related methods
+    """
 
     def test_void_storage(self):
+        """Test if void storage works
+        """
        
         storage = NullStorage()
 
@@ -20,6 +24,8 @@ class TestStacks(unittest.TestCase):
         self.assertIsNone(storage.read("test.data"))
 
     def test_local_storage(self):
+        """Test if local storage works
+        """
        
         with tempfile.TemporaryDirectory() as testdir:
             storage = LocalStorage(testdir)
@@ -32,16 +38,21 @@ class TestStacks(unittest.TestCase):
         # TODO: more tests
 
     def test_workspace_create(self):
+        """Test if workspace creation works
+        """
        
         get_logger().setLevel(logging.WARN) # Disable progress bar
 
-        default_config = dict(stack="testing", registry=["./trackers.ini"])
+        default_config = dict(stack="tests/basic", registry=["./trackers.ini"])
 
         with tempfile.TemporaryDirectory() as testdir:
             Workspace.initialize(testdir, default_config, download=True)
             Workspace.load(testdir)
 
     def test_cache(self):
+        """Test if local storage cache works
+        """
+        
         with tempfile.TemporaryDirectory() as testdir:
 
             cache = Cache(LocalStorage(testdir))

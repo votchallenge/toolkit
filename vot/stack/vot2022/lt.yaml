@@ -1,0 +1,20 @@
+title: VOT-LT2022 challenge
+dataset: https://data.votchallenge.net/vot2022/lt/description.json
+url: https://www.votchallenge.net/vot2022/
+experiments:
+  longterm:
+    type: unsupervised
+    repetitions: 1
+    analyses:
+      - type: average_tpr
+        name: average_tpr
+      - type: pr_curve
+      - type: f_curve
+  redetection:
+    type: unsupervised
+    transformers:
+      - type: redetection
+        length: 200
+        initialization: 5
+        padding: 2
+        scaling: 3

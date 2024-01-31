@@ -1,0 +1,15 @@
+title: VOT-RGBTIR2019 challenge
+dataset: http://data.votchallenge.net/vot2019/rgbtir/meta/description.json
+url: http://www.votchallenge.net/vot2019/
+experiments:
+  baseline:
+    type: multistart
+    realtime:
+      grace: 3
+    analyses:
+      - type: multistart_average_ar
+      - type: multistart_eao_score
+        low: 115
+        high: 755
+      - type: multistart_eao_curve
+        high: 755

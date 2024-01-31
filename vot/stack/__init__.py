@@ -1,29 +1,34 @@
+"""Stacks are collections of experiments that are grouped together for convenience. Stacks are used to organize experiments and to run them in 
+batch mode.
+"""
 import os
-import json
-import glob
-import collections
-from typing import List
+from typing import List, Mapping
 
 import yaml
 
 from attributee import Attributee, String, Boolean, Map, Object
 
 from vot.experiment import Experiment, experiment_registry
-from vot.experiment.transformer import Transformer
 from vot.utilities import import_class
-from vot.analysis import Analysis
 
 def experiment_resolver(typename, context, **kwargs):
+    """Resolves experiment objects from stack definitions. This function is used by the stack module to resolve experiment objects from stack
+    definitions. It is not intended to be used directly.
 
-    if "key" in context:
-        identifier = context["key"]
-    else:
-        identifier = None
+    Args:
+        typename (str): Name of the experiment class
+        context (Attributee): Context of the experiment
+        kwargs (dict): Additional arguments
 
+    Returns:
+        Experiment: Experiment object
+    """
+
+    identifier = context.key
     storage = None
-    if "parent" in context:
-        if getattr(context["parent"], "workspace", None) is not None:
-            storage = context["parent"].workspace.storage
+
+    if getattr(context.parent, "workspace", None) is not None:
+        storage = context.parent.workspace.storage
 
     if typename in experiment_registry:
         experiment = experiment_registry.get(typename, _identifier=identifier, _storage=storage, **kwargs)
@@ -35,14 +40,22 @@ def experiment_resolver(typename, context, **kwargs):
         return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
 
 class Stack(Attributee):
+    """Stack class represents a collection of experiments. Stacks are used to organize experiments and to run them in batch mode.
+    """
 
-    title = String()
-    dataset = String(default="")
+    title = String(default="Stack")
+    dataset = String(default=None)
     url = String(default="")
     deprecated = Boolean(default=False)
     experiments = Map(Object(experiment_resolver))
 
     def __init__(self, name: str, workspace: "Workspace", **kwargs):
+        """Creates a new stack object.
+
+        Args:
+            name (str): Name of the stack
+            workspace (Workspace): Workspace object
+        """
         self._workspace = workspace
         self._name = name
 
@@ -50,22 +63,45 @@ class Stack(Attributee):
 
     @property
     def workspace(self):
+        """Returns the workspace object for the stack."""
         return self._workspace
 
     @property
     def name(self):
+        """Returns the name of the stack."""
         return self._name
 
     def __iter__(self):
+        """Iterates over experiments in the stack."""
         return iter(self.experiments.values())
 
     def __len__(self):
+        """Returns the number of experiments in the stack."""
         return len(self.experiments)
 
     def __getitem__(self, identifier):
+        """Returns the experiment with the given identifier.
+
+        Args:
+            identifier (str): Identifier of the experiment
+        
+        Returns:
+            Experiment: Experiment object
+
+        """
         return self.experiments[identifier]
 
-def resolve_stack(name, *directories):
+def resolve_stack(name: str, *directories: List[str]) -> str:
+    """Searches for stack file in the given directories and returns its absolute path. If given an absolute path as input
+    it simply returns it.
+
+    Args:
+        name (str): Name of the stack
+        directories (List[str]): Directories that will be used
+
+    Returns:
+        str: Absolute path to stack file
+    """
     if os.path.isabs(name):
         return name if os.path.isfile(name) else None
     for directory in directories:
@@ -77,11 +113,24 @@ def resolve_stack(name, *directories):
         return full
     return None
 
-def list_integrated_stacks():
+def list_integrated_stacks() -> Mapping[str, str]:
+    """List stacks that come with the toolkit
+
+    Returns:
+        Map[str, str]: A mapping of stack ids and stack title pairs
+    """
+
+    from pathlib import Path
+
     stacks = {}
-    for stack_file in glob.glob(os.path.join(os.path.dirname(__file__), "*.yaml")):
-        with open(stack_file, 'r') as fp:
+    root = Path(os.path.join(os.path.dirname(__file__)))
+
+    for stack_path in root.rglob("*.yaml"):
+        with open(stack_path, 'r') as fp:
             stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-        stacks[os.path.splitext(os.path.basename(stack_file))[0]] = stack_metadata.get("title", "")
+        if stack_metadata is None:
+            continue
+        key = str(stack_path.relative_to(root).with_name(os.path.splitext(stack_path.name)[0]))
+        stacks[key] = stack_metadata.get("title", "")
 
     return stacks

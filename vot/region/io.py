@@ -1,16 +1,22 @@
+""" Utilities for reading and writing regions from and to files. """
+
 import math
-from typing import Union, TextIO
+from typing import List, Union, TextIO
+import io
 
 import numpy as np
-from numba import jit
+import numba
 
-from vot.region import Special
+@numba.njit(cache=True)
+def mask_to_rle(m, maxstride=100000000):
+    """ Converts a binary mask to RLE encoding. This is a Numba decorated function that is compiled just-in-time for faster execution.
 
-@jit(nopython=True)
-def mask_to_rle(m):
-    """
-    # Input: 2-D numpy array
-    # Output: list of numbers (1st number = #0s, 2nd number = #1s, 3rd number = #0s, ...)
+    Args:
+        m (np.ndarray): 2-D binary mask
+        maxstride (int): Maximum number of consecutive 0s or 1s in the RLE encoding. If the number of consecutive 0s or 1s is larger than maxstride, it is split into multiple elements.
+    
+    Returns:
+        List[int]: RLE encoding of the mask
     """
     # reshape mask to vector
     v = m.reshape((m.shape[0] * m.shape[1]))
@@ -29,31 +35,49 @@ def mask_to_rle(m):
     # go over all elements and check if two consecutive are the same
     for i in range(1, v.size):
         if v[i] != v[i - 1]:
-            rle.append(i - last_idx)
+            length = i - last_idx
+            # if length is larger than maxstride, split it into multiple elements
+            while length > maxstride:
+                rle.append(maxstride)
+                rle.append(0)
+                length -= maxstride
+            # add remaining length
+            if length > 0:
+                rle.append(length)
             last_idx = i
 
     if v.size > 0:
         # handle last element of rle
         if last_idx < v.size - 1:
             # last element is the same as one element before it - add number of these last elements
-            rle.append(v.size - last_idx)
+            length = v.size - last_idx
+            while length > maxstride:
+                rle.append(maxstride)
+                rle.append(0)
+                length -= maxstride
+            if length > 0:
+                rle.append(length)
         else:
             # last element is different than one element before - add 1
             rle.append(1)
 
     return rle
 
-@jit(nopython=True)
+@numba.njit(cache=True)
 def rle_to_mask(rle, width, height):
+    """ Converts RLE encoding to a binary mask. This is a Numba decorated function that is compiled just-in-time for faster execution.
+
+    Args:
+        rle (List[int]): RLE encoding of the mask
+        width (int): Width of the mask
+        height (int): Height of the mask
+
+    Returns:
+        np.ndarray: 2-D binary mask
     """
-    rle: input rle mask encoding
-    each evenly-indexed element represents number of consecutive 0s
-    each oddly indexed element represents number of consecutive 1s
-    width and height are dimensions of the mask
-    output: 2-D binary mask
-    """
+
     # allocate list of zeros
-    v = [0] * (width * height)
+    v = np.zeros(width * height, dtype=np.uint8)
 
     # set id of the last different element to the beginning of the vector
     idx_ = 0
@@ -66,7 +90,8 @@ def rle_to_mask(rle, width, height):
 
     # reshape vector into 2-D mask
     # return np.reshape(np.array(v, dtype=np.uint8), (height, width)) # numba bug / not supporting np.reshape
-    return np.array(v, dtype=np.uint8).reshape((height, width))
+    #return np.array(v, dtype=np.uint8).reshape((height, width))
+    return v.reshape((height, width))
 
 def create_mask_from_string(mask_encoding):
     """
@@ -87,12 +112,13 @@ def create_mask_from_string(mask_encoding):
 from vot.region.raster import mask_bounds
 
 def encode_mask(mask):
-    """
-    mask: input binary mask, type: uint8
-    output: full RLE encoding in the format: (x0, y0, w, h), RLE
-    first get minimal axis-aligned region which contains all positive pixels
-    extract this region from mask and calculate mask RLE within the region
-    output position and size of the region, dimensions of the full mask and RLE encoding
+    """ Encode a binary mask to a string in the following format: x0, y0, w, h, RLE.
+
+    Args:
+        mask (np.ndarray): 2-D binary mask
+
+    Returns:
+        str: Encoded mask
     """
     # calculate coordinates of the top-left corner and region width and height (minimal region containing all 1s)
     x_min, y_min, x_max, y_max = mask_bounds(mask)
@@ -113,17 +139,23 @@ def encode_mask(mask):
 
         return (tl_x, tl_y, region_w, region_h), rle
 
-def parse(string):
-    """
-    parse string to the appropriate region format and return region object
-    """
-    from vot.region.shapes import Rectangle, Polygon, Mask
+def parse_region(string: str) -> "Region":
+    """Parse input string to the appropriate region format and return Region object
 
+    Args:
+        string (str): comma separated list of values
+
+    Returns:
+        Region: resulting region
+    """
+    from vot import config
+    from vot.region import Special
+    from vot.region.shapes import Rectangle, Polygon, Mask
 
     if string[0] == 'm':
         # input is a mask - decode it
         m_, offset_ = create_mask_from_string(string[1:].split(','))
-        return Mask(m_, offset=offset_)
+        return Mask(m_, offset=offset_, optimize=config.mask_optimize_read)
     else:
         # input is not a mask - check if special, rectangle or polygon
         tokens = [float(t) for t in string.split(',')]
@@ -139,30 +171,141 @@ def parse(string):
                 return Special(0)
             else:
                 return Polygon([(x_, y_) for x_, y_ in zip(tokens[::2], tokens[1::2])])
-    print('Unknown region format.')
     return None
 
-def read_file(fp: Union[str, TextIO]):
-    if isinstance(fp, str):
-        with open(fp) as file:
-            lines = file.readlines()
-    else:
-        lines = fp.readlines()
+def read_trajectory_binary(fp: io.RawIOBase):
+    """Reads a trajectory from a binary file and returns a list of regions.
+    
+    Args:
+        fp (io.RawIOBase): File pointer to the binary file
+        
+    Returns:
+        list: List of regions
+    """
+    import struct
+    from cachetools import LRUCache, cached
+    from vot.region import Special
+    from vot.region.shapes import Rectangle, Polygon, Mask
 
-    regions = [0] * len(lines)
-    # iterate over all lines in the file
-    for i, line in enumerate(lines):
-        regions[i] = parse(line.strip())
+    buffer = dict(data=fp.read(), offset = 0)
+
+    @cached(cache=LRUCache(maxsize=32))
+    def calcsize(format):
+        """Calculate size of the struct format"""
+        return struct.calcsize(format)
+
+    def read(format: str):
+        """Read struct from the buffer and update offset"""
+        unpacked = struct.unpack_from(format, buffer["data"], buffer["offset"])
+        buffer["offset"] += calcsize(format)
+        return unpacked
+
+    _, length = read("<hI")
+
+    trajectory = []
+
+    for _ in range(length):
+        type, = read("<B")
+        if type == 0: r = Special(*read("<I"))
+        elif type == 1: r = Rectangle(*read("<ffff"))
+        elif type == 2:
+            n, = read("<H")
+            values = read("<%df" % (2 * n))
+            r = Polygon(list(zip(values[0::2], values[1::2])))
+        elif type == 3:
+            tl_x, tl_y, region_w, region_h, n = read("<hhHHH")
+            rle = np.array(read("<%dH" % (n)), dtype=np.int32)
+            r = Mask(rle_to_mask(rle, region_w, region_h), (tl_x, tl_y))
+        else:
+            raise IOError("Wrong region type")
+        trajectory.append(r)
+    return trajectory
+
+def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
+    """Writes a trajectory to a binary file.
+
+    Args:
+        fp (io.RawIOBase): File pointer to the binary file
+        data (list): List of regions
+    """
+    import struct
+    from vot.region import Special
+    from vot.region.shapes import Rectangle, Polygon, Mask
+
+    fp.write(struct.pack("<hI", 1, len(data)))
+
+    for r in data:
+        if isinstance(r, Special): fp.write(struct.pack("<BI", 0, r.code))
+        elif isinstance(r, Rectangle): fp.write(struct.pack("<Bffff", 1, r.x, r.y, r.width, r.height))
+        elif isinstance(r, Polygon): fp.write(struct.pack("<BH%df" % (2 * r.size), 2, r.size, *[item for sublist in r.points() for item in sublist]))
+        elif isinstance(r, Mask): 
+            rle = mask_to_rle(r.mask, maxstride=255*255)
+            fp.write(struct.pack("<BhhHHH%dH" % len(rle), 3, r.offset[0], r.offset[1], r.mask.shape[1], r.mask.shape[0], len(rle), *rle))
+        else:
+            raise IOError("Wrong region type")
+
+def read_trajectory(fp: Union[str, TextIO]):
+    """Reads a trajectory from a file and returns a list of regions.
+    
+    Args:
+        fp (str or TextIO): File path or file pointer to the trajectory file
+        
+    Returns:
+        list: List of regions
+    """
+    if isinstance(fp, str):
+        try:
+            import struct
+            with open(fp, "r+b") as tfp:
+                v, = struct.unpack("<h", tfp.read(struct.calcsize("<h")))
+                binary = v == 1
+                # TODO: we can use the same file handle in case of binary format
+        except Exception as e:
+            binary = False
+
+        fp = open(fp, "rb" if binary else "r")
+        close = True
+    else:
+        binary = isinstance(fp, (io.RawIOBase, io.BufferedIOBase)) 
+        close = False
+
+    if binary:
+        regions = read_trajectory_binary(fp)
+    else:
+        regions = []
+        for line in fp.readlines():
+            regions.append(parse_region(line.strip()))
+
+    if close:
+        fp.close()
+
     return regions
 
-def write_file(fp: Union[str, TextIO], data):
+def write_trajectory(fp: Union[str, TextIO], data: List["Region"]):
+    """ Write a trajectory to a file handle or a file with a given name. Based on the suffix of a file or properties of a file handle, the output may be either text based
+    or binary.
+
+    Args:
+        fp (Union[str, TextIO]): File handle or file name
+        data (List[Region]): Trajectory, a list of region objects
+
+    Raises:
+        IOError: If the file format is not supported
     """
-    data is a list where each element is a region
-    """
+
     if isinstance(fp, str):
-        with open(fp, 'w') as file:
-            for region in data:
-                file.write('%s\n' % str(region))
+        binary = fp.endswith(".bin")
+        close = True
+        fp = open(fp, "wb" if binary else "w")
+    else:
+        binary = isinstance(fp, (io.RawIOBase, io.BufferedIOBase)) 
+        close = False
+
+    if binary:
+        write_trajectory_binary(fp, data)
     else:
         for region in data:
-            fp.write('%s\n' % str(region))
+            fp.write(str(region) + "\n")
+    
+    if close:
+        fp.close()
