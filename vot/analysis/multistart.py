@@ -4,7 +4,7 @@ from typing import List, Tuple, Any
 
 import numpy as np
 
-from attributee import Integer, Boolean, Float, Include
+from attributee import Integer, Boolean, Float, Include, String
 
 from vot.tracker import Tracker, Trajectory
 from vot.dataset import Sequence
@@ -55,6 +55,7 @@ class AccuracyRobustness(SeparableAnalysis):
     grace = Integer(default=10, val_min=0)
     bounded = Boolean(default=True)
     threshold = Float(default=0.1, val_min=0, val_max=1)
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 
     @property
     def _title_default(self):
@@ -109,7 +110,9 @@ class AccuracyRobustness(SeparableAnalysis):
 
             trajectory = Trajectory.read(results, name)
 
-            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), (proxy.size) if self.burnin else None)
+            masks = proxy.object(self.ignore_masks)
+
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), (proxy.size) if self.burnin else None, ignore=masks)
 
             grace = self.grace
             progress = len(proxy)
@@ -192,6 +195,7 @@ class MultiStartFragments(SeparableAnalysis):
     grace = Integer(default=10, val_min=0)
     bounded = Boolean(default=True)
     threshold = Float(default=0.1, val_min=0, val_max=1)
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 
     @property
     def _title_default(self):
@@ -241,7 +245,9 @@ class MultiStartFragments(SeparableAnalysis):
 
             trajectory = Trajectory.read(results, name)
 
-            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), (proxy.size) if self.burnin else None)
+            masks = proxy.object(self.ignore_masks)
+
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), (proxy.size) if self.burnin else None, ignore=masks)
 
             grace = self.grace
             progress = len(proxy)
@@ -269,6 +275,7 @@ class EAOCurves(SeparableAnalysis):
     grace = Integer(default=10, val_min=0)
     bounded = Boolean(default=True)
     threshold = Float(default=0.1, val_min=0, val_max=1)
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 
     high = Integer()
 
@@ -321,7 +328,9 @@ class EAOCurves(SeparableAnalysis):
 
             trajectory = Trajectory.read(results, name)
 
-            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self.burnin else None)
+            masks = proxy.object(self.ignore_masks)
+
+            overlaps = calculate_overlaps(trajectory.regions(), proxy.groundtruth(), proxy.size if self.burnin else None, ignore=masks)
 
             grace = self.grace
             progress = len(proxy)

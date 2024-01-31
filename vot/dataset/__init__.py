@@ -859,7 +859,8 @@ class BasedSequence(Sequence):
 
     def groundtruth(self, index=None):
         """Returns the groundtruth object. If the index is specified, the object is returned as a Region object. If the
-        sequence contains more than one object, an exception is raised.
+        sequence contains more than one object, an exception is raised. If more objects are present, this method 
+        ignores special objects.
         
         Args:
             index (int, optional): Frame index. Defaults to None.
@@ -868,9 +869,12 @@ class BasedSequence(Sequence):
             Region: Groundtruth region
         """
         objids = self.objects()
-            
+   
         if len(objids) != 1:
-            raise DatasetException("More than one object in sequence")
+            # Filter special objects first
+            objids = [o for o in objids if not o.startswith("_")]
+            if len(objids) != 1:
+                raise DatasetException("More than one object in sequence")
 
         id = next(iter(objids))
         return self.object(id, index)

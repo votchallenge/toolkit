@@ -8,11 +8,12 @@ from abc import abstractmethod
 
 from class_registry import ClassRegistry
 
-from attributee import Attributee, Object, Integer, Float, Nested, List
+from attributee import Attributee, Object, Integer, Float, Nested, List, Boolean
 
 from vot import get_logger
 from vot.tracker import TrackerException
 from vot.utilities import Progress, to_number, import_class
+from vot.dataset.proxy import IgnoreSpecialObjects
 
 experiment_registry = ClassRegistry("vot_experiment")
 transformer_registry = ClassRegistry("vot_transformer")
@@ -97,6 +98,7 @@ class Experiment(Attributee):
     inject = Nested(InjectConfig, default=None)
     transformers = List(Object(transformer_resolver), default=[])
     analyses = List(Object(analysis_resolver), default=[])
+    ignore_special = Boolean(default=True, description="Ignore special objects in experiment")
 
     def __init__(self, _identifier: str, _storage: "Storage", **kwargs):
         """Initialize an experiment.
@@ -276,6 +278,9 @@ class Experiment(Attributee):
                 get_logger().debug("Transforming sequence {} with transformer {}.{}".format(sequence.identifier, transformer.__class__.__module__, transformer.__class__.__name__))
                 transformed.extend(transformer(sequence))
             sequences = transformed
+
+        if self.ignore_special:
+            sequences = [IgnoreSpecialObjects(sequence) for sequence in sequences]
 
         return sequences
 

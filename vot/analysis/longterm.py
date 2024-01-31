@@ -4,7 +4,7 @@ import numpy as np
 from typing import List, Iterable, Tuple, Any
 import itertools
 
-from attributee import Float, Integer, Boolean, Include
+from attributee import Float, Integer, Boolean, Include, String
 
 from vot.tracker import Tracker
 from vot.dataset import Sequence
@@ -43,7 +43,7 @@ def determine_thresholds(scores: Iterable[float], resolution: int) -> List[float
     return thresholds
 
 def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequence: Sequence, thresholds: List[float],
-    ignore_unknown: bool = True, bounded: bool = True):
+    ignore_unknown: bool = True, bounded: bool = True, ignore_masks: List[Region] = None) -> Tuple[List[float], List[float]]:
     """Compute the TPR curves for a given trajectory and confidence scores. 
     
     Args:
@@ -53,12 +53,16 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
         thresholds (List[float]): Thresholds to compute the TPR curves for.
         ignore_unknown (bool, optional): Ignore unknown regions. Defaults to True.
         bounded (bool, optional): Bounded evaluation. Defaults to True.
+        ignore_masks (List[Region], optional): Ignore masks. Defaults to None.
 
     Returns:
         List[float], List[float]: TPR curves for the given thresholds.
     """
+    assert len(trajectory) == len(confidence), "Trajectory and confidence must have the same length"
+    if ignore_masks is not None:
+        assert len(trajectory) == len(ignore_masks), "Trajectory and ignore masks must have the same length"
 
-    overlaps = np.array(calculate_overlaps(trajectory, sequence.groundtruth(), (sequence.size) if bounded else None))
+    overlaps = np.array(calculate_overlaps(trajectory, sequence.groundtruth(), (sequence.size) if bounded else None, ignore=ignore_masks))
     confidence = np.array(confidence)
 
     n_visible = len([region for region in sequence.groundtruth() if region.type is not RegionType.SPECIAL])
@@ -164,6 +168,7 @@ class PrecisionRecallCurves(SeparableAnalysis):
     thresholds = Include(_Thresholds)
     ignore_unknown = Boolean(default=True, description="Ignore unknown regions")
     bounded = Boolean(default=True, description="Bounded evaluation")
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 
     @property
     def _title_default(self):
@@ -199,6 +204,8 @@ class PrecisionRecallCurves(SeparableAnalysis):
 
         trajectories = experiment.gather(tracker, sequence)
 
+        ignore_masks = sequence.object(self.ignore_masks)
+
         if len(trajectories) == 0:
             raise MissingResultsException()
 
@@ -206,7 +213,7 @@ class PrecisionRecallCurves(SeparableAnalysis):
         recall = len(thresholds) * [float(0)]
         for trajectory in trajectories:
             confidence = [trajectory.properties(i).get('confidence', 0) for i in range(len(trajectory))]
-            pr, re = compute_tpr_curves(trajectory.regions(), confidence, sequence, thresholds, self.ignore_unknown, self.bounded)
+            pr, re = compute_tpr_curves(trajectory.regions(), confidence, sequence, thresholds, self.ignore_unknown, self.bounded, ignore_masks=ignore_masks)
             for i in range(len(thresholds)):
                 precision[i] += pr[i]
                 recall[i] += re[i]
@@ -376,7 +383,7 @@ class PrecisionRecall(Analysis):
         return Axes.TRACKERS
 
 
-def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = None, threshold: float = 0) -> float:
+def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = None, threshold: float = 0, ignore_masks: List[Region] = None) -> float:
     """Counts the number of frames where the tracker is correct, fails, misses, hallucinates or notices an object.
     
     Args:
@@ -384,12 +391,18 @@ def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = N
         groundtruth (List[Region]): Groundtruth trajectory.
         bounds (Optional[Region]): Bounds of the sequence.
         threshold (float): Threshold for the overlap.
+        ignore_masks (List[Region]): Ignore masks.
         
     Returns:
         float: Number of frames where the tracker is correct, fails, misses, hallucinates or notices an object.
     """
 
-    overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds))
+    assert len(trajectory) == len(groundtruth), "Trajectory and groundtruth must have the same length"
+
+    if ignore_masks is not None:
+        assert len(trajectory) == len(ignore_masks), "Trajectory and ignore masks must have the same length"
+
+    overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds, ignore=ignore_masks))
     if threshold is None: threshold = -1
 
     # Tracking, Failure, Miss, Halucination, Notice
@@ -419,6 +432,7 @@ class CountFrames(SeparableAnalysis):
 
     threshold = Float(default=0.0, val_min=0, val_max=1)
     bounded = Boolean(default=True)
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 
     def compatible(self, experiment: Experiment):
         """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
@@ -437,6 +451,8 @@ class CountFrames(SeparableAnalysis):
         distribution = []
         bounds = (sequence.size) if self.bounded else None
 
+        masks = sequence.object(self.ignore_masks)
+
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
             if len(trajectories) == 0:
@@ -445,7 +461,7 @@ class CountFrames(SeparableAnalysis):
             CN, CF, CM, CH, CT = 0, 0, 0, 0, 0
 
             for trajectory in trajectories:
-                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds)
+                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds, ignore_masks=masks)
                 CN += N
                 CF += F
                 CM += M
@@ -469,6 +485,7 @@ class QualityAuxiliary(SeparableAnalysis):
     threshold = Float(default=0.0, val_min=0, val_max=1)
     bounded = Boolean(default=True)
     absence_threshold = Integer(default=10, val_min=0)
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 
     def compatible(self, experiment: Experiment):
         """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
@@ -510,6 +527,8 @@ class QualityAuxiliary(SeparableAnalysis):
 
         absence_valid = 0
 
+        masks = sequence.object(self.ignore_masks)
+
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
             if len(trajectories) == 0:
@@ -518,7 +537,7 @@ class QualityAuxiliary(SeparableAnalysis):
             CN, CF, CM, CH, CT = 0, 0, 0, 0, 0
 
             for trajectory in trajectories:
-                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds)
+                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds, ignore_masks=masks)
                 CN += N
                 CF += F
                 CM += M
@@ -609,10 +628,11 @@ class AccuracyRobustness(Analysis):
     threshold = Float(default=0.0, val_min=0, val_max=1)
     bounded = Boolean(default=True)
     counts = Include(CountFrames)
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 
     def dependencies(self) -> List[Analysis]:
         """Returns the dependencies of the analysis."""
-        return self.counts, SequenceAccuracy(burnin=0, threshold=self.threshold, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False)
+        return self.counts, SequenceAccuracy(burnin=0, threshold=self.threshold, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False, ignore_masks=self.ignore_masks)
     
     def compatible(self, experiment: Experiment):
         """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""

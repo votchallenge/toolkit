@@ -408,3 +408,25 @@ class ObjectsHideFilterSequence(ProxySequence):
         """
         objects = self._source.objects()
         return {id for id in objects if id not in self._ids}
+
+def IgnoreSpecialObjects(sequence: Sequence) -> Sequence:
+    """Creates a proxy sequence that ignores special objects.Special objects are denoted by a 
+        leading underscore in the object name. Usually, those objects are used for storing additional
+        information about the sequence.
+    
+    Args:
+        sequence (Sequence): Source sequence object.
+        
+    Returns:
+        Sequence: Proxy sequence object.
+    """
+
+    def is_special(id: str):
+        return id.startswith("_")
+    
+    ids = [id for id in sequence.objects() if is_special(id)]
+
+    if len(ids) == 0:
+        return sequence
+
+    return ObjectsHideFilterSequence(sequence, ids)

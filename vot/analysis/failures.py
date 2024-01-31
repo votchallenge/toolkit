@@ -12,7 +12,7 @@ from vot.analysis import (Measure,
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import (SupervisedExperiment)
-from vot.region import Region, Special, calculate_overlaps
+from vot.region import Region
 from vot.tracker import Tracker
 from vot.utilities.data import Grid
 
