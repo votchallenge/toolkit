@@ -349,7 +349,7 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
         try:
             experiment.execute(tracker, sequence, force=force, callback=progress)
         except TrackerException as te:
-            logger.error("Tracker %s encountered an error: %s", te.tracker.identifier, te)
+            logger.error("Tracker %s encountered an error on sequence %s: %s", te.tracker.identifier, sequence.name, te)
             logger.debug(te, exc_info=True)
             if not te.log is None:
                 with experiment.log(te.tracker.identifier) as flog:

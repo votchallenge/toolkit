@@ -128,7 +128,7 @@ def convert_region(region: Region) -> TraxRegion:
         return TraxPolygon.create([region[i] for i in range(region.size)])
     elif isinstance(region, Mask):
         return TraxMask.create(region.mask, x=region.offset[0], y=region.offset[1])
-    return None
+    raise TraxException("Unknown region type {}".format(type(region))) 
 
 def convert_traxregion(region: TraxRegion) -> Region:
     """ Converts a Trax region to a region.
@@ -146,7 +146,7 @@ def convert_traxregion(region: TraxRegion) -> Region:
         return Polygon(list(region))
     elif region.type == TraxRegion.MASK:
         return Mask(region.array(), region.offset(), optimize=True)
-    return None
+    raise TraxException("Unknown region type {}".format(region.type))
 
 def convert_objects(objects: Objects) -> TraxRegion:
     """ Converts a list of objects to a Trax region.
