@@ -1,6 +1,6 @@
 title: VOT2016 challenge
-dataset: http://data.votchallenge.net/vot2016/main/description.json
-url: http://www.votchallenge.net/vot2016/
+dataset: https://data.votchallenge.net/vot2016/main/description.json
+url: https://www.votchallenge.net/vot2016/
 experiments:
   baseline:
     type: supervised

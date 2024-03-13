@@ -1,6 +1,6 @@
 title: VOT-TIR2016 challenge
-dataset: http://data.votchallenge.net/vot2016/vot-tir2016.zip
-url: http://www.votchallenge.net/vot2016/
+dataset: https://data.votchallenge.net/vot2016/tir/description.json
+url: https://www.votchallenge.net/vot2016/
 experiments:
   baseline:
     type: supervised
