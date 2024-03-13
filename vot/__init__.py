@@ -5,16 +5,6 @@ import logging
 
 from .version import __version__
 
-_logger = logging.getLogger("vot")
-
-def get_logger() -> logging.Logger:
-    """Returns the default logger object used to log different messages.
-
-    Returns:
-        logging.Logger: Logger handle
-    """
-    return _logger
-
 class ToolkitException(Exception):
     """Base class for all toolkit related exceptions
     """
@@ -97,11 +87,30 @@ class GlobalConfiguration(Attributee):
             if envname in os.environ:
                 kwargs[k] = os.environ[envname]
         super().__init__(**kwargs)
-        _logger.debug("Global configuration: %s", self)
 
     def __repr__(self):
         """Returns a string representation of the global configuration object."""
         return " ".join(["{}={}".format(k, getattr(self, k)) for k in self.attributes()])
+
+_logger = None
+
+def get_logger() -> logging.Logger:
+    """Returns the default logger object used to log different messages.
+
+    Returns:
+        logging.Logger: Logger handle
+    """
+    global _logger
+    if _logger is None:
+        from .utilities import ColoredFormatter
+        _logger = logging.getLogger("vot")
+        stream = logging.StreamHandler()
+        stream.setFormatter(ColoredFormatter())
+        _logger.addHandler(stream)
+        if check_debug():
+            _logger.setLevel(logging.DEBUG)
+
+    return _logger
 
 config = GlobalConfiguration()
 
@@ -113,3 +122,5 @@ def check_debug() -> bool:
     """
     return config.debug_mode
 
+if check_debug():
+    get_logger().debug("Global config: " + str(config))

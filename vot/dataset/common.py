@@ -8,7 +8,7 @@ import six
 
 import cv2
 
-from vot.dataset import Dataset, DatasetException, Sequence, BasedSequence, PatternFileListChannel, SequenceData
+from vot.dataset import DatasetException, Sequence, BasedSequence, PatternFileListChannel, SequenceData
 from vot.region.io import write_trajectory, read_trajectory
 from vot.region import Special
 from vot.utilities import Progress, localize_path, read_properties, write_properties
@@ -155,7 +155,7 @@ def _read_metadata(path):
 
     return metadata
 
-from vot.dataset import sequence_reader
+from vot.dataset import sequence_reader, sequence_indexer
 
 @sequence_reader.register("default")
 def read_sequence(path):
@@ -186,9 +186,31 @@ def read_sequence_legacy(path):
 
     metadata = dict(fps=30, format="default")
     metadata["channel.default"] = "color"
-    metadata["channel.color"] = "%08d.jpg"
+    metadata["channels.color"] = "%08d.jpg"
+    metadata["root"] = path
+    metadata["length"] = None
 
     return BasedSequence(os.path.basename(path), _read_data, metadata=metadata)
+
+@sequence_indexer.register("default")
+def index_sequences(path: str) -> None:
+    """Indexes the sequences in the given path. Only works if there is a list.txt file in the given path or the path is a list file.
+    
+    Args:
+        path (str): The path to index sequences in.
+    """
+
+    if os.path.isfile(path):
+        with open(os.path.join(path), 'r') as fd:
+            names = fd.readlines()
+
+    if os.path.isdir(path):
+        if os.path.isfile(os.path.join(path, "list.txt")):
+            with open(os.path.join(path, "list.txt"), 'r') as fd:
+                names = fd.readlines()
+
+    names = [name.strip() for name in names]
+    return names
 
 def download_dataset_meta(url: str, path: str) -> None:
     """Downloads the metadata of a dataset from a given URL and stores it in the given path.

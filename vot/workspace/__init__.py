@@ -79,6 +79,18 @@ class Workspace(Attributee):
     report = Nested(ReportConfiguration)
 
     @staticmethod
+    def exists(directory: str) -> bool:
+        """Check if a workspace exists in a given directory.
+
+        Args:
+            directory (str): Directory to check
+
+        Returns:
+            bool: True if the workspace exists, False otherwise.
+        """
+        return os.path.isfile(os.path.join(directory, "config.yaml"))
+
+    @staticmethod
     def initialize(directory: str, config: typing.Optional[typing.Dict] = None, download: bool = True) -> None:
         """Initialize a new workspace in a given directory with the given config
 
@@ -92,7 +104,7 @@ class Workspace(Attributee):
         """
 
         config_file = os.path.join(directory, "config.yaml")
-        if os.path.isfile(config_file):
+        if Workspace.exists(directory):
             raise WorkspaceException("Workspace already initialized")
 
         os.makedirs(directory, exist_ok=True)

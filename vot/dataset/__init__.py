@@ -1018,7 +1018,6 @@ class InMemorySequence(Sequence):
             List[str]: List of channel names
 
         """
-        print(self._channels.keys())
         return set(self._channels.keys())
     
     def frame(self, index : int) -> "Frame":
@@ -1222,29 +1221,29 @@ def load_dataset(path: str) -> Dataset:
 
     from collections import OrderedDict
 
-    names = []
+    sequence_list = None
 
-    if os.path.isfile(path):
-        with open(os.path.join(path), 'r') as fd:
-            names = fd.readlines()
-
-    if os.path.isdir(path):
-        if os.path.isfile(os.path.join(path, "list.txt")):
-            with open(os.path.join(path, "list.txt"), 'r') as fd:
-                names = fd.readlines()
-
-    if len(names) == 0:
-        raise DatasetException("Dataset directory does not contain a list.txt file")
+    for _, indexer in sequence_indexer.items():
+        logger.debug("Attempting to index sequences with {}.{}".format(indexer.__module__, indexer.__name__))
+        sequence_list = indexer(path)
+        if sequence_list is not None:
+            break
+        
+    if sequence_list is None or len(sequence_list) == 0:
+        raise DatasetException("Unable to locate sequences in {}".format(path))
 
     sequences = OrderedDict()
 
     logger.debug("Loading sequences...")
 
-    for name in names:
-        root = os.path.join(path, name.strip())
-        sequences[name.strip()] = load_sequence(root)
+    for sequence_id in sequence_list:
+        sequence_path = sequence_id.strip()
+        if not os.path.isabs(sequence_id):
+            sequence_path = os.path.join(path, sequence_id)
+        sequence = load_sequence(sequence_path)
+        sequences[sequence.name] = sequence
 
-    logger.debug("Found %d sequences in dataset" % len(names))
+    logger.debug("Found %d sequences in dataset" % len(sequence_list))
 
     return Dataset(sequences)
 
@@ -1262,7 +1261,7 @@ def load_sequence(path: str) -> Sequence:
     """
 
     for _, loader in sequence_reader.items():
-        logger.debug("Trying to load sequence with {}.{}".format(loader.__module__, loader.__name__))
+        logger.debug("Attempting to load sequence with {}.{}".format(loader.__module__, loader.__name__))
         sequence = loader(path)
         if sequence is not None:
             return sequence

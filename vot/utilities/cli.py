@@ -429,9 +429,6 @@ def do_pack(config: argparse.Namespace):
 def main():
     """Entrypoint to the toolkit Command Line Interface utility, should be executed as a program and provided with arguments.
     """
-    stream = logging.StreamHandler()
-    stream.setFormatter(ColoredFormatter())
-    logger.addHandler(stream)
 
     parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Interface', prog="vot")
     parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')
@@ -477,10 +474,10 @@ def main():
 
         args = parser.parse_args()
 
-        logger.setLevel(logging.INFO)
-
-        if args.debug or check_debug():
+        if args.debug:
             logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.INFO)
 
         def check_version():
             """Check if a newer version of the toolkit is available."""
@@ -493,7 +490,7 @@ def main():
             do_test(args)
         elif args.action == "initialize":
             check_version()
-            do_workspace(args)
+            do_initialize(args)
         elif args.action == "evaluate":
             check_version()
             do_evaluate(args)
