@@ -40,7 +40,7 @@ def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin:
     if ignore_masks is not None:
         assert len(trajectory) == len(ignore_masks), "Trajectory and ignore mask must have the same length."
 
-    overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds, ignore_mask=ignore_masks))
+    overlaps = np.array(calculate_overlaps(trajectory, groundtruth, bounds, ignore=ignore_masks))
     mask = np.ones(len(overlaps), dtype=bool)
 
     if threshold is None: threshold = -1

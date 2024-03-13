@@ -16,7 +16,7 @@ def mask_bounds(mask: np.ndarray):
     This is a Numba implementation of the function that is compiled to machine code for faster execution.
 
     Args:
-        mask: 2-D array with a binary mask
+        mask (np.ndarray): 2-D array with a binary mask
 
     Returns:
         coordinates of the top-left and bottom-right corners of the minimal axis-aligned region containing all positive pixels
@@ -290,6 +290,9 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optio
         ao: 2-tuple with the offset of the first mask
         bo: 2-tuple with the offset of the second mask
         bounds: 2-tuple with the bounds of the image (left, top, right, bottom)
+        ignore: 2-D array with the mask of the region to ignore
+        it: type of the region to ignore
+        io: 2-tuple with the offset of the mask to ignore
     
     Returns:
         float with the overlap between the two regions. Note that overlap is one by definition if both regions are empty.
@@ -326,7 +329,7 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optio
         m3 = _region_raster(ignore, raster_bounds, it, io)
         a3 = m3.ravel()
         for i in range(a1.size):
-            if m3[i] != 0:
+            if a3[i] != 0:
                 if a1[i] != 0 or a2[i] != 0:
                     union_ += 1
                     if a1[i] != 0 and a2[i] != 0:

@@ -422,6 +422,7 @@ def IgnoreSpecialObjects(sequence: Sequence) -> Sequence:
     """
 
     def is_special(id: str):
+        """Checks if the object id is special (starts with underscore)."""
         return id.startswith("_")
     
     ids = [id for id in sequence.objects() if is_special(id)]
