@@ -329,7 +329,7 @@ def _calculate_overlap(a: np.ndarray, b: np.ndarray, at: int, bt: int, ao: Optio
         m3 = _region_raster(ignore, raster_bounds, it, io)
         a3 = m3.ravel()
         for i in range(a1.size):
-            if a3[i] != 0:
+            if a3[i] == 0: # Non-negative value means that we ignore the pixel
                 if a1[i] != 0 or a2[i] != 0:
                     union_ += 1
                     if a1[i] != 0 and a2[i] != 0:
