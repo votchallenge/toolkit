@@ -7,7 +7,7 @@ enables efficient execution of large-scale evaluations.
 .. automodule:: vot.analysis
    :members:
 
-.. automodule:: vot.analysis.parallel
+.. automodule:: vot.analysis.processor
    :members:
 
 Accuracy analysis
@@ -19,7 +19,7 @@ Accuracy analysis
 Failure analysis
 ----------------
 
-.. automodule:: vot.analysis.failure
+.. automodule:: vot.analysis.failures
    :members:
 
 Long-term measures
@@ -37,5 +37,5 @@ Multi-start measures
 Supervision analysis
 --------------------
 
-.. automodule:: vot.analysis.supervision
+.. automodule:: vot.analysis.supervised
    :members:

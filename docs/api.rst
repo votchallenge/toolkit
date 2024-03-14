@@ -8,15 +8,15 @@ The API section contains the generated documentation of individual structures an
 
    api/analysis
    api/dataset
-   api/document
+   api/report
    api/experiment
    api/region
    api/stack
    api/tracker
    api/utilities
 
-Core utilities
---------------
+Configuration
+-------------
 
 .. automodule:: vot
    :members:

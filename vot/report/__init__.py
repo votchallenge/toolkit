@@ -210,6 +210,7 @@ class ObjectVideo(Video):
         self._regions = {}
 
     def draw(self, frame, key, data):
+        """Draws the data on the frame."""
         from vot.region import Region
         assert isinstance(data, Region)
 
@@ -219,6 +220,7 @@ class ObjectVideo(Video):
         self._regions[key][frame] = data
 
     def render(self, frame: int):
+        """Renders the frame and returns it as an array."""
         from vot.utilities.draw import ImageDrawHandle
 
         assert frame >= 0 and frame < len(self)
@@ -471,7 +473,7 @@ class StyleManager(Attributee):
         """ Makes the figure for the given trait.
         
         Args:
-            trait: The trait for which to make the figure.
+            trait (str): The trait for which to make the figure.
 
         Returns:
             A tuple containing the figure and the axes.
@@ -519,13 +521,13 @@ class TrackerSorter(Attributee):
     analysis = String(default=None)
     result = Integer(val_min=0, default=0)
 
-    def __call__(self, experiments, trackers, sequences):
+    def __call__(self, experiments: typing.List["Experiment"], trackers: typing.List["Tracker"], sequences: typing.List["Sequence"]):
         """ Sorts the trackers. 
         
         Arguments:
-            experiments (list of Experiment): The experiments.
-            trackers (list of Tracker): The trackers.
-            sequences (list of Sequence): The sequences.
+            experiments (typing.List[Experiment]): The experiments.
+            trackers (typing.List[Tracker]): The trackers.
+            sequences (typing.List[Sequence]): The sequences.
             
         Returns:
             A list of indices of the trackers in the sorted order.
@@ -667,7 +669,7 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
     """Generate a report for a one or multiple trackers on an experiment stack and a set of sequences.
 
     Args:
-        workspace: The workspace to use for the report.
+        workspace (Workspace): The workspace to use for the report.
         trackers: The trackers to include in the report.
         format: The format of the report.
         name: The name of the report.

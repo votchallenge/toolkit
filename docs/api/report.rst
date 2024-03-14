@@ -1,5 +1,5 @@
 Report module
-============
+=============
 
 .. automodule:: vot.report
    :members:
@@ -8,13 +8,13 @@ Report module
    :members:
 
 HTML report generation
-------------------------
+----------------------
 
 .. automodule:: vot.report
    :members:
 
 LaTeX report generation
--------------------------
+-----------------------
 
 .. automodule:: vot.report.latex
    :members:

@@ -4,7 +4,7 @@ Dataset module
 .. automodule:: vot.dataset
    :members:
 
-.. automodule:: vot.datase.common
+.. automodule:: vot.dataset.common
    :members:
 
 Extended dataset support

@@ -122,6 +122,7 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
 
     # TODO: make table more general (now it assumes a tracker per row)
     def make_table(data: Table):
+        """Generates a table from a Table object."""
         if len(data.header[2]) == 0:
             logger.debug("No measures found, skipping table")
         else:
