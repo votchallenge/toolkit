@@ -71,9 +71,10 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
 
     def insert_video(data: Video):
         """Insert a video into the document."""
-        name = data.identifier + ".avi"
+        name = data.identifier + ".mp4"
 
-        data.save(storage.write(name), "avi")
+        with storage.write(name, binary=True) as handle:
+            data.save(handle, "mp4")
 
         with video(src=name, controls=True, preload="auto", autoplay=False, loop=False, width="100%", height="100%"):
             raw("Your browser does not support the video tag.")

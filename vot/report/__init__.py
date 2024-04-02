@@ -125,43 +125,34 @@ class Video(object):
         import tempfile
         import shutil
         import os
-        import cv2
+        from .video import VideoWriterScikitH264, VideoWriterOpenCV
 
         supported_mappings = {
-            "mp4": "mp4v",
-            "avi": "XVID"
+            "mp4": VideoWriterScikitH264,
+            "avi": VideoWriterOpenCV
         }
 
         if not fmt in supported_mappings:
             raise ValueError("Unsupported video format: {}".format(fmt))
 
-        fourcc = cv2.VideoWriter_fourcc(*supported_mappings[fmt])
-
-        frame = self.render(0)
-        height, width, _ = frame.shape
-        
         if not isinstance(output, str):
-            fd, tempname = tempfile.mkstemp()
+            fd, tempname = tempfile.mkstemp(prefix="video_", suffix=".{}".format(fmt))
             os.close(fd)
         else: 
             tempname = output
 
-        writer = cv2.VideoWriter(tempname, fourcc, self._fps, (height, width))
-        print(frame.dtype, frame.shape)
-        writer.write(frame)
+        writer = supported_mappings[fmt](tempname, self._fps)
 
-        for i in range(1, len(self._frames)):
-            frame = self.render(i)
+        for i in range(0, len(self._frames)):
+            writer(self.render(i))
 
-            writer.write(frame)
-
-        writer.release()
+        writer.close()
 
         if tempname == output:
             return
         
         shutil.copyfileobj(open(tempname, 'rb'), output)
-        #os.remove(tempname)
+        os.remove(tempname)
 
     def __len__(self):
         return len(self._frames)
@@ -205,8 +196,8 @@ class LinePlot(Plot):
 
 class ObjectVideo(Video):
 
-    def __init__(self, identifier: str, frames: FrameList, trait=None):
-        super().__init__(identifier, frames, trait)
+    def __init__(self, identifier: str, frames: FrameList, fps=10, trait=None):
+        super().__init__(identifier, frames, fps=fps, trait=trait)
         self._regions = {}
 
     def draw(self, frame, key, data):
@@ -753,30 +744,32 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
 
         report_storage = workspace.storage.substorage("reports").substorage(name)
 
-        def only_plots(reports, format: str, storage: "Storage"):
+        def only_plots(reports, storage: "Storage"):
             """Filter out all non-plot items from the report and save them to storage.
             
             Args:
                 reports: The reports to filter.
-                format: The format to save the plots in.
             """
             for key, section in reports.items():
                 for item in section:
                     if isinstance(item, Plot):
                         logger.debug("Saving plot %s", item.identifier)
-                        plot_name = key + "_" + item.identifier + '.%s' % format.lower()
-                        with storage.write(plot_name, binary=True) as out:
-                            item.save(out, format.upper())
-                        
+                        with storage.write(key + "_" + item.identifier + '.pdf', binary=True) as out:
+                            item.save(out, "PDF")
+                        with storage.write(key + "_" + item.identifier + '.png', binary=True) as out:
+                            item.save(out, "PNG")
+                    if isinstance(item, Video):
+                        logger.debug("Saving video %s", item.identifier)
+                        with storage.write(key + "_" + item.identifier + '.avi', binary=True) as out:
+                            item.save(out, "avi")
+
         if format == "html":
             from .html import generate_html_document
             generate_html_document(trackers, workspace.dataset, reports, report_storage)
         elif format == "latex":
             from .latex import generate_latex_document
             generate_latex_document(trackers, workspace.dataset, reports, report_storage)
-        elif format == "pdf_plots":
-            only_plots(reports, "pdf", report_storage)
-        elif format == "png_plots":
-            only_plots(reports, "png", report_storage)
+        elif format == "plots":
+            only_plots(reports, report_storage)
         else:
             raise ValueError("Unknown report format %s" % format)
