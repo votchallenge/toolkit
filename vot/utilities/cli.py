@@ -162,8 +162,10 @@ def do_test(config: argparse.Namespace):
         if runtime:
             runtime.stop()
 
-def do_workspace(config: argparse.Namespace):
-    """Initialize / manage a workspace.
+def do_initialize(config: argparse.Namespace):
+    """Initialize a workspace. If a stack is provided, the workspace is initialized with the stack. If no stack is provided,
+    but a dataset exists, then a dummy config can be created for this custom dataset. If neither is provided, the user is prompted to
+    provide a stack.
 
     Args:
         config (argparse.Namespace): Configuration
@@ -171,18 +173,41 @@ def do_workspace(config: argparse.Namespace):
 
     from vot.workspace import WorkspaceException
 
-    if config.stack is None and os.path.isfile(os.path.join(config.workspace, "configuration.m")):
-        from vot.utilities.migration import migrate_matlab_workspace
-        migrate_matlab_workspace(config.workspace)
+    if Workspace.exists(config.workspace):
+        logger.error("Workspace already initialized")
         return
-    elif config.stack is None:
-        stacks = list_integrated_stacks()
-        logger.error("Unable to continue without a stack")
-        logger.error("List of available integrated stacks: ")
-        for k, v in sorted(stacks.items(), key=lambda x: x[0]):
-            logger.error(" * %s - %s", k, v)
 
-        return
+    if config.stack is None:
+        if os.path.isfile(os.path.join(config.workspace, "configuration.m")):
+            from vot.utilities.migration import migrate_matlab_workspace
+            migrate_matlab_workspace(config.workspace)
+            return
+        elif os.path.isfile(os.path.join(config.workspace, "sequences")):
+            sequences_directory = os.path.join(config.workspace, "sequences")
+            # Attempt to load a dataset from the sequences directory
+            from vot.dataset import load_dataset
+            logger.info("Found sequences directory, attempting to load dataset")
+            try:
+                dataset = load_dataset(sequences_directory)
+                logger.info("Loaded dataset: %s", dataset)
+
+            except Exception as e:
+                pass
+            if dataset is not None:
+                logger.info("Loaded dataset: %s", dataset)
+                default_config = dict(dataset=dataset)
+                Workspace.initialize(config.workspace, default_config, download=False)
+                logger.info("Initialized workspace in '%s'", config.workspace)
+                return
+
+        else:
+            stacks = list_integrated_stacks()
+            logger.error("Unable to continue without a stack")
+            logger.error("List of available integrated stacks: ")
+            for k, v in sorted(stacks.items(), key=lambda x: x[0]):
+                logger.error(" * %s - %s", k, v)
+
+            return
 
     stack_file = resolve_stack(config.stack)
 
@@ -463,7 +488,7 @@ def main():
     report_parser = subparsers.add_parser('report', help='Generate report document')
     report_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     report_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
-    report_parser.add_argument("--format", choices=("html", "latex", "pdf_plots", "png_plots"), default="html", help='Analysis output format')
+    report_parser.add_argument("--format", choices=("html", "latex", "plots"), default="html", help='Analysis output format')
     report_parser.add_argument("--name", required=False, help='Document output name')
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
