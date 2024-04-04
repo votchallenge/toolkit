@@ -11,9 +11,15 @@ experiments:
         burnin: 0
         ignore_unknown: False
         weighted: False
-        filter_tag: relevant
+        filter_tag: evaluation
       - type: average_success_plot
         name: Quality plot
         burnin: 0
         ignore_unknown: False
-        filter_tag: relevant
+        filter_tag: evaluation
+      - type: longterm_ar
+        name: AR
+        filter_tag: evaluation
+      - type: average_quality_auxiliary
+        name: Auxiliary
+        filter_tag: evaluation
