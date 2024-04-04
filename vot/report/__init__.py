@@ -702,6 +702,11 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
     else:
         cache = Cache(workspace.storage.substorage("cache").substorage("analysis"))
 
+    index = workspace.report.index
+    if len(index) == 0:
+        # Default report content
+        index = [StackAnalysesTable(), StackAnalysesPlots()]
+        
     with workspace.report.style:
 
         try:
@@ -714,7 +719,7 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
 
                 futures = []
 
-                for report in workspace.report.index:
+                for report in index:
                     futures.append(ensure_future(report.generate(workspace.stack, trackers, workspace.dataset)))
 
                 loop = get_event_loop()

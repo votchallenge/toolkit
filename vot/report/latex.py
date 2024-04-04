@@ -133,7 +133,7 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
         for item in section:
             if isinstance(item, Table):
                 make_table(doc, item)
-            if isinstance(item, Plot):
+            elif isinstance(item, Plot):
                 plot = item
                 with doc.create(Figure(position='htbp')) as container:
                     if multipart:

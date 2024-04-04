@@ -162,11 +162,11 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
             for item in section:
                 if isinstance(item, Table):
                     make_table(item)
-                if isinstance(item, Plot):
+                elif isinstance(item, Plot):
                     with div(cls="plot"):
                         p(key)
                         insert_figure(item)
-                if isinstance(item, Video):
+                elif isinstance(item, Video):
                     with div(cls="video"):
                         p(key)
                         insert_video(item)
