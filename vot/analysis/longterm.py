@@ -427,12 +427,33 @@ def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = N
 
     return T, F, M, H, N
 
+class SafeAverage(object):
+    
+    def __init__(self):
+        self._sum = 0
+        self._count = 0
+
+    def add(self, value):
+        if value is None:
+            return
+        self._sum += value
+        self._count += 1
+
+    def average(self):
+        if self._count == 0:
+            return None
+        return self._sum / self._count
+    
+    def empty(self):
+        return self._count == 0
+
 class CountFrames(SeparableAnalysis):
     """Counts the number of frames where the tracker is correct, fails, misses, hallucinates or notices an object."""
 
     threshold = Float(default=0.0, val_min=0, val_max=1)
     bounded = Boolean(default=True)
     ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
+    filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def compatible(self, experiment: Experiment):
         """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
@@ -451,7 +472,12 @@ class CountFrames(SeparableAnalysis):
         distribution = []
         bounds = (sequence.size) if self.bounded else None
 
-        masks = sequence.object(self.ignore_masks)
+        ignore_masks = sequence.object(self.ignore_masks)
+
+        if self.filter_tag is not None:
+            frame_mask = [self.filter_tag in sequence.tags(i) for i in range(len(sequence))]
+        else:
+            frame_mask = None
 
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
@@ -461,7 +487,16 @@ class CountFrames(SeparableAnalysis):
             CN, CF, CM, CH, CT = 0, 0, 0, 0, 0
 
             for trajectory in trajectories:
-                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds, ignore_masks=masks)
+                if frame_mask is not None:
+                    trajectory = [region for region, m in zip(trajectory, frame_mask) if m]
+                    groundtruth = [region for region, m in zip(sequence.object(object), frame_mask) if m]
+                    masks = [region for region, m in zip(ignore_masks, frame_mask) if m] 
+                else:
+                    trajectory = trajectory
+                    groundtruth = sequence.object(object)
+                    masks = ignore_masks
+                
+                T, F, M, H, N = count_frames(trajectory, groundtruth, bounds=bounds, ignore_masks=masks)
                 CN += N
                 CF += F
                 CM += M
@@ -486,6 +521,7 @@ class QualityAuxiliary(SeparableAnalysis):
     bounded = Boolean(default=True)
     absence_threshold = Integer(default=10, val_min=0)
     ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
+    filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def compatible(self, experiment: Experiment):
         """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
@@ -518,16 +554,19 @@ class QualityAuxiliary(SeparableAnalysis):
 
         assert isinstance(experiment, MultiRunExperiment)
 
-        not_reported_error = 0
-        drift_rate_error = 0
-        absence_detection = 0
+        not_reported_error = SafeAverage()
+        drift_rate_error = SafeAverage()
+        absence_detection = SafeAverage()
 
         objects = sequence.objects()
         bounds = (sequence.size) if self.bounded else None
 
-        absence_valid = 0
+        ignore_masks = sequence.object(self.ignore_masks)
 
-        masks = sequence.object(self.ignore_masks)
+        if self.filter_tag is not None:
+            frame_mask = [self.filter_tag in sequence.tags(i) for i in range(len(sequence))]
+        else:
+            frame_mask = None
 
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
@@ -537,7 +576,16 @@ class QualityAuxiliary(SeparableAnalysis):
             CN, CF, CM, CH, CT = 0, 0, 0, 0, 0
 
             for trajectory in trajectories:
-                T, F, M, H, N = count_frames(trajectory.regions(), sequence.object(object), bounds=bounds, ignore_masks=masks)
+                if frame_mask is not None:
+                    trajectory = [region for region, m in zip(trajectory, frame_mask) if m]
+                    groundtruth = [region for region, m in zip(sequence.object(object), frame_mask) if m]
+                    masks = [region for region, m in zip(ignore_masks, frame_mask) if m] 
+                else:
+                    trajectory = trajectory
+                    groundtruth = sequence.object(object)
+                    masks = ignore_masks
+                
+                T, F, M, H, N = count_frames(trajectory, groundtruth, bounds=bounds, ignore_masks=masks)
                 CN += N
                 CF += F
                 CM += M
@@ -549,19 +597,14 @@ class QualityAuxiliary(SeparableAnalysis):
             CH /= len(trajectories)
             CT /= len(trajectories)
 
-            not_reported_error += CM / (CT + CF + CM)
-            drift_rate_error += CF / (CT + CF + CM)
+            if CT + CF + CM > 0:
+                not_reported_error.add(CM / (CT + CF + CM))
+                drift_rate_error.add(CF / (CT + CF + CM))
 
             if CN + CH > self.absence_threshold:
-                absence_detection += CN / (CN + CH)
-                absence_valid += 1
+                absence_detection.add(CN / (CN + CH))
 
-        if absence_valid > 0:
-            absence_detection /= absence_valid
-        else:
-            absence_detection = None
-
-        return not_reported_error / len(objects), drift_rate_error / len(objects), absence_detection,
+        return not_reported_error.average(), drift_rate_error.average(), absence_detection.average(),
 
 
 @analysis_registry.register("average_quality_auxiliary")
@@ -601,22 +644,16 @@ class AverageQualityAuxiliary(SequenceAggregator):
             Tuple[Any]: Non-reported error, drift-rate error and absence-detection quality.
         """
 
-        not_reported_error = 0
-        drift_rate_error = 0
-        absence_detection = 0
-        absence_count = 0
+        not_reported_error = SafeAverage()
+        drift_rate_error = SafeAverage()
+        absence_detection = SafeAverage()
 
         for nre, dre, ad in results:
-            not_reported_error += nre
-            drift_rate_error += dre
-            if ad is not None:
-                absence_count += 1
-                absence_detection += ad
+            not_reported_error.add(nre)
+            drift_rate_error.add(dre)
+            absence_detection.add(ad)
 
-        if absence_count > 0:
-            absence_detection /= absence_count
-
-        return not_reported_error / len(sequences), drift_rate_error / len(sequences), absence_detection
+        return not_reported_error.average(), drift_rate_error.average(), absence_detection.average(),
 
 from vot.analysis import SequenceAggregator
 from vot.analysis.accuracy import SequenceAccuracy
@@ -629,10 +666,11 @@ class AccuracyRobustness(Analysis):
     bounded = Boolean(default=True)
     counts = Include(CountFrames)
     ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
+    filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def dependencies(self) -> List[Analysis]:
         """Returns the dependencies of the analysis."""
-        return self.counts, SequenceAccuracy(burnin=0, threshold=self.threshold, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False, ignore_masks=self.ignore_masks)
+        return self.counts, SequenceAccuracy(burnin=0, threshold=self.threshold, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False, ignore_masks=self.ignore_masks, filter_tag=self.filter_tag)
     
     def compatible(self, experiment: Experiment):
         """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
@@ -669,25 +707,28 @@ class AccuracyRobustness(Analysis):
         results = Grid(len(trackers), 1)
 
         for j, _ in enumerate(trackers):
-            accuracy = 0
-            robustness = 0
-            count = 0
+            accuracy = SafeAverage()
+            robustness = SafeAverage()
 
             for i, _ in enumerate(sequences):
                 if accuracy_analysis[j, i] is None:
                     continue
 
-                accuracy += accuracy_analysis[j, i][0]
-
+                accuracy.add(accuracy_analysis[j, i][0])
                 frame_counts_sequence = frame_counts[j, i][0]
-
                 objects = len(frame_counts_sequence)
+                
+                sequence_robustness = SafeAverage()
+                
                 for o in range(objects):
-                    robustness += (1/objects) * frame_counts_sequence[o][0] / (frame_counts_sequence[o][0] + frame_counts_sequence[o][1] + frame_counts_sequence[o][2])
+                    
+                    n = (frame_counts_sequence[o][0] + frame_counts_sequence[o][1] + frame_counts_sequence[o][2])
+                    if n > 0: sequence_robustness.add(frame_counts_sequence[o][0] / n)
 
-                count += 1
-
-            results[j, 0] = (accuracy / count, robustness / count, (robustness / count, accuracy / count))
+                if not sequence_robustness.empty():
+                    robustness.add(sequence_robustness.average())
+                
+            results[j, 0] = (accuracy.average(), robustness.average(), (robustness.average(), accuracy.average()))
 
         return results
 

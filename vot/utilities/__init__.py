@@ -19,6 +19,8 @@ from vot import get_logger
 import six
 import colorama
 
+from class_registry import ClassRegistry
+
 __ALIASES = dict()
 
 def import_class(classpath: str) -> typing.Type:
@@ -606,3 +608,29 @@ class Timer(object):
             print('[%s]: %.4fs' % (self.name, elapsed))
         else:
             print('Elapsed: %.4fs' % elapsed)
+
+class Registry(ClassRegistry):
+    """A class registry for storing classes with a fallback to entry point registry."""
+
+    def __init__(self, group: str, attr_name: typing.Optional[str] = None) -> None:
+        """Initializes the registry.
+
+        Args:
+            group (str): The name of the entry point group that will be used to load new classes.
+            attr_name (typing.Optional[str], optional): If set, the registry will "brand" each class with its corresponding registry key. Defaults to None.
+        """
+        from class_registry import EntryPointClassRegistry
+        super(Registry, self).__init__(group, attr_name)
+        self._entry_point = EntryPointClassRegistry(group=group, attr_name=attr_name)
+
+
+    def __missing__(self, key: str) -> object:
+        """Attempts to load a class from the entry point registry if it is not found in the local registry.
+        
+        Args:
+            key (str): Key of the class to load
+
+        Returns:
+            object: Loaded class or None if not found
+        """
+        return self._entry_point.get(key)

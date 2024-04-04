@@ -75,7 +75,7 @@ class SequenceAccuracy(SeparableAnalysis):
     bounded = Boolean(default=True, description="Consider only the bounded region of the sequence.")
     threshold = Float(default=None, val_min=0, val_max=1, description="Minimum overlap to consider.")
     ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
-
+    filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def compatible(self, experiment: Experiment):
         """Check if the experiment is compatible with the analysis."""
@@ -108,7 +108,12 @@ class SequenceAccuracy(SeparableAnalysis):
         objects_accuracy = 0
         bounds = (sequence.size) if self.bounded else None
 
-        masks = sequence.object(self.ignore_masks)
+        ignore_masks = sequence.object(self.ignore_masks)
+
+        if self.filter_tag is not None:
+            frame_mask = [self.filter_tag in sequence.tags(i) for i in range(len(sequence))]
+        else:
+            frame_mask = None
 
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
@@ -118,10 +123,20 @@ class SequenceAccuracy(SeparableAnalysis):
             cummulative = 0
 
             for trajectory in trajectories:
-                overlaps = gather_overlaps(trajectory.regions(), sequence.object(object), self.burnin, 
+                if frame_mask is not None:
+                    trajectory = [region for region, m in zip(trajectory, frame_mask) if m]
+                    groundtruth = [region for region, m in zip(sequence.object(object), frame_mask) if m]
+                    masks = [region for region, m in zip(ignore_masks, frame_mask) if m] 
+                else:
+                    trajectory = trajectory
+                    groundtruth = sequence.object(object)
+                    masks = ignore_masks
+    
+                overlaps = gather_overlaps(trajectory, groundtruth, self.burnin, 
                                         ignore_unknown=self.ignore_unknown, ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
                 if overlaps.size > 0:
                     cummulative += np.mean(overlaps)
+
 
             objects_accuracy += cummulative / len(trajectories)
 
@@ -190,6 +205,7 @@ class SuccessPlot(SeparableAnalysis):
     threshold = Float(default=None, val_min=0, val_max=1, description="Minimum overlap to consider.")
     resolution = Integer(default=100, val_min=2, description="Number of points in the plot.")
     ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
+    filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def compatible(self, experiment: Experiment):
         """Check if the experiment is compatible with the analysis. This analysis is only compatible with multi-run experiments."""
@@ -225,7 +241,7 @@ class SuccessPlot(SeparableAnalysis):
         axis_x = np.linspace(0, 1, self.resolution)
         axis_y = np.zeros_like(axis_x)
 
-        masks = sequence.object(self.ignore_masks)
+        ignore_masks = sequence.object(self.ignore_masks)
 
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
@@ -234,8 +250,23 @@ class SuccessPlot(SeparableAnalysis):
 
             object_y = np.zeros_like(axis_x) 
 
+            if self.filter_tag is not None:
+                frame_mask = [self.filter_tag in sequence.tags(i) for i in range(len(sequence))]
+            else:
+                frame_mask = None
+
             for trajectory in trajectories:
-                overlaps = gather_overlaps(trajectory.regions(), sequence.object(object), burnin=self.burnin, ignore_unknown=self.ignore_unknown, 
+                if frame_mask is not None:
+                    trajectory = [region for region, m in zip(trajectory, frame_mask) if m]
+                    groundtruth = [region for region, m in zip(sequence.object(object), frame_mask) if m] 
+                    masks = [region for region, m in zip(ignore_masks, frame_mask) if m]
+                else:
+                    groundtruth = sequence.object(object)
+                    masks = ignore_masks
+                
+                print(len(trajectory), len(groundtruth), len(masks), len(ignore_masks), len(sequence))
+                
+                overlaps = gather_overlaps(trajectory, groundtruth, burnin=self.burnin, ignore_unknown=self.ignore_unknown, 
                                             ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
 
                 for i, threshold in enumerate(axis_x):
@@ -244,6 +275,7 @@ class SuccessPlot(SeparableAnalysis):
                         object_y[i] += np.sum(overlaps >= threshold) / len(overlaps)
                     else:
                         object_y[i] += np.sum(overlaps > threshold) / len(overlaps)
+                print(sequence.name, object_y, len(overlaps))
 
             axis_y += object_y / len(trajectories)
 

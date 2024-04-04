@@ -246,6 +246,14 @@ class Trajectory(object):
             int: Length
         """
         return len(self._regions)
+    
+    def __iter__(self):
+        """Returns an iterator over the regions.
+
+        Returns:
+            Iterator: Iterator
+        """
+        return iter(self._regions)
 
     def write(self, results: Results, name: str):
         """Writes the trajectory to the results storage. 

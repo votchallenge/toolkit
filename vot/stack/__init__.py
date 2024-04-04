@@ -7,6 +7,7 @@ from typing import List, Mapping
 import yaml
 
 from attributee import Attributee, String, Boolean, Map, Object
+from attributee.io import Serializable
 
 from vot.experiment import Experiment, experiment_registry
 from vot.utilities import import_class
@@ -39,7 +40,7 @@ def experiment_resolver(typename, context, **kwargs):
         assert issubclass(experiment_class, Experiment)
         return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
 
-class Stack(Attributee):
+class Stack(Attributee, Serializable):
     """Stack class represents a collection of experiments. Stacks are used to organize experiments and to run them in batch mode.
     """
 
@@ -49,27 +50,10 @@ class Stack(Attributee):
     deprecated = Boolean(default=False)
     experiments = Map(Object(experiment_resolver))
 
-    def __init__(self, name: str, workspace: "Workspace", **kwargs):
-        """Creates a new stack object.
-
-        Args:
-            name (str): Name of the stack
-            workspace (Workspace): Workspace object
-        """
-        self._workspace = workspace
-        self._name = name
-
-        super().__init__(**kwargs)
-
-    @property
-    def workspace(self):
-        """Returns the workspace object for the stack."""
-        return self._workspace
-
     @property
     def name(self):
         """Returns the name of the stack."""
-        return self._name
+        return self.get("_name", None)
 
     def __iter__(self):
         """Iterates over experiments in the stack."""

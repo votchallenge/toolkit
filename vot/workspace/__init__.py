@@ -48,11 +48,12 @@ class StackLoader(Attribute):
             if stack_file is None:
                 raise WorkspaceException("Experiment stack does not exist")
 
-            with open(stack_file, 'r') as fp:
-                stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-                return Stack(value, context.parent, **stack_metadata)
+            stack = Stack.read(stack_file)
+            stack._name = value
+
+            return stack
         else:
-            return Stack(None, context.parent, **value)
+            return Stack(**value)
 
     def dump(self, value: "Stack") -> str:
         """Dump a Stack object to a string or a dictionary
@@ -168,7 +169,6 @@ class Workspace(Attributee):
 
         with open(config_file, 'r') as fp:
             config = yaml.load(fp, Loader=yaml.BaseLoader)
-
             return Workspace(directory, **config)
 
     def __init__(self, directory: str, **kwargs):
@@ -184,13 +184,16 @@ class Workspace(Attributee):
         
         super().__init__(**kwargs)
 
-        
         dataset_directory = normalize_path(self.sequences, directory)
 
         if not self.stack.dataset is None:
             Workspace.download_dataset(self.stack.dataset, dataset_directory)
 
         self._dataset = load_dataset(dataset_directory)
+
+        # Register storage with all experiments in the stack
+        for experiment in self.stack.experiments.values():
+            experiment._storage = self._storage
 
     @property
     def directory(self) -> str:

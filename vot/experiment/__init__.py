@@ -48,7 +48,11 @@ def transformer_resolver(typename, context, **kwargs):
     """
     from vot.experiment.transformer import Transformer
 
-    storage = context.parent.storage.substorage("cache").substorage("transformer")
+
+    if context.parent.storage is None:
+        storage = None
+    else:
+        storage = context.parent.storage.substorage("cache").substorage("transformer")
 
     if typename in transformer_registry:
         transformer = transformer_registry.get(typename, cache=storage, **kwargs)
@@ -136,15 +140,6 @@ class Experiment(Attributee):
         """
         # TODO: at some point this may be a property for all experiments
         return False
-
-    @property
-    def storage(self) -> "Storage":
-        """Storage used by the experiment.
-
-        Returns:
-            Storage: Storage used by the experiment
-        """
-        return self._storage
 
     def _get_initialization(self, sequence: "Sequence", index: int, id: str = None):
         """Get initialization for a given sequence, index and object id.
@@ -238,6 +233,10 @@ class Experiment(Attributee):
         """
         if tracker.storage is not None:
             return tracker.storage.results(tracker, self, sequence)
+        if not hasattr(self, "_storage"):
+            from vot.workspace import WorkspaceException
+            raise WorkspaceException("Experiment has no storage")
+        
         return self._storage.results(tracker, self, sequence)
 
     def log(self, identifier: str):
@@ -249,6 +248,10 @@ class Experiment(Attributee):
         Returns:
             str: Path to the log file
         """
+        if not hasattr(self, "_storage"):
+            # Return a devnull file if the experiment has no storage
+            return open(os.devnull, 'w') 
+        
         return self._storage.substorage("logs").write("{}_{:%Y-%m-%dT%H-%M-%S.%f%z}.log".format(identifier, datetime.now()))
 
     def transform(self, sequences):

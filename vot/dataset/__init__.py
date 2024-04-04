@@ -8,8 +8,6 @@ from collections import namedtuple
 from abc import abstractmethod, ABC
 from typing import List, Mapping, Optional, Set, Tuple, Iterator
 
-from class_registry import ClassRegistry
-
 from PIL.Image import Image
 import numpy as np
 
@@ -17,14 +15,15 @@ from cachetools import cached, LRUCache
 
 from vot.region import Region
 from vot import ToolkitException
+from vot.utilities import Registry
 
 import cv2
 
 logger = logging.getLogger("vot")
 
-dataset_downloader = ClassRegistry("vot_downloader")
-sequence_indexer = ClassRegistry("vot_indexer")
-sequence_reader = ClassRegistry("vot_sequence")
+dataset_downloader = Registry("vot_downloader")
+sequence_indexer = Registry("vot_indexer")
+sequence_reader = Registry("vot_sequence")
 
 class DatasetException(ToolkitException):
     """Dataset and sequence related exceptions
@@ -1261,9 +1260,9 @@ def load_sequence(path: str) -> Sequence:
     """
 
     for _, loader in sequence_reader.items():
-        logger.debug("Attempting to load sequence with {}.{}".format(loader.__module__, loader.__name__))
         sequence = loader(path)
         if sequence is not None:
+            logger.debug("Loaded sequence with {}.{}".format(loader.__module__, loader.__name__))
             return sequence
 
     raise DatasetException("Unable to load sequence, unknown format or unsupported sequence: {}".format(path))
