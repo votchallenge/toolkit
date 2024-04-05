@@ -131,12 +131,13 @@ class SequenceAccuracy(SeparableAnalysis):
                     trajectory = trajectory
                     groundtruth = sequence.object(object)
                     masks = ignore_masks
-    
+
                 overlaps = gather_overlaps(trajectory, groundtruth, self.burnin, 
                                         ignore_unknown=self.ignore_unknown, ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
+                
+                
                 if overlaps.size > 0:
                     cummulative += np.mean(overlaps)
-
 
             objects_accuracy += cummulative / len(trajectories)
 
@@ -263,9 +264,7 @@ class SuccessPlot(SeparableAnalysis):
                 else:
                     groundtruth = sequence.object(object)
                     masks = ignore_masks
-                
-                print(len(trajectory), len(groundtruth), len(masks), len(ignore_masks), len(sequence))
-                
+        
                 overlaps = gather_overlaps(trajectory, groundtruth, burnin=self.burnin, ignore_unknown=self.ignore_unknown, 
                                             ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
 
@@ -275,7 +274,6 @@ class SuccessPlot(SeparableAnalysis):
                         object_y[i] += np.sum(overlaps >= threshold) / len(overlaps)
                     else:
                         object_y[i] += np.sum(overlaps > threshold) / len(overlaps)
-                print(sequence.name, object_y, len(overlaps))
 
             axis_y += object_y / len(trajectories)
 
