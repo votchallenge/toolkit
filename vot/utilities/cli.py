@@ -251,10 +251,20 @@ def do_evaluate(config: argparse.Namespace):
             logger.error(" * %s", k)
         return
 
+    # Filter experiments
+    if config.experiments:
+        experiments = [v for k, v in workspace.stack.experiments.items() if k in config.experiments.split(",")]
+    else:
+        experiments = workspace.stack
+
+    if len(experiments) == 0:
+        logger.error("No experiments found, stopping.")
+        return
+
     try:
         for tracker in trackers:
             logger.debug("Evaluating tracker %s", tracker.identifier)
-            for experiment in workspace.stack:
+            for experiment in experiments:
                 run_experiment(experiment, tracker, workspace.dataset, config.force, config.persist)
 
         logger.info("Evaluation concluded successfuly")
@@ -381,7 +391,7 @@ def do_report(config: argparse.Namespace):
 
     logger.debug("Running analysis for %d trackers", len(trackers))
 
-    generate_document(workspace, trackers, config.format, name)
+    generate_document(workspace, trackers, config.format, name, config.sequences, config.experiments)
     
     
 def do_pack(config: argparse.Namespace):
@@ -468,7 +478,7 @@ def main():
     test_parser.add_argument("--sequence", "-s", required=False, help='Path to sequence to use instead of dummy')
     test_parser.add_argument("--ignore", required=False, help='Object IDs to ignore', type=lambda x: x.split(","), default=[])
 
-    workspace_parser = subparsers.add_parser('initialize', help='Setup a new workspace and download data')
+    workspace_parser = subparsers.add_parser('configure', aliases=["initialize"], help='Setup a new workspace and download data')
     workspace_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     workspace_parser.add_argument("--nodownload", default=False, required=False, help="Do not download dataset if specified in stack", action='store_true')
     workspace_parser.add_argument("stack", nargs="?", help='Experiment stack')
@@ -478,6 +488,7 @@ def main():
     evaluate_parser.add_argument("--force", "-f", default=False, help="Force rerun of the entire evaluation", required=False, action='store_true')
     evaluate_parser.add_argument("--persist", "-p", default=False, help="Persist execution even in case of an error", required=False, action='store_true')
     evaluate_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
+    evaluate_parser.add_argument("--experiments", default=None, help='Filter specified experiments (comma separated names)', required=False)
 
     analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
@@ -490,6 +501,8 @@ def main():
     report_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     report_parser.add_argument("--format", choices=("html", "latex", "plots"), default="html", help='Analysis output format')
     report_parser.add_argument("--name", required=False, help='Document output name')
+    report_parser.add_argument("--sequences", default=None, help='Filter specified sequences (comma separated names)', required=False)
+    report_parser.add_argument("--experiments", default=None, help='Filter specified experiments (comma separated names)', required=False)
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
@@ -513,7 +526,7 @@ def main():
         if args.action == "test":
             check_version()
             do_test(args)
-        elif args.action == "initialize":
+        elif args.action in ["configure", "initialize"]:
             check_version()
             do_initialize(args)
         elif args.action == "evaluate":

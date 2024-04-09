@@ -656,7 +656,7 @@ class ReportConfiguration(Attributee):
     sort = Nested(TrackerSorter)
     index = List(Object(subclass=Report), default=[], description="The reports to include.")
 
-def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str):
+def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[str] = None, select_experiments: typing.Optional[str] = None):
     """Generate a report for a one or multiple trackers on an experiment stack and a set of sequences.
 
     Args:
@@ -709,18 +709,33 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
         
     with workspace.report.style:
 
+        experiments = workspace.stack.experiments
+        sequences = workspace.dataset
+        
+        if not select_experiments is None:
+            experiments = [experiment for name, experiment in experiments.items() if name in select_experiments.split(",")]
+        if not select_sequences is None:
+            sequences = [sequence for sequence in sequences if sequence.name in select_sequences.split(",")]
+
+
+        if len(experiments) == 0:
+            logger.warning("No experiments selected")
+
+        if len(sequences) == 0:
+            logger.warning("No sequences selected")
+
         try:
 
             with AnalysisProcessor(executor, cache) as processor:
                 
-                order = workspace.report.sort(workspace.stack, trackers, workspace.dataset)
+                order = workspace.report.sort(experiments, trackers, sequences)
 
                 trackers = [trackers[i] for i in order]
 
                 futures = []
 
                 for report in index:
-                    futures.append(ensure_future(report.generate(workspace.stack, trackers, workspace.dataset)))
+                    futures.append(ensure_future(report.generate(experiments, trackers, sequences)))
 
                 loop = get_event_loop()
 
