@@ -76,6 +76,8 @@ class Redetection(Transformer):
             sequence (Sequence): The sequence to be transformed.
         """
 
+        assert self._cache is not None, "Local cache is required for redetection transformer."
+
         assert len(sequence.objects()) == 1, "Redetection transformer can only be used with single-object sequences."
 
         chache_dir = self._cache.directory(self, arg_hash(sequence.name, **self.dump()))
@@ -126,3 +128,22 @@ class IgnoreObjects(Transformer):
         from vot.dataset.proxy import ObjectsHideFilterSequence
         
         return [ObjectsHideFilterSequence(sequence, self.ids)]
+    
+@transformer_registry.register("downsample")
+class Downsample(Transformer):
+    """Transformer that downsamples the sequence by a given factor."""
+
+    factor = Integer(default=2, val_min=1, description="Downsampling factor")
+    offset = Integer(default=0, val_min=0, description="Offset for the downsampling")
+
+    def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
+        """Generate a list of sequences from the given sequence.
+        
+        Args:
+            sequence (Sequence): The sequence to be transformed.
+        """
+        from vot.dataset.proxy import FrameMapSequence
+        
+        map = [i for i in range(self.offset, len(sequence), self.factor)]
+        
+        return [FrameMapSequence(sequence, map)]

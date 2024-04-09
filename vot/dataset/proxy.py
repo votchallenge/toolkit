@@ -130,7 +130,7 @@ class ProxySequence(Sequence):
 
 
 class FrameMapChannel(Channel):
-    """A proxy channel that maps frames from a source channel in another order."""
+    """A proxy channel that maps frames to a different order."""
 
     def __init__(self, source: Channel, frame_map: List[int]):
         """Creates a frame mapping proxy channel.

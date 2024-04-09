@@ -123,6 +123,15 @@ class Experiment(Attributee):
         # TODO: validate analysis names
 
     @property
+    def storage(self) -> "Storage":
+        """Storage to use for storing results. Can be None if the experiment is not supposed to store results.
+
+        Returns:
+            Storage: Storage to use for storing results
+        """
+        return self._storage
+
+    @property
     def identifier(self) -> str:
         """Identifier of the experiment.
 
