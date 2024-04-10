@@ -709,11 +709,11 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
         
     with workspace.report.style:
 
-        experiments = workspace.stack.experiments
+        experiments = workspace.stack
         sequences = workspace.dataset
         
         if not select_experiments is None:
-            experiments = [experiment for name, experiment in experiments.items() if name in select_experiments.split(",")]
+            experiments = [experiment for name, experiment in workspace.stack.items() if name in select_experiments.split(",")]
         if not select_sequences is None:
             sequences = [sequence for sequence in sequences if sequence.name in select_sequences.split(",")]
 
