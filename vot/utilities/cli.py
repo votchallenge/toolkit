@@ -483,20 +483,20 @@ def main():
     workspace_parser.add_argument("--nodownload", default=False, required=False, help="Do not download dataset if specified in stack", action='store_true')
     workspace_parser.add_argument("stack", nargs="?", help='Experiment stack')
 
-    evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate one or more trackers in a given workspace')
+    evaluate_parser = subparsers.add_parser('evaluate', aliases=["run"], help='Evaluate one or more trackers in a given workspace')
     evaluate_parser.add_argument("trackers", nargs='+', default=None, help='Tracker identifiers')
     evaluate_parser.add_argument("--force", "-f", default=False, help="Force rerun of the entire evaluation", required=False, action='store_true')
     evaluate_parser.add_argument("--persist", "-p", default=False, help="Persist execution even in case of an error", required=False, action='store_true')
     evaluate_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     evaluate_parser.add_argument("--experiments", default=None, help='Filter specified experiments (comma separated names)', required=False)
 
-    analysis_parser = subparsers.add_parser('analysis', help='Run analysis of results')
+    analysis_parser = subparsers.add_parser('analysis', aliases=["analyse", "analyze"], help='Run analysis of results')
     analysis_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     analysis_parser.add_argument("--format", choices=("json", "yaml"), default="json", help='Analysis output format')
     analysis_parser.add_argument("--name", required=False, help='Analysis output name')
 
-    report_parser = subparsers.add_parser('report', help='Generate report document')
+    report_parser = subparsers.add_parser('report', aliases=["document"], help='Generate report document')
     report_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     report_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     report_parser.add_argument("--format", choices=("html", "latex", "plots"), default="html", help='Analysis output format')
@@ -529,13 +529,13 @@ def main():
         elif args.action in ["configure", "initialize"]:
             check_version()
             do_initialize(args)
-        elif args.action == "evaluate":
+        elif args.action in ["evaluate", "run"]:
             check_version()
             do_evaluate(args)
-        elif args.action == "analysis":
+        elif args.action in ["analysis", "analyse", "analyze"]:
             check_version()
             do_analysis(args)
-        elif args.action == "report":
+        elif args.action in ["report", "document"]:
             check_version()
             do_report(args)
         elif args.action == "pack":
