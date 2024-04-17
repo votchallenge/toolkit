@@ -139,11 +139,12 @@ def encode_mask(mask):
 
         return (tl_x, tl_y, region_w, region_h), rle
 
-def parse_region(string: str) -> "Region":
+def parse_region(string: str, separator: str = ",") -> "Region":
     """Parse input string to the appropriate region format and return Region object
 
     Args:
         string (str): comma separated list of values
+        separator (str): separator of values in the input string
 
     Returns:
         Region: resulting region
@@ -154,11 +155,11 @@ def parse_region(string: str) -> "Region":
 
     if string[0] == 'm':
         # input is a mask - decode it
-        m_, offset_ = create_mask_from_string(string[1:].split(','))
+        m_, offset_ = create_mask_from_string(string[1:].split(separator))
         return Mask(m_, offset=offset_, optimize=config.mask_optimize_read)
     else:
         # input is not a mask - check if special, rectangle or polygon
-        tokens = [float(t) for t in string.split(',')]
+        tokens = [float(t) for t in string.split(separator)]
         if len(tokens) == 1:
             return Special(tokens[0])
         if len(tokens) == 4:
@@ -244,11 +245,12 @@ def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
         else:
             raise IOError("Wrong region type")
 
-def read_trajectory(fp: Union[str, TextIO]):
+def read_trajectory(fp: Union[str, TextIO], separator: str = ","):
     """Reads a trajectory from a file and returns a list of regions.
     
     Args:
         fp (str or TextIO): File path or file pointer to the trajectory file
+        separator (str): Separator of values in the region, only used for text files
         
     Returns:
         list: List of regions
@@ -274,7 +276,7 @@ def read_trajectory(fp: Union[str, TextIO]):
     else:
         regions = []
         for line in fp.readlines():
-            regions.append(parse_region(line.strip()))
+            regions.append(parse_region(line.strip(), separator))
 
     if close:
         fp.close()

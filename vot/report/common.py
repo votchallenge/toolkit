@@ -55,6 +55,7 @@ def extract_measures_table(trackers: List[Tracker], results) -> Table:
             for tracker, values in zip(trackers, aresults):
                 if not tracker in table_data:
                     table_data[tracker] = list()
+                
                 for i, description in enumerate(descriptions):
                     if description is None:
                         continue

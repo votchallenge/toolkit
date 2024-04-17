@@ -441,7 +441,7 @@ class StyleManager(Attributee):
         return self.plot_style(key)
 
     def legend(self, key) -> Legend:
-        """ Gets the legend for the given key."""
+        """ Gets the legend for a given key."""
         if inspect.isclass(key):
             klass = key
         else:
@@ -453,15 +453,15 @@ class StyleManager(Attributee):
         return self._legends[klass]
 
     def plot_style(self, key) -> PlotStyle:
-        """ Gets the plot style for the given key."""
+        """ Gets the plot style for a given key."""
         return self.legend(key)[key]
 
     def make_axes(self, figure, rect=None, trait=None) -> Axes:
-        """ Makes the axes for the given figure."""
+        """ Makes the axes for a given figure."""
         return self.axes(figure, rect, trait)
 
     def make_figure(self, trait=None) -> typing.Tuple[Figure, Axes]:
-        """ Makes the figure for the given trait.
+        """ Makes the figure for a given trait.
         
         Args:
             trait (str): The trait for which to make the figure.
@@ -713,7 +713,7 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
         sequences = workspace.dataset
         
         if not select_experiments is None:
-            experiments = [experiment for name, experiment in workspace.stack.items() if name in select_experiments.split(",")]
+            experiments = [experiment for name, experiment in workspace.stack.experiments.items() if name in select_experiments.split(",")]
         if not select_sequences is None:
             sequences = [sequence for sequence in sequences if sequence.name in select_sequences.split(",")]
 
