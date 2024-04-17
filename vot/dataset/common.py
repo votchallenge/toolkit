@@ -199,6 +199,7 @@ def index_sequences(path: str) -> None:
     Args:
         path (str): The path to index sequences in.
     """
+    names = None
 
     if os.path.isfile(path):
         with open(os.path.join(path), 'r') as fd:
@@ -208,6 +209,9 @@ def index_sequences(path: str) -> None:
         if os.path.isfile(os.path.join(path, "list.txt")):
             with open(os.path.join(path, "list.txt"), 'r') as fd:
                 names = fd.readlines()
+
+    if names is None:
+        return None
 
     names = [name.strip() for name in names]
     return names

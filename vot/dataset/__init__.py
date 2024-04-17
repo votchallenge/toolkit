@@ -1182,27 +1182,22 @@ def download_dataset(url: str, path: str):
     """
     from urllib.parse import urlsplit
 
-    try:
-        res = urlsplit(url)
+    res = urlsplit(url)
 
-        if res.scheme in ["http", "https"]:
-            if res.path.endswith(".json"):
-                from .common import download_dataset_meta
-                download_dataset_meta(url, path)
-                return
-            else:
-                download_bundle(url, path)
-                return
-
-        raise DatasetException("Unknown dataset domain: {}".format(res.scheme))
-
-    except ValueError:
-
-        if url in dataset_downloader:
-            dataset_downloader[url](path)
+    if res.scheme in ["http", "https"]:
+        if res.path.endswith(".json"):
+            from .common import download_dataset_meta
+            download_dataset_meta(url, path)
+            return
+        else:
+            download_bundle(url, path)
             return
 
-        raise DatasetException("Illegal dataset identifier: {}".format(url))
+    if url in dataset_downloader:
+        dataset_downloader.get_class(url)(path)
+        return
+
+    raise DatasetException("Illegal dataset identifier: {}".format(url))
 
 
 def load_dataset(path: str) -> Dataset:
