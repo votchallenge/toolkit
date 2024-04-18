@@ -27,7 +27,7 @@ The development of this package was supported by Slovenian research agency (ARRS
 License
 -------
 
-Copyright (C) 2023 Luka Čehovin Zajc and the [VOT Challenge innitiative](http://votchallenge.net/).
+Copyright (C) 2024 Luka Čehovin Zajc and the [VOT Challenge innitiative](http://votchallenge.net/).
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
