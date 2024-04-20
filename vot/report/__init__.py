@@ -574,10 +574,7 @@ class Report(Attributee):
 
         await wait(futures)
 
-        if len(futures) == 1:
-            return futures[0].result()
-        else:
-            return (future.result() for future in futures)
+        return (future.result() for future in futures)
 
 class SeparableReport(Report):
     """ A report generator that is separable across experiments. Base class for all separable report generators. """
