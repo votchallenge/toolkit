@@ -609,42 +609,7 @@ class SeparableReport(Report):
 
         return items
 
-class StackAnalysesPlots(SeparableReport):
-    """ A document that produces plots for all analyses configures in stack experiments. """
 
-    async def perexperiment(self, experiment, trackers, sequences):
-
-        from vot.report.common import extract_plots
-
-        analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            
-
-        results = {a: r for a, r in zip(analyses, await self.process(analyses, experiment, trackers, sequences))}
-
-        # Plot in reverse order, with best trackers on top
-        z_order = list(reversed(range(len(trackers))))
-
-        return [p for _, p in extract_plots(trackers, {experiment: results}, z_order)[experiment]]
-
-    def compatible(self, experiment):
-        return True
-
-class StackAnalysesTable(SeparableReport):
-    """ A document that produces plots for all analyses configures in stack experiments. """
-
-    async def perexperiment(self, experiment, trackers, sequences):
-
-        from vot.report.common import extract_measures_table
-
-        analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            
-
-        results = {a: r for a, r in zip(analyses, await self.process(analyses, experiment, trackers, sequences))}
-
-        table = extract_measures_table(trackers, {experiment: results})
-
-        return [table]
-
-    def compatible(self, experiment):
-        return True
 
 class ReportConfiguration(Attributee):
     """ A configuration for reports."""
@@ -668,6 +633,7 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
     from vot.utilities import Progress
     from vot.workspace.storage import Cache
     from vot import config
+    from vot.report.common import StackAnalysesTable, StackAnalysesPlots
 
     def merge_tree(src, dest):
 
@@ -780,12 +746,17 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
                         with storage.write(key + "_" + item.identifier + '.avi', binary=True) as out:
                             item.save(out, "avi")
 
+        metadata = {"Stack": workspace.stack.title}
+
+        # Prune empty sections
+        reports = {key: section for key, section in reports.items() if len(section) > 0}
+
         if format == "html":
             from .html import generate_html_document
-            generate_html_document(trackers, workspace.dataset, reports, report_storage)
+            generate_html_document(trackers, workspace.dataset, reports, report_storage, metadata=metadata)
         elif format == "latex":
             from .latex import generate_latex_document
-            generate_latex_document(trackers, workspace.dataset, reports, report_storage)
+            generate_latex_document(trackers, workspace.dataset, reports, report_storage, metadata=metadata)
         elif format == "plots":
             only_plots(reports, report_storage)
         else:

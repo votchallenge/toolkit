@@ -4,7 +4,7 @@ import math
 from typing import List
 
 from vot.tracker import Tracker
-from vot.report import ScatterPlot, LinePlot, Table
+from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
@@ -188,3 +188,39 @@ def merge_repeats(objects):
     repeats.append((previous, count))
 
     return repeats
+
+class StackAnalysesPlots(SeparableReport):
+    """ A document that produces plots for all analyses configures in stack experiments. """
+
+    async def perexperiment(self, experiment, trackers, sequences):
+
+        from vot.report.common import extract_plots
+
+        analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            
+
+        results = {a: r for a, r in zip(analyses, await self.process(analyses, experiment, trackers, sequences))}
+
+        # Plot in reverse order, with best trackers on top
+        z_order = list(reversed(range(len(trackers))))
+
+        return [p for _, p in extract_plots(trackers, {experiment: results}, z_order)[experiment]]
+
+    def compatible(self, experiment):
+        return True
+
+class StackAnalysesTable(Report):
+    """ A document that produces plots for all analyses configures in stack experiments. """
+
+    async def generate(self, experiments, trackers, sequences):
+
+        from vot.report.common import extract_measures_table
+
+        results = dict()
+
+        for experiment in experiments:
+            analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            
+            results[experiment] = {a: r for a, r in zip(analyses, await self.process(analyses, experiment, trackers, sequences))}
+
+        table = extract_measures_table(trackers, results)
+
+        return {"Overview": [table]}

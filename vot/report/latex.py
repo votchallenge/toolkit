@@ -54,7 +54,7 @@ def generate_symbols(container, trackers):
 
     container.append(Command("makeatother"))
 
-def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], reports, storage: Storage, multipart=True) -> str:
+def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], reports, storage: Storage, multipart=True, metadata: dict = None) -> str:
     """Generates a LaTeX document with the results. The document is returned as a string. If build is True, the document is compiled and the PDF is returned.
     
     Args:
@@ -64,6 +64,7 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
         reports (list): List of results tuples.
         storage (Storage): Storage object.
         multipart (bool): If True, the document is split into multiple files.
+        metadata (dict): Metadata dictionary.
     """
 
     order_marks = {1: "first", 2: "second", 3: "third"}
