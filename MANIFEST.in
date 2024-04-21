@@ -3,6 +3,6 @@ include README.md
 recursive-include vot/stack/ *.yaml
 include vot/dataset/*.png
 include vot/dataset/*.jpg
-include vot/document/*.css
-include vot/document/*.js
-include vot/document/*.tex
+include vot/report/*.css
+include vot/report/*.js
+include vot/report/*.tex
