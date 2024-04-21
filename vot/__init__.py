@@ -5,6 +5,8 @@ import logging
 
 from .version import __version__
 
+from lazy_object_proxy import Proxy
+
 class ToolkitException(Exception):
     """Base class for all toolkit related exceptions
     """
@@ -81,6 +83,7 @@ class GlobalConfiguration(Attributee):
         Raises:
             ValueError: When an invalid value is provided for an attribute.
         """
+        
         kwargs = {}
         for k in self.attributes():
             envname = "VOT_{}".format(k.upper())
@@ -92,27 +95,31 @@ class GlobalConfiguration(Attributee):
         """Returns a string representation of the global configuration object."""
         return " ".join(["{}={}".format(k, getattr(self, k)) for k in self.attributes()])
 
-_logger = None
+#_logger = None
 
+from vot.utilities import singleton
+
+@singleton
 def get_logger() -> logging.Logger:
     """Returns the default logger object used to log different messages.
 
     Returns:
         logging.Logger: Logger handle
     """
-    global _logger
-    if _logger is None:
+
+    def init():
         from .utilities import ColoredFormatter
-        _logger = logging.getLogger("vot")
+        logger = logging.getLogger("vot")
         stream = logging.StreamHandler()
         stream.setFormatter(ColoredFormatter())
-        _logger.addHandler(stream)
+        logger.addHandler(stream)
         if check_debug():
-            _logger.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
+        return logger
 
-    return _logger
+    return Proxy(init)
 
-config = GlobalConfiguration()
+config = Proxy(lambda: GlobalConfiguration())
 
 def check_debug() -> bool:
     """Checks if debug is enabled for the toolkit via an environment variable.
@@ -122,5 +129,7 @@ def check_debug() -> bool:
     """
     return config.debug_mode
 
-if check_debug():
-    get_logger().debug("Global config: " + str(config))
+def print_config():
+    """Prints the global configuration object to the logger."""
+    if check_debug():
+        get_logger().debug("Configuration: %s", config)

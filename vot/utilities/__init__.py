@@ -14,7 +14,6 @@ from logging import Formatter, LogRecord
 from numbers import Number
 from typing import Any, Mapping, Tuple
 import typing
-from vot import get_logger
 
 import six
 import colorama
@@ -156,6 +155,7 @@ class Progress(object):
             description: The description of the progress bar.
             total: The total number of steps.
         """
+        from vot import get_logger
         silent = get_logger().level > logging.INFO
 
         if not silent:

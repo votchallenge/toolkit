@@ -7,12 +7,8 @@ import logging
 import yaml
 from datetime import datetime
 
-from .. import check_updates, check_debug, toolkit_version, get_logger
-from ..tracker import Registry, TrackerException
-from ..stack import resolve_stack, list_integrated_stacks
-from ..workspace import Workspace
-from ..workspace.storage import Cache
-from . import Progress, normalize_path, ColoredFormatter
+from .. import check_updates, toolkit_version, get_logger
+from . import Progress, normalize_path
 
 logger = get_logger()
 
@@ -46,7 +42,7 @@ def do_test(config: argparse.Namespace):
     """
     from vot.dataset.dummy import generate_dummy
     from vot.dataset import load_sequence, Frame
-    from vot.tracker import ObjectStatus
+    from vot.tracker import ObjectStatus, Registry, TrackerException
     from vot.experiment.helpers import MultiObjectHelper
     from vot.dataset.proxy import ObjectsHideFilterSequence
 
@@ -171,7 +167,8 @@ def do_initialize(config: argparse.Namespace):
         config (argparse.Namespace): Configuration
     """
 
-    from vot.workspace import WorkspaceException
+    from vot.workspace import WorkspaceException, Workspace
+    from ..stack import resolve_stack, list_integrated_stacks
 
     if Workspace.exists(config.workspace):
         logger.error("Workspace already initialized")
@@ -231,6 +228,8 @@ def do_evaluate(config: argparse.Namespace):
     """
 
     from vot.experiment import run_experiment
+    from ..tracker import Registry, TrackerException
+    from ..workspace import Workspace
 
     workspace = Workspace.load(config.workspace)
 
@@ -285,6 +284,9 @@ def do_analysis(args: argparse.Namespace):
 
     from vot.analysis import AnalysisProcessor, process_stack_analyses
     from vot.report import generate_serialized
+    from ..tracker import Registry
+    from ..workspace import Workspace
+    from ..workspace.storage import Cache
 
     workspace = Workspace.load(args.workspace)
 
@@ -364,6 +366,9 @@ def do_report(config: argparse.Namespace):
     """
 
     from vot.report import generate_document
+    from ..tracker import Registry
+    from ..workspace import Workspace
+
 
     if config.name is None:
         name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
@@ -403,6 +408,9 @@ def do_pack(config: argparse.Namespace):
 
     import zipfile, io
     from shutil import copyfileobj
+
+    from ..tracker import Registry
+    from ..workspace import Workspace
 
     workspace = Workspace.load(config.workspace)
 
@@ -508,15 +516,20 @@ def main():
     pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     pack_parser.add_argument("tracker", help='Tracker identifier')
 
+    from vot import print_config
+
     try:
 
         args = parser.parse_args()
 
         if args.debug:
+            os.environ["VOT_DEBUG_MODE"] = "1"
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
 
+        print_config()
+        
         def check_version():
             """Check if a newer version of the toolkit is available."""
             update, version = check_updates()
