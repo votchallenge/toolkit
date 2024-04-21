@@ -634,3 +634,53 @@ class Registry(ClassRegistry):
             object: Loaded class or None if not found
         """
         return self._entry_point.get(key)
+    
+class ObjectResolver(object):
+    
+    
+    def __init__(self, registry: ClassRegistry, extra_arguments: typing.Optional[typing.Callable] = None,
+                class_check: typing.Optional[typing.Callable] = None, object_check: typing.Optional[typing.Callable] = None):
+        """Initializes the object resolver. 
+        
+        Args:
+            registry (ClassRegistry): Registry of classes
+            extra_arguments (typing.Optional[typing.Callable], optional): Extra arguments to pass to the class constructor
+            class_check (typing.Optional[typing.Callable], optional): Function to check if the class is compatible with the purpose
+            object_check (typing.Optional[typing.Callable], optional): Function to check if the object is compatible with the purpose
+        """
+        self._registry = registry
+        self._extra_arguments = extra_arguments
+        self._class_check = class_check
+        self._object_check = object_check
+    
+    
+    
+    def __call__(self, typename, context, **kwargs):
+        """Resolve an object from a string. If the object is not registered, it is imported as a class and
+        instantiated with the provided arguments.
+
+        Args:
+            typename (str): Name of the analysis
+            context (Attributee): Context of the resolver
+
+        Returns:
+            Analysis: Resolved analysis
+        """
+
+        if self._extra_arguments:
+            kwargs.update(self._extra_arguments(context))
+
+        if typename in self._registry:
+            analysis = self._registry.get(typename, **kwargs)
+            if self._class_check:
+                assert self._class_check(analysis, context)
+        else:
+            analysis_class = import_class(typename)
+            if self._class_check:
+                assert self._class_check(analysis, context)
+            analysis = analysis_class(**kwargs)
+
+        if self._object_check:
+            assert self._object_check(analysis, context)
+
+        return analysis

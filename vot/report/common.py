@@ -3,8 +3,10 @@ import os
 import math
 from typing import List
 
+from attributee import String
+
 from vot.tracker import Tracker
-from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report
+from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report, report_registry
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
@@ -189,6 +191,7 @@ def merge_repeats(objects):
 
     return repeats
 
+@report_registry.register("plots")
 class StackAnalysesPlots(SeparableReport):
     """ A document that produces plots for all analyses configures in stack experiments. """
 
@@ -208,6 +211,7 @@ class StackAnalysesPlots(SeparableReport):
     def compatible(self, experiment):
         return True
 
+@report_registry.register("table")
 class StackAnalysesTable(Report):
     """ A document that produces plots for all analyses configures in stack experiments. """
 
@@ -224,3 +228,35 @@ class StackAnalysesTable(Report):
         table = extract_measures_table(trackers, results)
 
         return {"Overview": [table]}
+
+@report_registry.register("overlaps")
+class SequenceOverlapPlots(SeparableReport):
+    """ A document that produces plots for all analyses configures in stack experiments. """
+
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
+
+    async def perexperiment(self, experiment, trackers, sequences):
+
+        from vot.analysis.accuracy import Overlaps
+        from vot.report import LinePlot
+
+        results = next(await self.process(Overlaps(ignore_masks=self.ignore_masks), experiment, trackers, sequences))
+
+        plots = []
+        
+        for s, sequence in enumerate(sequences):
+            plot = LinePlot("overlap_%s_%s" % (experiment.identifier, sequence.name), "Frame", "Overlap", (0, len(sequence)), (0, 1), None)
+            
+            for t, tracker in enumerate(trackers):
+                measurements = results[t, s][0]
+                for m in measurements:
+                    data = [(i, v) for i, v in zip(m[2], m[1])]
+                    plot(tracker, data)
+
+            plots.append(plot)
+
+        return plots
+
+    def compatible(self, experiment):
+        from vot.experiment.multirun import MultiRunExperiment
+        return isinstance(experiment, MultiRunExperiment)

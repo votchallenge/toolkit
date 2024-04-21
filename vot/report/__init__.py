@@ -26,9 +26,11 @@ from vot import get_logger
 from vot.dataset import Sequence, FrameList
 from vot.tracker import Tracker
 from vot.analysis import Axes
-#from vot.workspace import Storage, Workspace
 from vot.utilities import class_fullname
 from vot.utilities.data import Grid
+from vot.utilities import ClassRegistry, ObjectResolver
+
+report_registry = ClassRegistry("vot_reports")
 
 Table = collections.namedtuple("Table", ["header", "data", "order"])
 
@@ -337,7 +339,7 @@ class PlotStyle(object):
 class DefaultStyle(PlotStyle):
     """ The default style for a plot."""
 
-    colormap = get_cmap("tab20b")
+    colormap = get_cmap("Set1", 9)
     colorcount = 20
     markers = ["o", "v", "<", ">", "^", "8", "*"]
 
@@ -356,7 +358,7 @@ class DefaultStyle(PlotStyle):
         Args:
             opacity (float): The opacity of the line.
         """
-        color = DefaultStyle.colormap((self._number % DefaultStyle.colorcount + 1) / DefaultStyle.colorcount)
+        color = self.colormap((self._number % self.colormap.N))
         if opacity < 1:
             color = colors.to_rgba(color, opacity)
         return dict(linewidth=1, c=color)
@@ -368,13 +370,13 @@ class DefaultStyle(PlotStyle):
             color (str): The color of the point.
             opacity (float): The opacity of the line.
         """
-        color = DefaultStyle.colormap((self._number % DefaultStyle.colorcount + 1) / DefaultStyle.colorcount)
+        color = self.colormap((self._number % self.colormap.N))
         marker = DefaultStyle.markers[self._number % len(DefaultStyle.markers)]
         return dict(marker=marker, c=[color])
 
     def region_style(self):
         """ Returns the style for a region, used with DrawHandle."""
-        color = DefaultStyle.colormap((self._number % DefaultStyle.colorcount + 1) / DefaultStyle.colorcount)
+        color = self.colormap((self._number % self.colormap.N))
         return dict(color=color, fill=True)
 
 class Legend(object):
@@ -616,7 +618,7 @@ class ReportConfiguration(Attributee):
 
     style = Nested(StyleManager)
     sort = Nested(TrackerSorter)
-    index = List(Object(subclass=Report), default=[], description="The reports to include.")
+    index = List(Object(ObjectResolver(report_registry), subclass=Report), default=[], description="The reports to include.")
 
 def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[str] = None, select_experiments: typing.Optional[str] = None):
     """Generate a report for a one or multiple trackers on an experiment stack and a set of sequences.
@@ -761,3 +763,5 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
             only_plots(reports, report_storage)
         else:
             raise ValueError("Unknown report format %s" % format)
+        
+import vot.report.common

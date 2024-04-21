@@ -181,11 +181,11 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
                         make_table(item)
                     elif isinstance(item, Plot):
                         with div(cls="plot"):
-                            p(key)
+                            p(item.identifier)
                             insert_figure(item)
                     elif isinstance(item, Video):
                         with div(cls="video"):
-                            p(key)
+                            p(item.identifier)
                             insert_video(item)
                     else:
                         logger.warning("Unsupported report item type %s", item)

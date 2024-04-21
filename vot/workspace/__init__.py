@@ -17,7 +17,6 @@ from ..utilities import normalize_path
 from ..report import ReportConfiguration
 from .storage import LocalStorage, Storage, NullStorage
 
-
 _logger = get_logger()
 
 class WorkspaceException(ToolkitException):
