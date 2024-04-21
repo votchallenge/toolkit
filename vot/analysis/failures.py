@@ -18,13 +18,13 @@ from vot.utilities.data import Grid
 
 
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
-    """Count the number of failures in a trajectory. A failure is defined as a region that overlaps with a Special.FAILURE region."""
+    """Count the number of failures in a trajectory. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
     return len([region for region in trajectory if is_special(region, SupervisedExperiment.FAILURE)]), len(trajectory)
 
 
 @analysis_registry.register("failures")
 class FailureCount(SeparableAnalysis):
-    """Count the number of failures in a sequence. A failure is defined as a region that overlaps with a Special.FAILURE region."""
+    """Count the number of failures in a sequence. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
 
     def compatible(self, experiment: Experiment):
         """Check if the experiment is compatible with the analysis."""
@@ -61,7 +61,7 @@ class FailureCount(SeparableAnalysis):
 
 @analysis_registry.register("cumulative_failures")
 class CumulativeFailureCount(SequenceAggregator):
-    """Count the number of failures in a sequence. A failure is defined as a region that overlaps with a Special.FAILURE region."""
+    """Count the number of failures over all sequences. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
 
     analysis = Include(FailureCount)
 

@@ -140,9 +140,12 @@ class AccuracyRobustness(SeparableAnalysis):
             failures += count_failures(trajectory.regions())[0]
             accuracy += compute_accuracy(trajectory.regions(), sequence, self.burnin, self.ignore_unknown, self.bounded)[0]
 
-        ar = (math.exp(- (float(failures) / len(trajectories)) * self.sensitivity), accuracy / len(trajectories))
+        failures /= len(trajectories)
+        accuracy /= len(trajectories)
 
-        return accuracy / len(trajectories), failures / len(trajectories), ar, len(trajectories[0])
+        ar = (math.exp(- (float(failures) / len(sequence)) * self.sensitivity), accuracy)
+
+        return accuracy, failures, ar, len(sequence)
 
 @analysis_registry.register("supervised_average_ar")
 class AverageAccuracyRobustness(SequenceAggregator):
@@ -198,9 +201,13 @@ class AverageAccuracyRobustness(SequenceAggregator):
             accuracy += a * w
             weight_total += w
 
-        ar = (math.exp(- (failures / weight_total) * self.analysis.sensitivity), accuracy / weight_total)
+        failures /= weight_total
+        accuracy /= weight_total
+        length = weight_total / len(results)
 
-        return accuracy / weight_total, failures / weight_total, ar, weight_total
+        ar = (math.exp(- (failures / length) * self.analysis.sensitivity), accuracy)
+
+        return accuracy, failures, ar, length
 
 @analysis_registry.register("supervised_eao_curve")
 class EAOCurve(TrackerSeparableAnalysis):
