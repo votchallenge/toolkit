@@ -289,10 +289,10 @@ def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[S
         doc["results"][experiment.identifier] = exp
 
     if serializer == "json":
-        with storage.write(name) as handle:
+        with storage.write(name + "." + serializer) as handle:
             json.dump(doc, handle, indent=2, cls=ResultsJSONEncoder)
     elif serializer == "yaml":
-        with storage.write(name) as handle:
+        with storage.write(name + "." + serializer) as handle:
             yaml.dump(doc, handle, Dumper=ResultsYAMLEncoder)
     else:
         raise RuntimeError("Unknown serializer")
