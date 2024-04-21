@@ -12,7 +12,7 @@ from attributee import Attributee, Object, Integer, Float, Nested, List, Boolean
 
 from vot import get_logger
 from vot.tracker import TrackerException
-from vot.utilities import Progress, to_number, import_class
+from vot.utilities import Progress, to_number, import_class, ObjectResolver
 from vot.dataset.proxy import IgnoreSpecialObjects
 
 experiment_registry = ClassRegistry("vot_experiment")

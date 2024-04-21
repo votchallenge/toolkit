@@ -63,7 +63,79 @@ def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin:
         elif overlaps[i] <= threshold:
             mask[i] = False
 
-    return overlaps[mask]
+    return overlaps[mask], [i for i in range(len(overlaps)) if mask[i]]
+
+class Overlaps(SeparableAnalysis):
+    """Overlaps analysis. Computes overlaps between predicted and groundtruth regions."""
+
+    burnin = Integer(default=10, val_min=0, description="Number of frames to skip after the initialization.")
+    ignore_unknown = Boolean(default=True, description="Ignore unknown regions in the groundtruth.")
+    ignore_invisible = Boolean(default=False, description="Ignore invisible regions in the groundtruth.")
+    bounded = Boolean(default=True, description="Consider only the bounded region of the sequence.")
+    threshold = Float(default=None, val_min=0, val_max=1, description="Minimum overlap to consider.")
+    ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
+    filter_tag = String(default=None, description="Filter tag for the analysis.")
+
+    def compatible(self, experiment: Experiment):
+        """Check if the experiment is compatible with the analysis."""
+        return isinstance(experiment, MultiRunExperiment)
+
+    @property
+    def _title_default(self):
+        """Default title of the analysis."""
+        return "Overlaps"
+
+    def describe(self):
+        """Describe the analysis."""
+        return Measure(self.title, "", 0, 1, Sorting.DESCENDING),
+
+    def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
+        """Compute the analysis for a single sequence. 
+        
+        Args:
+            experiment (Experiment): Experiment.
+            tracker (Tracker): Tracker.
+            sequence (Sequence): Sequence.
+            dependencies (List[Grid]): List of dependencies.
+            
+        Returns:
+            Tuple[Any]: Tuple of results.
+        """
+        assert isinstance(experiment, MultiRunExperiment)
+
+        objects = sequence.objects()
+        bounds = (sequence.size) if self.bounded else None
+
+        ignore_masks = sequence.object(self.ignore_masks)
+
+        if self.filter_tag is not None:
+            frame_mask = [self.filter_tag in sequence.tags(i) for i in range(len(sequence))]
+        else:
+            frame_mask = None
+
+        results = []
+
+        for object in objects:
+            trajectories = experiment.gather(tracker, sequence, objects=[object])
+            if len(trajectories) == 0:
+                raise MissingResultsException()
+
+            for trajectory in trajectories:
+                if frame_mask is not None:
+                    trajectory = [region for region, m in zip(trajectory, frame_mask) if m]
+                    groundtruth = [region for region, m in zip(sequence.object(object), frame_mask) if m]
+                    masks = [region for region, m in zip(ignore_masks, frame_mask) if m]
+                else:
+                    trajectory = trajectory
+                    groundtruth = sequence.object(object)
+                    masks = ignore_masks
+                    
+                overlaps, frames = gather_overlaps(trajectory, groundtruth, self.burnin, 
+                                        ignore_unknown=self.ignore_unknown, ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
+
+                results.append((object, overlaps, frames))
+
+        return results,
 
 @analysis_registry.register("accuracy")
 class SequenceAccuracy(SeparableAnalysis):
@@ -132,7 +204,7 @@ class SequenceAccuracy(SeparableAnalysis):
                     groundtruth = sequence.object(object)
                     masks = ignore_masks
 
-                overlaps = gather_overlaps(trajectory, groundtruth, self.burnin, 
+                overlaps, _ = gather_overlaps(trajectory, groundtruth, self.burnin, 
                                         ignore_unknown=self.ignore_unknown, ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
                 
                 
@@ -265,7 +337,7 @@ class SuccessPlot(SeparableAnalysis):
                     groundtruth = sequence.object(object)
                     masks = ignore_masks
         
-                overlaps = gather_overlaps(trajectory, groundtruth, burnin=self.burnin, ignore_unknown=self.ignore_unknown, 
+                overlaps, _ = gather_overlaps(trajectory, groundtruth, burnin=self.burnin, ignore_unknown=self.ignore_unknown, 
                                             ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
 
                 for i, threshold in enumerate(axis_x):

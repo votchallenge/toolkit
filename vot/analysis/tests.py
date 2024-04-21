@@ -17,7 +17,7 @@ class Tests(unittest.TestCase):
 
         trajectory[0] = Special(1)
 
-        overlaps = gather_overlaps(trajectory, groundtruth)
+        overlaps, _ = gather_overlaps(trajectory, groundtruth)
 
         print(overlaps)
 
