@@ -411,6 +411,9 @@ def do_pack(config: argparse.Namespace):
 
     from ..tracker import Registry
     from ..workspace import Workspace
+    
+    from vot.utilities.io import YAMLEncoder
+
 
     workspace = Workspace.load(config.workspace)
 
@@ -451,7 +454,7 @@ def do_pack(config: argparse.Namespace):
 
         manifest = dict(identifier=tracker.identifier, configuration=tracker.describe(),
             timestamp="{:%Y-%m-%dT%H-%M-%S.%f%z}".format(timestamp), platform=sys.platform,
-            python=sys.version, toolkit=toolkit_version(), stack=workspace.stack.dump())
+            python=sys.version, toolkit=toolkit_version(), stack=workspace.dump()["stack"])
 
         with zipfile.ZipFile(workspace.storage.write(archive_name, binary=True), mode="w") as archive:
             for f in all_files:
@@ -465,7 +468,7 @@ def do_pack(config: argparse.Namespace):
 
             info = zipfile.ZipInfo(filename="manifest.yml", date_time=timestamp.timetuple())
             with io.TextIOWrapper(archive.open(info, mode="w")) as fout:
-                yaml.dump(manifest, fout)
+                yaml.dump(manifest, fout, Dumper=YAMLEncoder)
 
     logger.info("Result packaging successful, archive available in %s", archive_name)
 

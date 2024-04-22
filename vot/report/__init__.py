@@ -232,48 +232,11 @@ class ObjectVideo(Video):
         return handle.array
 
 
-class ResultsJSONEncoder(json.JSONEncoder):
-    """ JSON encoder for results. """
-
-    def default(self, o):
-        """ Default encoder. """
-        if isinstance(o, Grid):
-            return list(o)
-        elif isinstance(o, datetime.date):
-            return o.strftime('%Y/%m/%d')
-        elif isinstance(o, np.ndarray):
-            return o.tolist()
-        else:
-            return super().default(o)
-
-class ResultsYAMLEncoder(yaml.Dumper):
-    """ YAML encoder for results."""
-
-    def represent_tuple(self, data):
-        """ Represents a tuple. """
-        return self.represent_list(list(data))
-
-
-    def represent_object(self, o):
-        """ Represents an object. """
-        if isinstance(o, Grid):
-            return self.represent_list(list(o))
-        elif isinstance(o, datetime.date):
-            return o.strftime('%Y/%m/%d')
-        elif isinstance(o, np.ndarray):
-            return self.represent_list(o.tolist())
-        else:
-            return super().represent_object(o)
-
-ResultsYAMLEncoder.add_representer(collections.OrderedDict, ResultsYAMLEncoder.represent_dict)
-ResultsYAMLEncoder.add_representer(tuple, ResultsYAMLEncoder.represent_tuple)
-ResultsYAMLEncoder.add_representer(Grid, ResultsYAMLEncoder.represent_object)
-ResultsYAMLEncoder.add_representer(np.ndarray, ResultsYAMLEncoder.represent_object)
-ResultsYAMLEncoder.add_multi_representer(np.integer, ResultsYAMLEncoder.represent_int)
-ResultsYAMLEncoder.add_multi_representer(np.inexact, ResultsYAMLEncoder.represent_float)
 
 def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[Sequence], results, storage: "Storage", serializer: str, name: str):
     """ Generates a serialized report of the results.  """
+
+    from vot.utilities.io import JSONEncoder, YAMLEncoder
 
     doc = dict()
     doc["toolkit"] = version
@@ -292,10 +255,10 @@ def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[S
 
     if serializer == "json":
         with storage.write(name + "." + serializer) as handle:
-            json.dump(doc, handle, indent=2, cls=ResultsJSONEncoder)
+            json.dump(doc, handle, indent=2, cls=JSONEncoder)
     elif serializer == "yaml":
         with storage.write(name + "." + serializer) as handle:
-            yaml.dump(doc, handle, Dumper=ResultsYAMLEncoder)
+            yaml.dump(doc, handle, Dumper=YAMLEncoder)
     else:
         raise RuntimeError("Unknown serializer")
 

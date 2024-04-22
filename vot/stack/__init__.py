@@ -53,7 +53,7 @@ class Stack(Attributee, Serializable):
     @property
     def name(self):
         """Returns the name of the stack."""
-        return self.get("_name", None)
+        return getattr(self, "_name", None)
 
     def __iter__(self):
         """Iterates over experiments in the stack."""
@@ -74,6 +74,7 @@ class Stack(Attributee, Serializable):
 
         """
         return self.experiments[identifier]
+    
 
 def resolve_stack(name: str, *directories: List[str]) -> str:
     """Searches for stack file in the given directories and returns its absolute path. If given an absolute path as input
