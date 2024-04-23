@@ -55,7 +55,7 @@ def check_updates() -> bool:
     else:
         return False, None
 
-from attributee import Attributee, Integer, Boolean
+from attributee import Attributee, Integer, Boolean, List, String
 
 class GlobalConfiguration(Attributee):
     """Global configuration object for the toolkit. It is used to store global configuration options. It can be initialized
@@ -76,6 +76,7 @@ class GlobalConfiguration(Attributee):
     mask_optimize_read = Boolean(default=True, description="Enables mask optimization when reading masks.")
     worker_pool_size = Integer(default=1, description="Number of workers to use for parallel processing.")
     persistent_cache = Boolean(default=True, description="Enables persistent cache for analysis results in workspace.")
+    registry = List(String(), default="", separator=os.pathsep, description="List of directories to search for tracker metadata.")
 
     def __init__(self):
         """Initializes the global configuration object. It reads the configuration from environment variables.

@@ -68,12 +68,33 @@ class StackLoader(Attribute):
         else:
             return value.name
 
+class RegistryLoader(Attribute):
+    """Special attribute that converts a list of strings input to a Registry object."""
+    
+    def coerce(self, value, context: typing.Optional[CoerceContext]):
+        
+        from vot import config, get_logger
+        
+        paths = List(String(transformer=lambda x, ctx: normalize_path(x, ctx.parent.directory))).coerce(value, context)
+        paths = list(paths)
+ 
+        registry = Registry(paths + [normalize_path(x, os.curdir) for x in config.registry], root=context.parent.directory)
+        registry._paths = paths
+ 
+        get_logger().debug("Found data for %d trackers", len(registry))
+
+        return registry
+
+    def dump(self, value: "Registry") -> typing.List[str]:
+        assert isinstance(value, Registry)
+        return value._paths
+
 class Workspace(Attributee):
     """Workspace class represents the main junction of trackers, datasets and experiments. Each workspace performs 
     given experiments on a provided dataset.
     """
 
-    registry = List(String(transformer=lambda x, ctx: normalize_path(x, ctx.parent.directory)))
+    registry = RegistryLoader() # List(String(transformer=lambda x, ctx: normalize_path(x, ctx.parent.directory)))
     stack = StackLoader()
     sequences = String(default="sequences")
     report = Nested(ReportConfiguration)

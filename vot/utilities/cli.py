@@ -235,18 +235,12 @@ def do_evaluate(config: argparse.Namespace):
 
     logger.debug("Loaded workspace in '%s'", config.workspace)
 
-    global_registry = [os.path.abspath(x) for x in config.registry]
-
-    registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
-
-    logger.debug("Found data for %d trackers", len(registry))
-
-    trackers = registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
+    trackers = workspace.registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
     if len(trackers) == 0:
         logger.error("Unable to continue without at least on tracker")
         logger.error("List of available found trackers: ")
-        for k in registry.identifiers():
+        for k in workspace.registry.identifiers():
             logger.error(" * %s", k)
         return
 
@@ -292,16 +286,10 @@ def do_analysis(args: argparse.Namespace):
 
     logger.debug("Loaded workspace in '%s'", args.workspace)
 
-    global_registry = [os.path.abspath(x) for x in args.registry]
-
-    registry = Registry(list(workspace.registry) + global_registry, root=args.workspace)
-
-    logger.debug("Found data for %d trackers", len(registry))
-
     if not args.trackers:
-        trackers = workspace.list_results(registry)
+        trackers = workspace.list_results(workspace.registry)
     else:
-        trackers = registry.resolve(*args.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
+        trackers = workspace.registry.resolve(*args.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
     if not trackers:
         logger.warning("No trackers resolved, stopping.")
@@ -379,16 +367,10 @@ def do_report(config: argparse.Namespace):
 
     logger.debug("Loaded workspace in '%s'", config.workspace)
 
-    global_registry = [os.path.abspath(x) for x in config.registry]
-
-    registry = Registry(list(workspace.registry) + global_registry, root=config.workspace)
-
-    logger.debug("Found data for %d trackers", len(registry))
-
     if not config.trackers:
-        trackers = workspace.list_results(registry)
+        trackers = workspace.list_results(workspace.registry)
     else:
-        trackers = registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
+        trackers = workspace.registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
     if not trackers:
         logger.warning("No trackers resolved, stopping.")
@@ -419,9 +401,7 @@ def do_pack(config: argparse.Namespace):
 
     logger.debug("Loaded workspace in '%s'", config.workspace)
 
-    registry = Registry(list(workspace.registry) + config.registry, root=config.workspace)
-
-    tracker = registry[config.tracker]
+    tracker = workspace.registry[config.tracker]
 
     logger.info("Packaging results for tracker %s", tracker.identifier)
 
@@ -478,8 +458,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Interface', prog="vot")
     parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')
-    parser.add_argument("--registry", default=".", help='Tracker registry paths', required=False, action=EnvDefault, \
-        separator=os.path.pathsep, envvar='VOT_REGISTRY')
+    parser.add_argument("--registry", default=".", help='Tracker registry paths', required=False)
 
     subparsers = parser.add_subparsers(help='commands', dest='action', title="Commands")
 
@@ -524,6 +503,9 @@ def main():
     try:
 
         args = parser.parse_args()
+
+        if args.registry:
+            os.environ["VOT_REGISTRY"] = os.pathsep.join(os.environ.get("VOT_REGISTRY", "").split(os.pathsep) + [args.registry])
 
         if args.debug:
             os.environ["VOT_DEBUG_MODE"] = "1"
