@@ -7,7 +7,7 @@ import logging
 import yaml
 from datetime import datetime
 
-from .. import check_updates, toolkit_version, get_logger
+from .. import check_updates, toolkit_version, get_logger, check_debug
 from . import Progress, normalize_path
 
 logger = get_logger()
@@ -45,8 +45,9 @@ def do_test(config: argparse.Namespace):
     from vot.tracker import ObjectStatus, Registry, TrackerException
     from vot.experiment.helpers import MultiObjectHelper
     from vot.dataset.proxy import ObjectsHideFilterSequence
+    from vot import config as global_config
 
-    trackers = Registry(config.registry)
+    trackers = Registry(global_config.registry)
 
     if not config.tracker:
         logger.error("Unable to continue without a tracker")
@@ -228,7 +229,7 @@ def do_evaluate(config: argparse.Namespace):
     """
 
     from vot.experiment import run_experiment
-    from ..tracker import Registry, TrackerException
+    from ..tracker import TrackerException
     from ..workspace import Workspace
 
     workspace = Workspace.load(config.workspace)
@@ -278,7 +279,6 @@ def do_analysis(args: argparse.Namespace):
 
     from vot.analysis import AnalysisProcessor, process_stack_analyses
     from vot.report import generate_serialized
-    from ..tracker import Registry
     from ..workspace import Workspace
     from ..workspace.storage import Cache
 
@@ -354,7 +354,6 @@ def do_report(config: argparse.Namespace):
     """
 
     from vot.report import generate_document
-    from ..tracker import Registry
     from ..workspace import Workspace
 
 
@@ -376,9 +375,11 @@ def do_report(config: argparse.Namespace):
         logger.warning("No trackers resolved, stopping.")
         return
 
-    logger.debug("Running analysis for %d trackers", len(trackers))
+    logger.debug("Running report generation for %d trackers", len(trackers))
 
     generate_document(workspace, trackers, config.format, name, config.sequences, config.experiments)
+    
+    logger.info("Report generation successful, document available as %s", name)
     
     
 def do_pack(config: argparse.Namespace):
@@ -390,12 +391,8 @@ def do_pack(config: argparse.Namespace):
 
     import zipfile, io
     from shutil import copyfileobj
-
-    from ..tracker import Registry
     from ..workspace import Workspace
-    
     from vot.utilities.io import YAMLEncoder
-
 
     workspace = Workspace.load(config.workspace)
 
@@ -546,7 +543,7 @@ def main():
         logger.error(e)
         exit(-1)
     except Exception as e:
-        logger.exception(e)
+        logger.exception(e, exc_info=check_debug())
         exit(1)
 
     exit(0)
