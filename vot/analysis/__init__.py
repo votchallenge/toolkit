@@ -318,6 +318,11 @@ class Analysis(Attributee):
         """ Returns axes semantic description for the result grid """
         raise NotImplementedError()
 
+    @property
+    def cached(self) -> bool:
+        """Returns whether the analysis should be cached."""
+        return True
+
     def commit(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
         """Commits the analysis for execution on default processor."""
         return AnalysisProcessor.commit_default(self, experiment, trackers, sequences)

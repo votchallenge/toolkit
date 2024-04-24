@@ -491,13 +491,8 @@ class AnalysisFuture(Future):
         """
 
         super().__init__()
-        self._key = key
-
-    @property
-    def key(self):
-        """Gets the key of the analysis."""
-        return self._key
-
+        self.key = key
+        
     def __repr__(self) -> str:
         """Gets a string representation of the future."""
         return "<AnalysisFuture key={}>".format(self._key)
@@ -545,7 +540,7 @@ class AnalysisProcessor(object):
 
             promise = self._exists(key)
 
-            if not promise is None:
+            if not promise is None and analysis.cached:
                 return promise
     
             promise = AnalysisFuture(key)
@@ -569,7 +564,7 @@ class AnalysisProcessor(object):
                     partkey = hashkey(analysis, experiment, unwrap(part.trackers), unwrap(part.sequences))
                 
                     partpromise = self._exists(partkey)
-                    if not partpromise is None:
+                    if not partpromise is None and analysis.cached:
                         partpromises.append(partpromise)
                         continue
                 
@@ -579,15 +574,18 @@ class AnalysisProcessor(object):
                     executorpromise = self._executor.submit(AnalysisPartTask(analysis, experiment, part.trackers, part.sequences), *dependencies, 
                         mapping=partial(select_dependencies, analysis, part.tid, part.sid))
                     self._promises[partkey] = [partpromise]
+                    executorpromise.cached = analysis.cached
                     self._pending[partkey] = executorpromise
                     executorpromise.add_done_callback(self._future_done)
 
                 executorpromise = self._executor.submit(AnalysisJoinTask(analysis, experiment, trackers, sequences),
                         *partpromises, mapping=lambda *x: [list(x)])
+                executorpromise.cached = analysis.cached
                 self._pending[key] = executorpromise
             else:
                 task = AnalysisTask(analysis, experiment, trackers, sequences)
                 executorpromise = self._executor.submit(task, *dependencies, mapping=lambda *x: [list(x)])
+                executorpromise.cached = analysis.cached
                 self._pending[key] = executorpromise
 
             self._promises[key] = [promise]
@@ -637,7 +635,8 @@ class AnalysisProcessor(object):
 
             try:
                 result = future.result()
-                self._cache[key] = result
+                if self._cache is not None and getattr(future, "cached", False):
+                    self._cache[key] = result
                 error = None
             except (AnalysisError, RuntimeError) as e:
                 error = e
@@ -769,7 +768,7 @@ class AnalysisProcessor(object):
         processor = getattr(AnalysisProcessor._context, 'analysis_processor', None)
 
         if processor is None:
-            logger.warning("Default analysis processor not set for thread %s, using a simple one.", threading.current_thread().name)
+            logger.debug("Default analysis processor not set for thread %s, using a simple one.", threading.current_thread().name)
             from vot.utilities import ThreadPoolExecutor
             from cachetools import LRUCache
             executor = ThreadPoolExecutor(1)
@@ -850,13 +849,13 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
             """Inserts the result of a computation into a container."""
             try:
                 container[key] = future.result()
-            except AnalysisError as e:
-                errors.append(e)
             except Exception as e:
-                logger.exception(e)
+                errors.append(e)
             with condition:
                 condition.notify()
         return insert
+
+    if isinstance(trackers, Tracker): trackers = [trackers]
 
     for experiment in workspace.stack:
 
@@ -892,6 +891,7 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
                 progress.absolute(processor.total - processor.pending)
                 if processor.pending == 0:
+                    progress.absolute(processor.total)
                     break
 
                 with condition:
@@ -907,8 +907,8 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
         logger.info("Errors occured during analysis, incomplete.")
         for e in errors:
             logger.info("Failed task {}: {}".format(e.task, e.root_cause))
-            if logger.isEnabledFor(logging.DEBUG):
-                e.print(logger)
+            #if logger.isEnabledFor(logging.DEBUG):
+            #    e.print(logger)
         return None
 
     return results
