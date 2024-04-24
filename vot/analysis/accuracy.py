@@ -316,6 +316,8 @@ class SuccessPlot(SeparableAnalysis):
 
         ignore_masks = sequence.object(self.ignore_masks)
 
+        valid_objects = 0
+
         for object in objects:
             trajectories = experiment.gather(tracker, sequence, objects=[object])
             if len(trajectories) == 0:
@@ -327,6 +329,8 @@ class SuccessPlot(SeparableAnalysis):
                 frame_mask = [self.filter_tag in sequence.tags(i) for i in range(len(sequence))]
             else:
                 frame_mask = None
+
+            valid_trajectories = 0
 
             for trajectory in trajectories:
                 if frame_mask is not None:
@@ -340,6 +344,11 @@ class SuccessPlot(SeparableAnalysis):
                 overlaps, _ = gather_overlaps(trajectory, groundtruth, burnin=self.burnin, ignore_unknown=self.ignore_unknown, 
                                             ignore_invisible=self.ignore_invisible, bounds=bounds, threshold=self.threshold, ignore_masks=masks)
 
+                if len(overlaps) == 0:
+                    continue
+
+                valid_trajectories += 1
+
                 for i, threshold in enumerate(axis_x):
                     if threshold == 1:
                         # Nicer handling of the edge case
@@ -347,9 +356,14 @@ class SuccessPlot(SeparableAnalysis):
                     else:
                         object_y[i] += np.sum(overlaps > threshold) / len(overlaps)
 
-            axis_y += object_y / len(trajectories)
+            if valid_trajectories == 0:
+                continue
+            
+            valid_objects += 1
+            
+            axis_y += object_y / valid_trajectories
 
-        axis_y /= len(objects)
+        axis_y /= valid_objects
 
         return [(x, y) for x, y in zip(axis_x, axis_y)],
 
