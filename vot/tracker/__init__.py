@@ -3,7 +3,6 @@
 import os
 import re
 import configparser
-import logging
 import copy
 from typing import Tuple, List, Union
 from collections import OrderedDict, namedtuple
@@ -15,8 +14,6 @@ from vot import ToolkitException
 from vot.dataset import Frame
 from vot.region import Region
 from vot.utilities import to_string
-
-logger = logging.getLogger("vot")
 
 class TrackerException(ToolkitException):
     """ Base class for all tracker related exceptions."""
@@ -105,6 +102,10 @@ class Registry(object):
             directories (list): List of directories to scan for trackers.
             root (str, optional): The root directory of the workspace. Defaults to os.getcwd().
         """
+        from vot import get_logger
+        
+        logger = get_logger()
+        
         trackers = dict()
         registries = []
 

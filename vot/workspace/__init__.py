@@ -69,15 +69,18 @@ class StackLoader(Attribute):
             return value.name
 
 class RegistryLoader(Attribute):
-    """Special attribute that converts a list of strings input to a Registry object."""
+    """Special attribute that converts a list of strings input to a Registry object. The paths are appended to
+    the global registry search paths.
+    """
     
     def coerce(self, value, context: typing.Optional[CoerceContext]):
         
         from vot import config, get_logger
         
-        paths = List(String(transformer=lambda x, ctx: normalize_path(x, ctx.parent.directory))).coerce(value, context)
-        paths = list(paths)
- 
+        # Workspace registry paths are relative to the workspace directory
+        paths = list(List(String(transformer=lambda x, ctx: normalize_path(x, ctx.parent.directory))).coerce(value, context))
+
+        # Combine the paths with the global registry search paths (relative to the current directory)
         registry = Registry(paths + [normalize_path(x, os.curdir) for x in config.registry], root=context.parent.directory)
         registry._paths = paths
  

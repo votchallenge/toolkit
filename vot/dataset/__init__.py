@@ -1,7 +1,6 @@
 """Dataset module provides an interface for accessing the datasets and sequences. It also provides a set of utility functions for downloading and extracting datasets."""
 
 import os
-import logging
 
 from numbers import Number
 from collections import namedtuple
@@ -18,8 +17,6 @@ from vot import ToolkitException
 from vot.utilities import Registry
 
 import cv2
-
-logger = logging.getLogger("vot")
 
 dataset_downloader = Registry("vot_downloader")
 sequence_indexer = Registry("vot_indexer")
@@ -1157,11 +1154,12 @@ def download_bundle(url: str, path: str = "."):
     """
 
     from vot.utilities.net import download_uncompress, NetworkException
+    from vot import get_logger
 
     if not url.endswith(".zip"):
         raise DatasetException("Unknown bundle format")
 
-    logger.info('Downloading sequence bundle from "%s". This may take a while ...', url)
+    get_logger().info('Downloading sequence bundle from "%s". This may take a while ...', url)
 
     try:
         download_uncompress(url, path)
@@ -1214,8 +1212,11 @@ def load_dataset(path: str) -> Dataset:
     """
 
     from collections import OrderedDict
+    from vot import get_logger
 
     sequence_list = None
+    
+    logger = get_logger()
 
     for _, indexer in sequence_indexer.items():
         logger.debug("Attempting to index sequences with {}.{}".format(indexer.__module__, indexer.__name__))
@@ -1253,11 +1254,12 @@ def load_sequence(path: str) -> Sequence:
     Returns:
         Sequence: Sequence object
     """
+    from vot import get_logger
 
     for _, loader in sequence_reader.items():
         sequence = loader(path)
         if sequence is not None:
-            logger.debug("Loaded sequence with {}.{}".format(loader.__module__, loader.__name__))
+            get_logger().debug("Loaded sequence with {}.{}".format(loader.__module__, loader.__name__))
             return sequence
 
     raise DatasetException("Unable to load sequence, unknown format or unsupported sequence: {}".format(path))

@@ -10,7 +10,6 @@ from class_registry import ClassRegistry
 
 from attributee import Attributee, Object, Integer, Float, Nested, List, Boolean
 
-from vot import get_logger
 from vot.tracker import TrackerException
 from vot.utilities import Progress, to_number, import_class, ObjectResolver
 from vot.dataset.proxy import IgnoreSpecialObjects
@@ -274,6 +273,8 @@ class Experiment(Attributee):
         """
         from vot.dataset import Sequence
         from vot.experiment.transformer import SingleObject
+        from vot import get_logger
+        
         if isinstance(sequences, Sequence):
             sequences = [sequences]
         
@@ -349,7 +350,9 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
             """Close the progress bar."""
             self.bar.close()
 
-    logger = logging.getLogger("vot")
+    from vot import get_logger
+
+    logger = get_logger()
 
     transformed = []
     for sequence in sequences:
@@ -361,7 +364,7 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
         try:
             experiment.execute(tracker, sequence, force=force, callback=progress)
         except TrackerException as te:
-            logger.error("Tracker %s encountered an error on sequence %s: %s", te.tracker.identifier, sequence.name, te)
+            logger.error("Tracker %s encountered an error at sequence %s: %s", te.tracker.identifier, sequence.name, te)
             logger.debug(te, exc_info=True)
             if not te.log is None:
                 with experiment.log(te.tracker.identifier) as flog:

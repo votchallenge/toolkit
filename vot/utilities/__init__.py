@@ -7,6 +7,7 @@ import re
 import hashlib
 import logging
 import inspect
+import threading
 import time
 import concurrent.futures as futures
 from logging import Formatter, LogRecord
@@ -113,40 +114,11 @@ def flatten(nested_list):
     """
     return [item for sublist in nested_list for item in sublist]
 
-from vot.utilities.notebook import is_notebook
-
-if is_notebook():
-    try:
-        from ipywidgets import IntProgress
-        from tqdm._tqdm_notebook import tqdm_notebook as tqdm
-    except ImportError:
-        from tqdm import tqdm
-else:
-    from tqdm import tqdm
 
 class Progress(object):
     """Wrapper around tqdm progress bar, enables silecing the progress output and some more
     costumizations.
     """
-
-    class StreamProxy(object):
-        """Proxy class for tqdm to enable silent mode."""
-
-        def write(self, x):
-            """Write function used by tqdm."""
-            # Avoid print() second call (useless \n)
-            if len(x.rstrip()) > 0:
-                tqdm.write(x)
-
-        def flush(self):
-            """Flush function used by tqdm."""
-            #return getattr(self.file, "flush", lambda: None)()
-            pass
-
-    @staticmethod
-    def logstream():
-        """Returns a stream proxy that can be used to redirect output to the progress bar."""
-        return Progress.StreamProxy()
 
     def __init__(self, description="Processing", total=100):
         """Creates a new progress bar.
@@ -155,16 +127,28 @@ class Progress(object):
             description: The description of the progress bar.
             total: The total number of steps.
         """
+        
+        from vot.utilities.notebook import is_notebook
+        
         from vot import get_logger
+        
+        if is_notebook():
+            try:
+                from tqdm._tqdm_notebook import tqdm_notebook as tqdm
+            except ImportError:
+                from tqdm import tqdm
+        else:
+            from tqdm import tqdm
+        
         silent = get_logger().level > logging.INFO
 
         if not silent:
-            self._tqdm = tqdm(disable=False if is_notebook() else None, 
+            self._bar = tqdm(disable=None, 
                 bar_format=" {desc:20.20} |{bar}| {percentage:3.0f}% [{elapsed}<{remaining}]", file=sys.stdout, leave=False)
-            self._tqdm.desc = description
-            self._tqdm.total = total
-        if silent or self._tqdm.disable:
-            self._tqdm = None
+            self._bar.desc = description
+            self._bar.total = total
+        if silent or self._bar.disable:
+            self._bar = None
             self._value = 0
             self._total = total if not silent else 0
 
@@ -185,7 +169,7 @@ class Progress(object):
         Args:
             value: The value to set the progress to.
         """
-        if self._tqdm is None:
+        if self._bar is None:
             if self._total == 0:
                 return
             prev = self._value
@@ -193,7 +177,7 @@ class Progress(object):
             if self._percent(prev) != self._percent(self._value):
                 print("%d %%" % self._percent(self._value))
         else:
-            self._tqdm.update(value - self._tqdm.n)  # will also set self.n = b * bsize
+            self._bar.update(value - self._bar.n)  # will also set self.n = b * bsize
         
     def relative(self, n):
         """Increments the progress by the given value.
@@ -201,7 +185,7 @@ class Progress(object):
         Args:
             n: The value to increment the progress by.
         """
-        if self._tqdm is None:
+        if self._bar is None:
             if self._total == 0:
                 return
             prev = self._value
@@ -209,7 +193,7 @@ class Progress(object):
             if self._percent(prev) != self._percent(self._value):
                 print("%d %%" % self._percent(self._value))
         else:
-            self._tqdm.update(n)  # will also set self.n = b * bsize 
+            self._bar.update(n)  # will also set self.n = b * bsize 
 
     def total(self, t):
         """Sets the total number of steps.
@@ -217,28 +201,27 @@ class Progress(object):
         Args:
             t: The total number of steps.
         """
-        if self._tqdm is None:
+        if self._bar is None:
             if self._total == 0:
                 return
             self._total = t
         else:
-            if self._tqdm.total == t:
+            if self._bar.total == t:
                 return
-            self._tqdm.total = t
-            self._tqdm.refresh()
-
-    def __enter__(self):
-        """Enters the context manager."""
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Exits the context manager."""
-        self.close()
+            self._bar.total = t
+            self._bar.refresh()
 
     def close(self):
         """Closes the progress bar."""
-        if self._tqdm:
-            self._tqdm.close()
+        if self._bar:
+            self._bar.close()
+            
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+        
 
 def extract_files(archive, destination, callback = None):
     """Extracts all files from the given archive to the given destination.
