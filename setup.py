@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 from os.path import join, dirname, abspath, isfile
-from distutils.core import setup
-from setuptools import find_packages
+from setuptools import find_packages, setup
 
 this_directory = abspath(dirname(__file__))
 with open(join(this_directory, 'README.md'), encoding='utf-8') as f:
