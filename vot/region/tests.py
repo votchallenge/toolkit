@@ -41,11 +41,11 @@ class TestRasterMethods(unittest.TestCase):
         r1 = Mask(np.ones((100, 100), dtype=np.uint8))
         r2 = Mask(np.ones((100, 100), dtype=np.uint8))
         ignore = Mask(np.zeros((100, 100), dtype=np.uint8))
-        self.assertEqual(calculate_overlap(r1, r2, ignore=ignore), 0)
-
-        ignore = Mask(np.ones((100, 100), dtype=np.uint8))
         self.assertEqual(calculate_overlap(r1, r2, ignore=ignore), 1)
 
+        ignore = Mask(np.ones((100, 100), dtype=np.uint8))
+        self.assertEqual(calculate_overlap(r1, r2, ignore=ignore), 0)
+        
     def test_empty_mask(self):
         """Tests if the empty mask is correctly detected."""
         from vot.region import Mask
