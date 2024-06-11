@@ -898,7 +898,7 @@ class MultiObjectTrackerRuntime(TrackerRuntime):
             Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
         """
 
-        if not new is None: raise TrackerException("Only supports single object tracking")
+        if not new is None: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
         status = self._runtime.update(frame, new, properties)
         if isinstance(status, list): status = status[0]
         return status
