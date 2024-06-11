@@ -188,7 +188,7 @@ class Experiment(Attributee):
 
         if multiobject:
             if not runtime.multiobject:
-                raise TrackerException("Tracker {} does not support multi-object experiments".format(tracker.identifier))
+                raise TrackerException("Tracker {} does not support multi-object experiments".format(tracker.identifier), tracker=tracker)
                 #runtime = MultiObjectTrackerRuntime(runtime)
         else:
             runtime = SingleObjectTrackerRuntime(runtime)
