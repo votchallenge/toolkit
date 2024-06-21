@@ -611,8 +611,19 @@ class Registry(ClassRegistry):
         Returns:
             object: Loaded class or None if not found
         """
-        return self._entry_point.get(key)
-    
+        return self._entry_point.get_class(key)
+ 
+    def items(self):
+        """Returns an iterator over the registered classes.
+        
+        Returns:
+            Iterator: Iterator over the registered classes
+        """
+        items = dict(self._entry_point.items())
+        items.update(super().items())
+
+        return items.items()
+
 class ObjectResolver(object):
     
     

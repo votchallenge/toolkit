@@ -21,13 +21,14 @@ entrypoints = {
     'console_scripts': ['vot=vot.utilities.cli:main'],
 }
 
-for r in ["analysis", "transformer", "downloader", "indexer", "loader"]:
+for r in ["analysis", "downloader", "experiment", "indexer", "loader", "transformer"]:
     registry = join(this_directory, "data", "aliases", r + ".json")    
     if isfile(registry):
         try:
             with open(registry, encoding='utf-8') as f:
                 data = json.load(f)
-                entrypoints['vot_' + r] = ["%s=%s" % (k, v) for k, v in data.items()]
+                
+                entrypoints['vot_' + r] = ["%s=%s" % (k, ":".join(v.rsplit(".", 1))) for k, v in data.items()]
         except Exception:
             pass
 

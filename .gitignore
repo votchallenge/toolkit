@@ -7,3 +7,4 @@ MANIFEST
 dist/
 *.egg-info
 _build
+build

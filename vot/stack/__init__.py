@@ -10,7 +10,7 @@ from attributee import Attributee, String, Boolean, Map, Object
 from attributee.io import Serializable
 
 from vot.experiment import Experiment, experiment_registry
-from vot.utilities import import_class
+
 
 def experiment_resolver(typename, context, **kwargs):
     """Resolves experiment objects from stack definitions. This function is used by the stack module to resolve experiment objects from stack
@@ -24,6 +24,8 @@ def experiment_resolver(typename, context, **kwargs):
     Returns:
         Experiment: Experiment object
     """
+
+    from vot.utilities import import_class
 
     identifier = context.key
     storage = None

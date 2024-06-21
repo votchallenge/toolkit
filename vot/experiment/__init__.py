@@ -8,7 +8,7 @@ from abc import abstractmethod
 from attributee import Attributee, Object, Integer, Float, Nested, List, Boolean
 
 from vot.tracker import TrackerException
-from vot.utilities import Progress, to_number, import_class, Registry
+from vot.utilities import Progress, to_number, Registry
 from vot.dataset.proxy import IgnoreSpecialObjects
 
 class RealtimeConfig(Attributee):
@@ -39,6 +39,7 @@ def transformer_resolver(typename, context, **kwargs):
     Returns:
         Transformer: Resolved transformer
     """
+    from vot.utilities import import_class
     from vot.experiment.transformer import Transformer
 
 
@@ -67,7 +68,7 @@ def analysis_resolver(typename, context, **kwargs):
     Returns:
         Analysis: Resolved analysis
     """
-
+    from vot.utilities import import_class
     from vot.analysis import Analysis, analysis_registry
 
     if typename in analysis_registry:
@@ -251,6 +252,7 @@ class Experiment(Attributee):
             str: Path to the log file
         """
         if not hasattr(self, "_storage"):
+            import os
             # Return a devnull file if the experiment has no storage
             return open(os.devnull, 'w') 
         
