@@ -2,6 +2,7 @@
 
 from os.path import join, dirname, abspath, isfile
 from setuptools import find_packages, setup
+import json
 
 this_directory = abspath(dirname(__file__))
 with open(join(this_directory, 'README.md'), encoding='utf-8') as f:
@@ -15,6 +16,20 @@ if isfile(join(this_directory, "requirements.txt")):
 __version__ = "0.0.0"
 
 exec(open(join(dirname(__file__), 'vot', 'version.py')).read())
+
+entrypoints = {
+    'console_scripts': ['vot=vot.utilities.cli:main'],
+}
+
+for r in ["analysis", "transformer", "downloader", "indexer", "loader"]:
+    registry = join(this_directory, "data", "aliases", r + ".json")    
+    if isfile(registry):
+        try:
+            with open(registry, encoding='utf-8') as f:
+                data = json.load(f)
+                entrypoints['vot_' + r] = ["%s=%s" % (k, v) for k, v in data.items()]
+        except Exception:
+            pass
 
 setup(name='vot-toolkit',
     version=__version__,
@@ -35,8 +50,9 @@ setup(name='vot-toolkit',
         "Intended Audience :: Science/Research",
     ],
     python_requires='>=3.7',
-    entry_points={
-        'console_scripts': ['vot=vot.utilities.cli:main'],
+    entry_points=entrypoints,
+    extras_require = {
+        'jupyter':  ["ipywidgets", "jupyter", "itables"],
     },
 )
 

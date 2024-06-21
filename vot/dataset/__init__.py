@@ -18,10 +18,6 @@ from vot.utilities import Registry
 
 import cv2
 
-dataset_downloader = Registry("vot_downloader")
-sequence_indexer = Registry("vot_indexer")
-sequence_reader = Registry("vot_sequence")
-
 class DatasetException(ToolkitException):
     """Dataset and sequence related exceptions
     """
@@ -1168,6 +1164,17 @@ def download_bundle(url: str, path: str = "."):
     except IOError as e:
         raise DatasetException("Unable to extract dataset bundle, is the target directory writable and do you have enough space?")
 
+# Legacy reader is registered last, otherwise it will cause problems
+# TODO: implement explicit ordering of readers
+def read_legacy_sequence(path: str) -> Sequence:
+    """Wrapper around the legacy sequence reader."""
+    from vot.dataset.common import read_sequence_legacy
+    return read_sequence_legacy(path)
+
+dataset_downloader = Registry("downloader")
+sequence_indexer = Registry("indexer")
+sequence_reader = Registry("loader")
+
 def download_dataset(url: str, path: str):
     """Downloads a dataset from a given url or an alias.
 
@@ -1263,15 +1270,3 @@ def load_sequence(path: str) -> Sequence:
             return sequence
 
     raise DatasetException("Unable to load sequence, unknown format or unsupported sequence: {}".format(path))
-
-import importlib
-for module in [".common", ".otb", ".got10k", ".trackingnet"]:
-    importlib.import_module(module, package="vot.dataset")
-
-# Legacy reader is registered last, otherwise it will cause problems
-# TODO: implement explicit ordering of readers
-@sequence_reader.register("legacy")
-def read_legacy_sequence(path: str) -> Sequence:
-    """Wrapper around the legacy sequence reader."""
-    from vot.dataset.common import read_sequence_legacy
-    return read_sequence_legacy(path)

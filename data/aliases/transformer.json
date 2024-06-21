@@ -1,0 +1,6 @@
+{
+    "singleobject" : "vot.experiment.transformer.SingleObject",
+    "redetection": "vot.experiment.transformer.Redetection",
+    "ignore": "vot.experiment.transformer.IgnoreObjects",
+    "downsample": "vot.experiment.transformer.Downsample"
+}

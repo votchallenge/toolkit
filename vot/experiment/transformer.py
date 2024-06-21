@@ -13,7 +13,6 @@ from vot.dataset.proxy import FrameMapSequence
 from vot.dataset.common import write_sequence, read_sequence
 from vot.region import RegionType
 from vot.utilities import arg_hash
-from vot.experiment import transformer_registry
 
 class Transformer(Attributee):
     """Base class for transformers. Transformers are used to generate new modified sequences from existing ones."""
@@ -39,7 +38,6 @@ class Transformer(Attributee):
         """
         raise NotImplementedError
 
-@transformer_registry.register("singleobject")
 class SingleObject(Transformer):
     """Transformer that generates a sequence for each object in the given sequence."""
 
@@ -58,7 +56,6 @@ class SingleObject(Transformer):
         
         return [ObjectFilterSequence(sequence, id, self.trim) for id in sequence.objects()]
         
-@transformer_registry.register("redetection")
 class Redetection(Transformer):
     """Transformer that test redetection of the object in the sequence. The object is shown in several frames and then moved to a different location.
     
@@ -113,7 +110,6 @@ class Redetection(Transformer):
         mapping = [0] * self.initialization + [1] * (len(source) - self.initialization)
         return [FrameMapSequence(source, mapping)]
 
-@transformer_registry.register("ignore")
 class IgnoreObjects(Transformer):
     """Transformer that hides objects with certain ids from the sequence."""
 
@@ -129,7 +125,6 @@ class IgnoreObjects(Transformer):
         
         return [ObjectsHideFilterSequence(sequence, self.ids)]
     
-@transformer_registry.register("downsample")
 class Downsample(Transformer):
     """Transformer that downsamples the sequence by a given factor."""
 

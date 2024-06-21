@@ -7,7 +7,7 @@ from vot.region import Special, calculate_overlap
 
 from attributee import Boolean, Integer, Float, List, String
 
-from vot.experiment import Experiment, experiment_registry
+from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory, ObjectStatus
 
 class MultiRunExperiment(Experiment):
@@ -105,7 +105,6 @@ class MultiRunExperiment(Experiment):
                     trajectories.append(None)
         return trajectories
 
-@experiment_registry.register("unsupervised")
 class UnsupervisedExperiment(MultiRunExperiment):
     """Unsupervised experiment. This experiment is used to run a tracker multiple times on the same sequence without any supervision."""
 
@@ -179,7 +178,6 @@ class UnsupervisedExperiment(MultiRunExperiment):
                     trajectory.write(results, result_name(sequence, o, i))
 
 
-@experiment_registry.register("supervised")
 class SupervisedExperiment(MultiRunExperiment):
     """Supervised experiment. This experiment is used to run a tracker multiple times on the same sequence with supervision (reinitialization in case of failure)."""
 

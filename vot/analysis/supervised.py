@@ -15,7 +15,7 @@ from vot.experiment import Experiment
 from vot.experiment.multirun import SupervisedExperiment
 from vot.region import Region, calculate_overlaps
 from vot.analysis import MissingResultsException, Measure, Point, is_special, Plot, Analysis, \
-    Sorting, SeparableAnalysis, SequenceAggregator, analysis_registry, TrackerSeparableAnalysis, Axes
+    Sorting, SeparableAnalysis, SequenceAggregator, TrackerSeparableAnalysis, Axes
 from vot.utilities.data import Grid
 
 def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int = 10, 
@@ -86,8 +86,6 @@ def compute_eao_curve(overlaps: List, weights: List[float], success: List[bool])
     
     return np.sum(weights_vector * overlaps_array_sum * mask_array, axis=0) / np.sum(mask_array * weights_vector, axis=0).tolist()
     
-
-@analysis_registry.register("supervised_ar")
 class AccuracyRobustness(SeparableAnalysis):
     """Accuracy-Robustness analysis. Computes accuracy and robustness of a tracker on a given sequence. 
     Accuracy is defined as mean overlap of the tracker region with the groundtruth region. The overlap is computed only for frames where the tracker is not in
@@ -147,7 +145,6 @@ class AccuracyRobustness(SeparableAnalysis):
 
         return accuracy, failures, ar, len(sequence)
 
-@analysis_registry.register("supervised_average_ar")
 class AverageAccuracyRobustness(SequenceAggregator):
     """Average accuracy-robustness analysis. Computes average accuracy and robustness of a tracker on a given sequence. 
 
@@ -209,7 +206,6 @@ class AverageAccuracyRobustness(SequenceAggregator):
 
         return accuracy, failures, ar, length
 
-@analysis_registry.register("supervised_eao_curve")
 class EAOCurve(TrackerSeparableAnalysis):
     """Expected Average Overlap curve analysis. Computes expected average overlap of a tracker on a given sequence.
     The overlap is computed only for frames where the tracker is not in initialization or failure state.
@@ -283,7 +279,6 @@ class EAOCurve(TrackerSeparableAnalysis):
 
         return compute_eao_curve(overlaps_all, weights_all, success_all),
 
-@analysis_registry.register("supervised_eao_score")
 class EAOScore(Analysis):
     """Expected Average Overlap score analysis. The analysis is computed as an average of EAO scores over multiple sequences.
     """

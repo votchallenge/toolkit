@@ -1,0 +1,6 @@
+{
+    "unsupervised": "vot.experiment.multirun.UnsupervisedExperiment",
+    "supervised": "vot.experiment.multirun.SupervisedExperiment",
+
+    "multistart": "vot.experiment.multistart.MultiStartExperiment"
+}

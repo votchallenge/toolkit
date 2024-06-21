@@ -10,7 +10,7 @@ from vot.analysis import (Measure,
                           MissingResultsException,
                           SequenceAggregator, Sorting,
                           is_special, SeparableAnalysis,
-                          analysis_registry, Curve)
+                          Curve)
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import (MultiRunExperiment)
@@ -137,7 +137,6 @@ class Overlaps(SeparableAnalysis):
 
         return results,
 
-@analysis_registry.register("accuracy")
 class SequenceAccuracy(SeparableAnalysis):
     """Sequence accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
 
@@ -215,7 +214,6 @@ class SequenceAccuracy(SeparableAnalysis):
 
         return objects_accuracy / len(objects),
 
-@analysis_registry.register("average_accuracy")
 class AverageAccuracy(SequenceAggregator):
     """Average accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
 
@@ -267,7 +265,6 @@ class AverageAccuracy(SequenceAggregator):
 
         return accuracy / frames,
 
-@analysis_registry.register("success_plot")
 class SuccessPlot(SeparableAnalysis):
     """Success plot analysis. Computes the success plot of the tracker."""
 
@@ -367,8 +364,6 @@ class SuccessPlot(SeparableAnalysis):
 
         return [(x, y) for x, y in zip(axis_x, axis_y)],
 
-
-@analysis_registry.register("average_success_plot")
 class AverageSuccessPlot(SequenceAggregator):
     """Average success plot analysis. Computes the average success plot of the tracker."""
 

@@ -1,0 +1,29 @@
+{
+    "accuracy": "vot.analysis.accuracy.SequenceAccuracy",
+    "average_accuracy": "vot.analysis.accuracy.AverageAccuracy",
+    "success_plot": "vot.analysis.accuracy.SuccessPlot",
+    "average_success_plot": "vot.analysis.accuracy.AverageSuccessPlot",
+
+    "failures": "vot.analysis.failures.FailureCount",
+    "cumulative_failures": "vot.analysis.failures.CumulativeFailureCount",
+
+    "pr_curves": "vot.analysis.longterm.PrecisionRecallCurves",
+    "pr_curve": "vot.analysis.longterm.PrecisionRecallCurve",
+    "f_curve": "vot.analysis.longterm.FScoreCurve",
+    "average_tpr": "vot.analysis.longterm.PrecisionRecall",
+    "quality_auxiliary": "vot.analysis.longterm.QualityAuxiliary",
+    "average_quality_auxiliary": "vot.analysis.longterm.AverageQualityAuxiliary",
+    "longterm_ar": "vot.analysis.longterm.AccuracyRobustness",
+
+    "multistart_ar": "vot.analysis.multistart.AccuracyRobustness",
+    "multistart_average_ar": "vot.analysis.multistart.AverageAccuracyRobustness",
+    "multistart_fragments": "vot.analysis.multistart.MultiStartFragments",
+    "multistart_eao_curves": "vot.analysis.multistart.EAOCurves",
+    "multistart_eao_curve": "vot.analysis.multistart.EAOCurve",
+    "multistart_eao_score": "vot.analysis.multistart.EAOScore",
+
+    "supervised_ar": "vot.analysis.supervised.AccuracyRobustness",
+    "supervised_average_ar": "vot.analysis.supervised.AverageAccuracyRobustness",
+    "supervised_eao_curve": "vot.analysis.supervised.EAOCurve",
+    "supervised_eao_score": "vot.analysis.supervised.EAOScore"
+}

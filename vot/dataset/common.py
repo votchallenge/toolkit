@@ -155,9 +155,6 @@ def _read_metadata(path):
 
     return metadata
 
-from vot.dataset import sequence_reader, sequence_indexer
-
-@sequence_reader.register("default")
 def read_sequence(path):
     """Reads a sequence from the given path.
 
@@ -192,8 +189,7 @@ def read_sequence_legacy(path):
 
     return BasedSequence(os.path.basename(path), _read_data, metadata=metadata)
 
-@sequence_indexer.register("default")
-def index_sequences(path: str) -> None:
+def list_sequences(path: str) -> None:
     """Indexes the sequences in the given path. Only works if there is a list.txt file in the given path or the path is a list file.
     
     Args:

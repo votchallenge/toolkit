@@ -1,0 +1,6 @@
+{
+    "default": "vot.dataset.common.read_sequence",
+
+
+    "legacy": "vot.dataset.read_legacy_sequence"
+}

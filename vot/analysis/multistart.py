@@ -13,7 +13,7 @@ from vot.experiment import Experiment
 from vot.experiment.multistart import MultiStartExperiment, find_anchors
 from vot.region import calculate_overlaps
 from vot.analysis import MissingResultsException, Measure, Plot, Analysis, Axes, \
-    Sorting, SeparableAnalysis, Curve, Point, analysis_registry, SequenceAggregator
+    Sorting, SeparableAnalysis, Curve, Point, SequenceAggregator
 from vot.utilities.data import Grid
 
 def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
@@ -46,8 +46,6 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
     phi = [p / a if a > 0 else 0 for p, a in zip(phi, active)]
     return phi, active
 
-
-@analysis_registry.register("multistart_ar")
 class AccuracyRobustness(SeparableAnalysis):
     """This analysis computes the accuracy-robustness curve for the multistart experiment."""
 
@@ -134,7 +132,6 @@ class AccuracyRobustness(SeparableAnalysis):
 
         return accuracy / robustness if robustness > 0 else 0, robustness / total, ar, robustness, len(sequence)
 
-@analysis_registry.register("multistart_average_ar")
 class AverageAccuracyRobustness(SequenceAggregator):
     """This analysis computes the average accuracy-robustness curve for the multistart experiment."""
 
@@ -187,7 +184,6 @@ class AverageAccuracyRobustness(SequenceAggregator):
 
         return total_accuracy / weight_accuracy, total_robustness / weight_robustness, ar, weight_accuracy, weight_robustness
 
-@analysis_registry.register("multistart_fragments")
 class MultiStartFragments(SeparableAnalysis):
     """This analysis computes the accuracy-robustness curve for the multistart experiment."""
 
@@ -267,7 +263,6 @@ class MultiStartFragments(SeparableAnalysis):
         return success, accuracy
 
 # TODO: remove high
-@analysis_registry.register("multistart_eao_curves")
 class EAOCurves(SeparableAnalysis):
     """This analysis computes the expected average overlap curve for the multistart experiment."""
 
@@ -356,7 +351,6 @@ class EAOCurves(SeparableAnalysis):
         return compute_eao_partial(overlaps_all, success_all, self.high), 1
 
 #TODO: remove high
-@analysis_registry.register("multistart_eao_curve")
 class EAOCurve(SequenceAggregator):
     """This analysis computes the expected average overlap curve for the multistart experiment. It is an aggregator of the curves for individual sequences."""
 
@@ -401,7 +395,6 @@ class EAOCurve(SequenceAggregator):
 
         return [eao_ / w_ if w_ > 0 else 0 for eao_, w_ in zip(eao_curve, eao_weights)],
 
-@analysis_registry.register("multistart_eao_score")
 class EAOScore(Analysis):
     """This analysis computes the expected average overlap score for the multistart experiment. It does this by computing the EAO curve and then integrating it."""
 

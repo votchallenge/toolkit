@@ -6,8 +6,6 @@ from typing import List, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 import importlib
 
-from class_registry import ClassRegistry
-
 from attributee import Attributee, String
 
 from vot import ToolkitException
@@ -15,10 +13,8 @@ from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.region import Region, RegionType
-from vot.utilities import class_fullname, arg_hash
+from vot.utilities import class_fullname, arg_hash, Registry
 from vot.utilities.data import Grid
-
-analysis_registry = ClassRegistry("vot_analysis")
 
 class MissingResultsException(ToolkitException):
     """Exception class that denotes missing results during analysis
@@ -572,6 +568,7 @@ def is_special(region: Region, code=None) -> bool:
         return region.type == RegionType.SPECIAL
     return region.type == RegionType.SPECIAL and region.code == code
 
+analysis_registry = Registry("analysis")
+
 from .processor import process_stack_analyses, AnalysisProcessor, AnalysisError
-for module in [".multistart", ".supervised", ".accuracy", ".failures", ".longterm"]:
-    importlib.import_module(module, package="vot.analysis")
+

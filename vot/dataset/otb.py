@@ -183,9 +183,6 @@ def read_sequence(path: str):
     metadata =  {"attributes": _SEQUENCES[name], "path": path}
     return BasedSequence(name.strip(), _load_sequence, metadata)
 
-from vot.dataset import dataset_downloader
-
-@dataset_downloader.register("otb50")
 def download_otb50(path: str):
     """Downloads OTB50 dataset to the given path.
     
@@ -196,7 +193,6 @@ def download_otb50(path: str):
     dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
     _download_dataset(path, dataset)
 
-@dataset_downloader.register("otb100")
 def download_otb100(path: str):
     """Downloads OTB100 dataset to the given path.
     

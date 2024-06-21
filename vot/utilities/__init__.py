@@ -7,7 +7,6 @@ import re
 import hashlib
 import logging
 import inspect
-import threading
 import time
 import concurrent.futures as futures
 from logging import Formatter, LogRecord
@@ -20,8 +19,6 @@ import six
 import colorama
 
 from class_registry import ClassRegistry
-
-__ALIASES = dict()
 
 def import_class(classpath: str) -> typing.Type:
     """Import a class from a string by importing parent packages. 
@@ -37,33 +34,11 @@ def import_class(classpath: str) -> typing.Type:
     """
     delimiter = classpath.rfind(".")
     if delimiter == -1:
-        if classpath in __ALIASES:
-            return __ALIASES[classpath]
-        else:
-            raise ImportError("Class alias '{}' not found".format(classpath))
+        raise ImportError("Class alias '{}' not found".format(classpath))
     else:
         classname = classpath[delimiter+1:len(classpath)]
         module = __import__(classpath[0:delimiter], globals(), locals(), [classname])
         return getattr(module, classname)
-
-def alias(*args):
-    """ Decorator for registering class aliases. Aliases are used to refer to classes by a short name.
-
-    Args:
-        *args: A list of strings representing aliases for the class.
-    """
-
-    def register(cls: typing.Type):
-        """ Register the class with the given aliases.  """
-        assert cls is not None
-        for name in args:
-            if name in __ALIASES:
-                if not __ALIASES[name] == cls:
-                    raise ImportError("Alias already taken")
-            else:
-                __ALIASES[name] = cls
-        return cls
-    return register
 
 def class_fullname(o):
     """Returns the full name of the class of the given object.
@@ -604,8 +579,28 @@ class Registry(ClassRegistry):
         """
         from class_registry import EntryPointClassRegistry
         super(Registry, self).__init__(group, attr_name)
-        self._entry_point = EntryPointClassRegistry(group=group, attr_name=attr_name)
-
+        
+        import vot
+        import json
+        from vot import get_logger
+    
+        # Handle development mode where alias entries are in the data directory
+        root = os.path.dirname(os.path.dirname(os.path.abspath(vot.__file__)))
+        alias_file = os.path.join(root, "data", "aliases", group + ".json")
+        if os.path.exists(alias_file):
+            try:
+                with open(alias_file, "r") as f:
+                    aliases = json.load(f)
+                    for key, value in aliases.items():
+                        try:
+                            self.register(key)(import_class(value))
+                        except Exception as e:
+                            get_logger().warning("Failed to import class '{}' for alias '{}': {}".format(value, key, e))
+            except Exception:
+                pass
+        
+        # By default use the entry point mechanism
+        self._entry_point = EntryPointClassRegistry(group="vot_" + group, attr_name=attr_name)
 
     def __missing__(self, key: str) -> object:
         """Attempts to load a class from the entry point registry if it is not found in the local registry.

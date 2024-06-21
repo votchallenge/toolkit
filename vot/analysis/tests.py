@@ -19,6 +19,4 @@ class Tests(unittest.TestCase):
 
         overlaps, _ = gather_overlaps(trajectory, groundtruth)
 
-        print(overlaps)
-
         self.assertEqual(np.mean(overlaps), 1)

@@ -9,7 +9,7 @@ from vot.region import Special
 
 from attributee import String
 
-from vot.experiment import Experiment, experiment_registry
+from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
@@ -33,7 +33,6 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
                 backward.append(frame)
     return forward, backward
 
-@experiment_registry.register("multistart")
 class MultiStartExperiment(Experiment):
     """The multistart experiment. The experiment works by utilizing anchor frames in the sequence. 
     Anchor frames are frames where the given object is visible and can be used for initialization. 

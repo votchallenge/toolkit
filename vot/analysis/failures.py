@@ -7,8 +7,7 @@ from attributee import Include
 from vot.analysis import (Measure,
                           MissingResultsException,
                           SequenceAggregator, Sorting,
-                          is_special, SeparableAnalysis,
-                          analysis_registry)
+                          is_special, SeparableAnalysis)
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import (SupervisedExperiment)
@@ -22,7 +21,6 @@ def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
     return len([region for region in trajectory if is_special(region, SupervisedExperiment.FAILURE)]), len(trajectory)
 
 
-@analysis_registry.register("failures")
 class FailureCount(SeparableAnalysis):
     """Count the number of failures in a sequence. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
 
@@ -59,7 +57,6 @@ class FailureCount(SeparableAnalysis):
 
         return objects_failures / len(objects), len(sequence)
 
-@analysis_registry.register("cumulative_failures")
 class CumulativeFailureCount(SequenceAggregator):
     """Count the number of failures over all sequences. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
 

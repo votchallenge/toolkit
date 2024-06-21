@@ -1,0 +1,4 @@
+{
+    "default": "vot.dataset.common.list_sequences",
+    "tackingnet": "vot.dataset.trackingnet.list_sequences"
+}

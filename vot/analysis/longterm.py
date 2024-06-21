@@ -13,7 +13,7 @@ from vot.experiment import Experiment
 from vot.experiment.multirun import UnsupervisedExperiment, MultiRunExperiment
 from vot.analysis import SequenceAggregator, Analysis, SeparableAnalysis, \
     MissingResultsException, Measure, Sorting, Curve, Plot, SequenceAggregator, \
-    Axes, analysis_registry, Point, is_special, Analysis
+    Axes, Point, is_special, Analysis
 from vot.utilities.data import Grid
 
 def determine_thresholds(scores: Iterable[float], resolution: int) -> List[float]:
@@ -161,7 +161,6 @@ class _Thresholds(SequenceAggregator):
 
         return thresholds,
 
-@analysis_registry.register("pr_curves")
 class PrecisionRecallCurves(SeparableAnalysis):
     """ Computes the precision/recall curves for a tracker for given sequences. """
 
@@ -221,7 +220,6 @@ class PrecisionRecallCurves(SeparableAnalysis):
 #         return [(re / len(trajectories), pr / len(trajectories)) for pr, re in zip(precision, recall)], thresholds
         return [(pr / len(trajectories), re / len(trajectories)) for pr, re in zip(precision, recall)], thresholds
 
-@analysis_registry.register("pr_curve")
 class PrecisionRecallCurve(SequenceAggregator):
     """ Computes the average precision/recall curve for a tracker. """
 
@@ -270,8 +268,6 @@ class PrecisionRecallCurve(SequenceAggregator):
 
         return curve, thresholds
 
-
-@analysis_registry.register("f_curve")
 class FScoreCurve(Analysis):
     """ Computes the F-score curve for a tracker. """
 
@@ -322,8 +318,7 @@ class FScoreCurve(Analysis):
     def axes(self):
         """Axes of the analysis."""
         return Axes.TRACKERS
-
-@analysis_registry.register("average_tpr")
+    
 class PrecisionRecall(Analysis):
     """ Computes the average precision/recall for a tracker. """
 
@@ -512,8 +507,6 @@ class CountFrames(SeparableAnalysis):
 
         return distribution,
 
-
-@analysis_registry.register("quality_auxiliary")
 class QualityAuxiliary(SeparableAnalysis):
     """Computes the non-reported error, drift-rate error and absence-detection quality."""
 
@@ -606,8 +599,6 @@ class QualityAuxiliary(SeparableAnalysis):
 
         return not_reported_error.average(), drift_rate_error.average(), absence_detection.average(),
 
-
-@analysis_registry.register("average_quality_auxiliary")
 class AverageQualityAuxiliary(SequenceAggregator):
     """Computes the average non-reported error, drift-rate error and absence-detection quality."""
 
@@ -658,7 +649,6 @@ class AverageQualityAuxiliary(SequenceAggregator):
 from vot.analysis import SequenceAggregator
 from vot.analysis.accuracy import SequenceAccuracy
 
-@analysis_registry.register("longterm_ar")
 class AccuracyRobustness(Analysis):
     """Longterm multi-object accuracy-robustness measure. """
 

@@ -4,19 +4,14 @@ assumes that only one of the splits is used at a time and that the path is given
 
 import os
 import glob
-import logging
-from collections import OrderedDict
 
 import six
 
-from vot.dataset import Dataset, DatasetException, \
-    BasedSequence, PatternFileListChannel, SequenceData, \
-    Sequence
+from vot import get_logger
 from vot.region import Special
 from vot.region.io import read_trajectory
-from vot.utilities import Progress
 
-logger = logging.getLogger("vot")
+logger = get_logger()
 
 def load_channel(source):
     """ Load channel from the given source.
@@ -29,6 +24,7 @@ def load_channel(source):
     Returns:
         Channel: Channel object.
     """
+    from vot.dataset import PatternFileListChannel
 
     extension = os.path.splitext(source)[1]
 
@@ -46,6 +42,7 @@ def _read_data(metadata):
     Returns:
         SequenceData: Sequence data object.
     """
+    from vot.dataset import BasedSequence, SequenceData, Sequence
 
     channels = {}
     tags = {}
@@ -72,9 +69,6 @@ def _read_data(metadata):
 
     return SequenceData(channels, objects, tags, values, len(groundtruth))
 
-from vot.dataset import sequence_reader
-
-sequence_reader.register("trackingnet")
 def read_sequence(path):
     """ Read sequence from the given path. Different to VOT datasets, the sequence is not
     a directory, but a file. From the file name the sequence name is extracted and the
@@ -86,6 +80,8 @@ def read_sequence(path):
     Returns:
         Sequence: Sequence object.
     """
+    from vot.dataset import BasedSequence
+    
     if not os.path.isfile(path):
         return None
 
@@ -106,9 +102,6 @@ def read_sequence(path):
 
     return BasedSequence(name, _read_data, metadata)
 
-from vot.dataset import sequence_indexer
-
-sequence_indexer.register("trackingnet")
 def list_sequences(path):
     """ List sequences in the given path. The path is expected to be the root of the TrackingNet dataset split.
     

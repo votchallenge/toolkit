@@ -1,21 +1,15 @@
 """ Experiments are the main building blocks of the toolkit. They are used to evaluate trackers on sequences in 
 various ways."""
 
-import logging
 import typing
 from datetime import datetime
 from abc import abstractmethod
 
-from class_registry import ClassRegistry
-
 from attributee import Attributee, Object, Integer, Float, Nested, List, Boolean
 
 from vot.tracker import TrackerException
-from vot.utilities import Progress, to_number, import_class, ObjectResolver
+from vot.utilities import Progress, to_number, import_class, Registry
 from vot.dataset.proxy import IgnoreSpecialObjects
-
-experiment_registry = ClassRegistry("vot_experiment")
-transformer_registry = ClassRegistry("vot_transformer")
 
 class RealtimeConfig(Attributee):
     """Config proxy for real-time experiment.
@@ -375,3 +369,6 @@ def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing
         progress.push()
 
     progress.close()
+    
+experiment_registry = Registry("experiment")
+transformer_registry = Registry("transformer")
