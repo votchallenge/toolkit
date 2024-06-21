@@ -14,7 +14,6 @@ from asyncio.futures import wrap_future
 import numpy as np
 import yaml
 
-from matplotlib.cm import get_cmap
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes as PlotAxes
 import matplotlib.colors as colors
@@ -299,10 +298,19 @@ class PlotStyle(object):
         """ Returns the style for a region, used with DrawHandle."""
         raise NotImplementedError
 
+def _get_default_colormap():
+    try:
+        from matplotlib.cm import get_cmap
+        return get_cmap("Set1", 9)
+    except ImportError:
+        #from matplotlib.colors import ListedColormap
+        from matplotlib import colormaps
+        return colormaps["Set1"]
+
 class DefaultStyle(PlotStyle):
     """ The default style for a plot."""
 
-    colormap = get_cmap("Set1", 9)
+    colormap = _get_default_colormap()
     colorcount = 20
     markers = ["o", "v", "<", ">", "^", "8", "*"]
 
@@ -622,7 +630,7 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
 
     else:
         from concurrent.futures import ProcessPoolExecutor
-        executor = ProcessPoolExecutor(config.workers)
+        executor = ProcessPoolExecutor(config.worker_pool_size)
 
     if not config.persistent_cache:
         from cachetools import LRUCache
