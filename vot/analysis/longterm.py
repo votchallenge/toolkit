@@ -32,7 +32,7 @@ def determine_thresholds(scores: Iterable[float], resolution: int) -> List[float
 
     if len(scores) > resolution - 2:
         delta = math.floor(len(scores) / (resolution - 2))
-        idxs = np.round(np.linspace(delta, len(scores) - delta, num=resolution - 2)).astype(np.int)
+        idxs = np.round(np.linspace(delta, len(scores) - delta, num=resolution - 2)).astype(int)
         thresholds = [scores[idx] for idx in idxs]
     else:
         thresholds = scores
