@@ -1,0 +1,4 @@
+{
+    "table" : "vot.report.common.StackAnalysesTable",
+    "plots" : "vot.report.common.StackAnalysesPlots"
+}

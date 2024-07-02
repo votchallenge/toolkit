@@ -614,6 +614,7 @@ class AnalysisProcessor(object):
             promise.add_done_callback(self._promise_cancelled)
             self._promises[key].append(promise)
             return promise
+
         return None
 
     def _future_done(self, future: Future):

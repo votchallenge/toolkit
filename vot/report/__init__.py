@@ -27,9 +27,7 @@ from vot.tracker import Tracker
 from vot.analysis import Axes
 from vot.utilities import class_fullname
 from vot.utilities.data import Grid
-from vot.utilities import ClassRegistry, ObjectResolver
-
-report_registry = ClassRegistry("vot_reports")
+from vot.utilities import Registry, ObjectResolver
 
 Table = collections.namedtuple("Table", ["header", "data", "order"])
 
@@ -512,7 +510,7 @@ class TrackerSorter(Attributee):
             raise RuntimeError("Analysis not found")
 
         try:
-
+            sequences = experiment.transform(sequences)
             future = analysis.commit(experiment, trackers, sequences)
             result = future.result()
         except AnalysisError as e:
@@ -582,7 +580,7 @@ class SeparableReport(Report):
 
         return items
 
-
+report_registry = Registry("report")
 
 class ReportConfiguration(Attributee):
     """ A configuration for reports."""

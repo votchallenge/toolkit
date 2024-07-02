@@ -142,7 +142,7 @@ class SequenceAccuracy(SeparableAnalysis):
 
     burnin = Integer(default=10, val_min=0, description="Number of frames to skip after the initialization.")
     ignore_unknown = Boolean(default=True, description="Ignore unknown regions in the groundtruth.")
-    ignore_invisible = Boolean(default=False, description="Ignore invisible regions in the groundtruth.")    
+    ignore_invisible = Boolean(default=False, description="Ignore invisible regions in the groundtruth.")
     bounded = Boolean(default=True, description="Consider only the bounded region of the sequence.")
     threshold = Float(default=None, val_min=0, val_max=1, description="Minimum overlap to consider.")
     ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
@@ -186,8 +186,10 @@ class SequenceAccuracy(SeparableAnalysis):
         else:
             frame_mask = None
 
-        for object in objects:
-            trajectories = experiment.gather(tracker, sequence, objects=[object])
+        for o in objects:
+
+            trajectories = experiment.gather(tracker, sequence, objects=[o])
+
             if len(trajectories) == 0:
                 raise MissingResultsException()
 
@@ -196,11 +198,11 @@ class SequenceAccuracy(SeparableAnalysis):
             for trajectory in trajectories:
                 if frame_mask is not None:
                     trajectory = [region for region, m in zip(trajectory, frame_mask) if m]
-                    groundtruth = [region for region, m in zip(sequence.object(object), frame_mask) if m]
-                    masks = [region for region, m in zip(ignore_masks, frame_mask) if m] 
+                    groundtruth = [region for region, m in zip(sequence.object(o), frame_mask) if m]
+                    masks = [region for region, m in zip(ignore_masks, frame_mask) if m]
                 else:
                     trajectory = trajectory
-                    groundtruth = sequence.object(object)
+                    groundtruth = sequence.object(o)
                     masks = ignore_masks
 
                 overlaps, _ = gather_overlaps(trajectory, groundtruth, self.burnin, 

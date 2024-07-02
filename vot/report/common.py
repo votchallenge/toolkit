@@ -6,7 +6,7 @@ from typing import List
 from attributee import String
 
 from vot.tracker import Tracker
-from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report, report_registry
+from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
@@ -191,7 +191,6 @@ def merge_repeats(objects):
 
     return repeats
 
-@report_registry.register("plots")
 class StackAnalysesPlots(SeparableReport):
     """ A document that produces plots for all analyses configures in stack experiments. """
 
@@ -211,7 +210,6 @@ class StackAnalysesPlots(SeparableReport):
     def compatible(self, experiment):
         return True
 
-@report_registry.register("table")
 class StackAnalysesTable(Report):
     """ A document that produces plots for all analyses configures in stack experiments. """
 
@@ -229,7 +227,6 @@ class StackAnalysesTable(Report):
 
         return {"Overview": [table]}
 
-@report_registry.register("overlaps")
 class SequenceOverlapPlots(SeparableReport):
     """ A document that produces plots for all analyses configures in stack experiments. """
 

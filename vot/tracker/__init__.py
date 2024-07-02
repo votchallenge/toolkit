@@ -193,7 +193,7 @@ class Registry(object):
         trackers = []
 
         for reference in references:
-
+            
             if resolve_plural and reference.startswith("#"):
                 tag = reference[1:]
                 if not is_valid_identifier(tag):
@@ -237,7 +237,7 @@ class Registry(object):
             return trackers
 
         for reference in storage.folders():
-            if reference.startswith(identifier + "@"):
+            if reference.startswith(identifier + "@") or reference == identifier:
                 identifier, version = parse_reference(reference)
                 base = self._trackers[identifier]
                 trackers.append(base.reversion(version))
@@ -380,7 +380,7 @@ class Tracker(object):
             self._tags = tags.split(",")
         self._tags = [tag.strip() for tag in self._tags]
         self._tags = [tag for tag in self._tags if is_valid_identifier(tag)]
-
+   
         if not self._version is None and not is_valid_identifier(self._version):
             raise TrackerException("Illegal version format", tracker=self)
 
@@ -513,8 +513,10 @@ class Tracker(object):
         Returns:
             bool: True if the tracker is tagged with specified tag, False otherwise.
         """
-
-        return tag in self._tags
+        for t in self._tags:
+            if t == tag:
+                return True
+        return False
 
 ObjectStatus = namedtuple("ObjectStatus", ["region", "properties"])
 
