@@ -602,7 +602,7 @@ class Registry(ClassRegistry):
             group (str): The name of the entry point group that will be used to load new classes.
             attr_name (typing.Optional[str], optional): If set, the registry will "brand" each class with its corresponding registry key. Defaults to None.
         """
-        from class_registry import EntryPointClassRegistry
+        from class_registry.entry_points import EntryPointClassRegistry
         super(Registry, self).__init__(group, attr_name)
         self._entry_point = EntryPointClassRegistry(group=group, attr_name=attr_name)
 
