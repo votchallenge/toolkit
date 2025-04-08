@@ -156,24 +156,44 @@ class UnsupervisedExperiment(MultiRunExperiment):
                 if self._can_stop(tracker, sequence):
                     return
 
-                _, elapsed = runtime.initialize(sequence.frame(0), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(0)])
+                if runtime.multiobject:
+                    _, elapsed = runtime.initialize(sequence.frame(0), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(0)])
+                    
+                    for x in helper.new(0):
+                        trajectories[x].set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
 
-                for x in helper.new(0):
-                    trajectories[x].set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
+                    for frame in range(1, len(sequence)):
+                        state, elapsed = runtime.update(sequence.frame(frame), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(frame)])
 
-                for frame in range(1, len(sequence)):
-                    state, elapsed = runtime.update(sequence.frame(frame), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(frame)])
+                        if not isinstance(state, list):
+                            state = [state]
 
-                    if not isinstance(state, list):
-                        state = [state]
+                        for x, object in zip(helper.objects(frame), state):
+                            object.properties["time"] = elapsed # TODO: what to do with time stats?
+                            trajectories[x].set(frame, object.region, object.properties)
 
-                    for x, object in zip(helper.objects(frame), state):
-                        object.properties["time"] = elapsed # TODO: what to do with time stats?
-                        trajectories[x].set(frame, object.region, object.properties)
+                        if callback:
+                            callback(float(i-1) / self.repetitions + (float(frame) / (self.repetitions * len(sequence))))
+                else:
+                    for j, x in enumerate(helper.new(0)):  # Note: x is object id, j is trajectory (object) index
+                        _, elapsed = runtime.initialize(sequence.frame(0), self._get_initialization(sequence, 0, x))
+                        
+                        trajectories[x].set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
 
-                    if callback:
-                        callback(float(i-1) / self.repetitions + (float(frame) / (self.repetitions * len(sequence))))
+                        for frame in range(1, len(sequence)):
+                            state, elapsed = runtime.update(sequence.frame(frame))
+                            
+                            if isinstance(state, list):
+                                state = state[0]
+                            
+                            state.properties["time"] = elapsed # TODO: what to do with time stats?
+                            trajectories[x].set(frame, state.region, state.properties)
 
+                            if callback:
+                                callback((float(i-1) / self.repetitions) + \
+                                        (float(j) / (self.repetitions * len(trajectories))) + \
+                                            (float(frame) / (self.repetitions * len(trajectories) * len(sequence))))
+                        
                 for o, trajectory in trajectories.items():
                     trajectory.write(results, result_name(sequence, o, i))
 
