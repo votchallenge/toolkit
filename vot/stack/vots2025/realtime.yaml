@@ -1,0 +1,13 @@
+title: VOTS2025-RT Challenge Stack
+dataset: https://data.votchallenge.net/vots2023/dataset/description.json
+experiments:
+  baseline:
+    type: unsupervised
+    repetitions: 1
+    multiobject: True
+  realtime:
+    type: unsupervised
+    repetitions: 1
+    multiobject: True
+    realtime:
+      grace: 3

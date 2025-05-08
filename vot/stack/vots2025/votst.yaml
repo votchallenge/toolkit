@@ -1,0 +1,7 @@
+title: VOTST2025 Challenge Stack
+dataset: https://data.votchallenge.net/vots2024/vost-val/description.json
+experiments:
+  baseline:
+    type: unsupervised
+    repetitions: 1
+    multiobject: True
