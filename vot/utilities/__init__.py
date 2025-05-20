@@ -613,16 +613,42 @@ class Registry(ClassRegistry):
         """
         return self._entry_point.get_class(key)
  
-    def items(self):
+    def get_class(self, key: typing.Hashable):
+        """Returns the class associated with the specified key. If the class is not found in the local registry,
+        it is loaded from the entry point registry.
+
+        Args:
+            key (typing.Hashable): Key of the class to load
+
+        Returns:
+            typing.Type[T]: Loaded class
+        """
+        try:
+            return super().get_class(key)
+        except KeyError:
+            return self._entry_point.get_class(key)
+ 
+    def keys(self):
         """Returns an iterator over the registered classes.
         
         Returns:
             Iterator: Iterator over the registered classes
         """
-        items = dict(self._entry_point.items())
-        items.update(super().items())
+        items = {key : self._entry_point.get_class(key) for key in self._entry_point.keys()}
+        items.update({key : super().get_class(key) for key in super().keys()})
 
-        return items.items()
+        return items.keys()
+ 
+    def classes(self):
+        """Returns an iterator over the registered classes.
+        
+        Returns:
+            Iterator: Iterator over the registered classes
+        """
+        items = {key : self._entry_point.get_class(key) for key in self._entry_point.keys()}
+        items.update({key : super().get_class(key) for key in super().keys()})
+
+        return items.values()
 
 class ObjectResolver(object):
     
