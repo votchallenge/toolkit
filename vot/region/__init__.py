@@ -27,31 +27,13 @@ class ConversionException(RegionException):
         super().__init__(*args)
         self._source = source
 
-class RegionType(Enum):
-    """Enumeration of region types
-    """
-    SPECIAL = 0
-    RECTANGLE = 1
-    POLYGON = 2
-    MASK = 3
-
 class Region(ABC):
     """
     Base class for all region containers.
     """
     def __init__(self):
         """Base constructor"""
-        pass
-
-    @property
-    @abstractmethod
-    def type(self):
-        """Return type of the region
-
-        Returns:
-            RegionType -- Type of the region
-        """
-        pass
+        super().__init__()
 
     @abstractmethod
     def copy(self):
@@ -60,20 +42,7 @@ class Region(ABC):
         Returns:
             Region -- Copy of the region
         """
-
-    @abstractmethod
-    def convert(self, rtype: RegionType):
-        """Convert region to another type. Note that some conversions
-        degrade information.
-        
-        Args:
-            rtype (RegionType): Target region type to convert to.
-        """
-
-    @abstractmethod
-    def is_empty(self):
-        """Check if region is empty (not annotated or not reported)
-        """
+        raise NotImplementedError
 
 class Special(Region):
     """
@@ -95,32 +64,23 @@ class Special(Region):
         """ Create string from class """
         return '{}'.format(self._code)
 
-    @property
-    def type(self):
-        """Return type of the region"""
-        return RegionType.SPECIAL
-
-    def copy(self):
-        """Copy region to another object"""
-        return Special(self._code)
-
-    def convert(self, rtype: RegionType):
-        """Convert region to another type. Note that some conversions degrade information.
+    @staticmethod
+    def convert(region: Region):
+        """Convert region to special region. Note that some conversions degrade information.
 
         Args:
-            rtype (RegionType): Target region type to convert to.
+            region (Region): Region to convert
 
         Raises:
-            ConversionException: Unable to convert special region to another type
+            ConversionException: Unable to convert region to special region
 
         Returns:
-            Region -- Converted region
+            Special -- Converted region
         """
-
-        if rtype == RegionType.SPECIAL:
-            return self.copy()
+        if isinstance(region, Special):
+            return region.copy()
         else:
-            raise ConversionException("Unable to convert special region to {}".format(rtype))
+            raise ConversionException("Unable to convert {} region to special region".format(region.type), source=region)
 
     @property
     def code(self):
@@ -142,5 +102,104 @@ class Special(Region):
         """ Check if region is empty. Special regions are always empty by definition."""
         return True
 
+    def copy(self):
+        """ Create a copy of the special region."""
+        return Special(self._code)
+
+class Point(Region):
+    """
+    Special region, meaning of the code can change depending on the context
+
+    :var code: Code value
+    """
+
+    def __init__(self, x, y):
+        """ Constructor
+
+        Args:
+            x (float): X coordinate
+            y (float): Y coordinate
+        """
+        super().__init__()
+        self._x = float(x)
+        self._y = float(y)
+
+    def __str__(self):
+        """ Create string from class """
+        return '{},{}'.format(self._x, self._y)
+
+    def copy(self):
+        """Copy region to another object"""
+        return Point(self._x, self._y)
+
+    @staticmethod
+    def convert(region: Region):
+        """Convert region to point region. Note that some conversions degrade information.
+
+        Args:
+            region (Region): Region to convert
+
+        Raises:
+            ConversionException: Unable to convert region to point region
+
+        Returns:
+            Point -- Converted region
+        """
+        if isinstance(region, Point):
+            return region.copy()
+        else:
+            raise ConversionException("Unable to convert {} region to point region".format(region.type), source=region)
+
+    @property
+    def x(self):
+        """Retiurns X coordinate of the point.
+        Returns:
+            float -- X coordinate
+        """
+        return self._x
+    
+    @property
+    def y(self):
+        """Retiurns Y coordinate of the point.
+        Returns:
+            float -- Y coordinate
+        """
+        return self._y
+
+    def draw(self, handle: DrawHandle):
+        """Draw region to the image using the provided handle.
+
+        Args:
+            handle (DrawHandle): Draw handle
+        """
+        handle.points([(self._x, self._y)])
+
+    def is_empty(self):
+        """ Check if region is empty. Point regions are never empty by definition."""
+        return False
+
+
 from .raster import calculate_overlap, calculate_overlaps
 from .shapes import Rectangle, Polygon, Mask
+
+def is_special(region):
+    """Check if the region is a special region.
+
+    Args:
+        region (Region): Region to check    
+    Returns:
+        bool: True if the region is a special region, False otherwise
+        
+    """
+    
+    return isinstance(region, Special)
+
+def is_shape(region):
+    """Check if the region is a shape region.
+
+    Args:
+        region (Region): Region to check    
+    Returns:
+        bool: True if the region is a shape region, False otherwise
+    """
+    return isinstance(region, (Rectangle, Polygon, Mask))

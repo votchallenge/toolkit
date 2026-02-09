@@ -1160,9 +1160,9 @@ def download_bundle(url: str, path: str = "."):
     try:
         download_uncompress(url, path)
     except NetworkException as e:
-        raise DatasetException("Unable do download dataset bundle, Please try to download the bundle manually from {} and uncompress it to {}'".format(url, path))
+        raise DatasetException("Unable do download dataset bundle, Please try to download the bundle manually from {} and uncompress it to {}'".format(url, path)) from e
     except IOError as e:
-        raise DatasetException("Unable to extract dataset bundle, is the target directory writable and do you have enough space?")
+        raise DatasetException("Unable to extract dataset bundle, is the target directory writable and do you have enough space?") from e
 
 # Legacy reader is registered last, otherwise it will cause problems
 # TODO: implement explicit ordering of readers

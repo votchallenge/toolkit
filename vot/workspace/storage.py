@@ -73,7 +73,6 @@ class Storage(ABC):
         Returns:
             bool: Returns True if entry is a document, False otherwise.
         """
-        pass
 
     @abstractmethod
     def isfolder(self, name) -> bool:
@@ -85,7 +84,6 @@ class Storage(ABC):
         Returns:
             bool: Returns True if entry is a folder, False otherwise.
         """
-        pass
 
     @abstractmethod
     def delete(self, name) -> bool:
@@ -98,7 +96,6 @@ class Storage(ABC):
         Returns:
             bool: Returns True if successful, False otherwise.
         """
-        pass
 
     @abstractmethod
     def substorage(self, name: str) -> "Storage":
@@ -110,7 +107,6 @@ class Storage(ABC):
         Returns:
             Storage: Storage object
         """
-        pass
 
     @abstractmethod
     def copy(self, localfile: str, destination: str):
@@ -120,7 +116,6 @@ class Storage(ABC):
             localfile (str): Original location
             destination (str): New location
         """
-        pass
 
 class NullStorage(Storage):
     """An implementation of dummy storage that does not save anything."""
@@ -131,14 +126,14 @@ class NullStorage(Storage):
 
     def __repr__(self) -> str:
         """Returns a string representation of the storage object."""
-        return "<Null storage: {}>".format(self._root)
+        return "<Null storage>"
 
     def write(self, name, binary=False):
         """Opens the given file entry for writing, returns opened handle."""
         if binary:
             return open(os.devnull, "wb")
         else:
-            return open(os.devnull, "w")
+            return open(os.devnull, "w", encoding="utf-8")
 
     def documents(self):
         """Lists documents in the storage."""
@@ -256,7 +251,7 @@ class LocalStorage(Storage):
         if binary:
             return open(full, mode="wb")
         else:
-            return open(full, mode="w", newline="")
+            return open(full, mode="w", newline="", encoding="utf-8")
 
     def read(self, name, binary=False):
         """Opens the given file entry for reading, returns opened handle.
@@ -429,8 +424,10 @@ class Cache(cachetools.Cache):
                     data = pickle.load(filehandle)
                     super().__setitem__(key, data)
                     return data
-            except pickle.PickleError as e:
-                raise KeyError(e)
+            except pickle.PickleError as pe:
+                raise KeyError(pe) from e
+            except IOError as ie:
+                raise KeyError(ie) from e
 
     def __setitem__(self, key: str, value: typing.Any) -> None:
         """Sets an item for given key

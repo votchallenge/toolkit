@@ -60,7 +60,7 @@ class TestRasterMethods(unittest.TestCase):
         """ Tests if the binary format of a region matched the plain-text one."""
         import io
 
-        from vot.region import Rectangle, Polygon, Mask
+        from vot.region import Rectangle, Polygon, Mask, Point, Special
         from vot.region.io import read_trajectory, write_trajectory
         from vot.region.raster import calculate_overlaps
 
@@ -71,6 +71,8 @@ class TestRasterMethods(unittest.TestCase):
             Polygon([[0, 0], [0, 100], [100, 100], [100, 0]]),
             Mask(np.ones((100, 100), dtype=np.uint8)),
             Mask(np.zeros((100, 100), dtype=np.uint8)),
+            Point(50, 50),
+            Special(1)
         ]
 
         binf = io.BytesIO()

@@ -1,12 +1,12 @@
 """ Helper classes for experiments."""
 
 from vot.dataset import Sequence
-from vot.region import RegionType
+from vot.region import is_special
 
 def _objectstart(sequence: Sequence, id: str):
     """Returns the first frame where the object appears in the sequence."""
     trajectory = sequence.object(id)
-    return [x is None or x.type == RegionType.SPECIAL for x in trajectory].index(False)
+    return [x is None or is_special(x) for x in trajectory].index(False)
 
 class MultiObjectHelper(object):
     """Helper class for multi-object sequences. It provides methods for querying active objects at a given frame."""

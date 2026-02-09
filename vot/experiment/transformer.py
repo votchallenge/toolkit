@@ -11,7 +11,7 @@ from attributee import Attributee, Integer, Float, Boolean, String, List
 from vot.dataset import Sequence, InMemorySequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.dataset.common import write_sequence, read_sequence
-from vot.region import RegionType
+from vot.region import Rectangle
 from vot.utilities import arg_hash
 
 class Transformer(Attributee):
@@ -86,7 +86,7 @@ class Redetection(Transformer):
             initial_images = dict()
             redetect_images = dict()
             for channel in sequence.channels():
-                rect = sequence.frame(0).groundtruth().convert(RegionType.RECTANGLE)
+                rect = Rectangle.convert(sequence.frame(0).groundtruth())
 
                 halfsize = int(max(rect.width, rect.height) * self.scaling / 2)
                 x, y = rect.center()

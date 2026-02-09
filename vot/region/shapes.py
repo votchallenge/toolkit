@@ -1,15 +1,13 @@
 """ Module for region shapes. """
 
 from copy import copy
-from functools import reduce
-from typing import Tuple, List
+from typing import Tuple
 from abc import ABC, abstractmethod
 
 import numpy as np
-from numba import jit
 import cv2
 
-from vot.region import Region, ConversionException, RegionType, RegionException
+from vot.region import Region, ConversionException
 from vot.utilities.draw import DrawHandle
 
 class Shape(Region, ABC):
@@ -20,12 +18,12 @@ class Shape(Region, ABC):
         """ Draw the region to the given handle. 
  
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def resize(self, factor=1) -> "Shape":
         """ Resize the region by the given factor. """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def move(self, dx=0, dy=0) -> "Shape":
@@ -38,7 +36,7 @@ class Shape(Region, ABC):
         Returns:
             Shape: Moved region.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def rasterize(self, bounds: Tuple[int, int, int, int]) -> np.ndarray:
@@ -50,7 +48,7 @@ class Shape(Region, ABC):
         Returns:
             np.ndarray: Binary mask.
         """ 
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def bounds(self) -> Tuple[int, int, int, int]:
@@ -59,8 +57,7 @@ class Shape(Region, ABC):
         Returns:
             Tuple[int, int, int, int]: Bounding box (x, y, width, height).
         """
-
-        pass
+        raise NotImplementedError
 
 class Rectangle(Shape):
     """
@@ -102,37 +99,43 @@ class Rectangle(Shape):
         """ Height of the rectangle."""
         return float(self._data[3, 0])
 
-    @property
-    def type(self):
-        """ Type of the region."""
-        return RegionType.RECTANGLE
+    @staticmethod
+    def convert(region: Region):
+        """ Convert region to rectangle region. Note that some conversions degrade information.
+
+        Args:
+            region (Region): Region to convert
+
+        Raises:
+            ConversionException: Unable to convert region to rectangle region
+
+        Returns:
+            Rectangle -- Converted region
+        """
+        if isinstance(region, Rectangle):
+            return region.copy()
+        elif isinstance(region, Polygon):
+            top = np.min(region._points[:, 1])
+            bottom = np.max(region._points[:, 1])
+            left = np.min(region._points[:, 0])
+            right = np.max(region._points[:, 0])
+
+            return Rectangle(left, top, right - left, bottom - top)
+        elif isinstance(region, Mask):
+            bounds = mask_bounds(region.mask)
+            if None in bounds:
+                return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)])
+            return Polygon([
+                (bounds[0] + region.offset[0], bounds[1] + region.offset[1]),
+                (bounds[2] + region.offset[0], bounds[1] + region.offset[1]),
+                (bounds[2] + region.offset[0], bounds[3] + region.offset[1]),
+                (bounds[0] + region.offset[0], bounds[3] + region.offset[1])])
+        else:
+            raise ConversionException("Unable to convert {} region to rectangle region".format(region.type), source=region)
 
     def copy(self):
         """ Copy region to another object. """
         return copy(self)
-
-    def convert(self, rtype: RegionType):
-        """ Convert region to another type. Note that some conversions degrade information.
-        
-        Args:
-            rtype (RegionType): Desired type.
-        
-        Raises:
-            ConversionException: Unable to convert rectangle region to {rtype}
-        """
-        if rtype == RegionType.RECTANGLE:
-            return self.copy()
-        elif rtype == RegionType.POLYGON:
-            points = []
-            points.append((self.x, self.y))
-            points.append((self.x + self.width - 1, self.y))
-            points.append((self.x + self.width - 1, self.y + self.height - 1))
-            points.append((self.x, self.y + self.height - 1))
-            return Polygon(points)
-        elif rtype == RegionType.MASK:
-            return Mask(np.ones((int(round(self.height)), int(round(self.width))), np.uint8), (int(round(self.x)), int(round(self.y))))
-        else:
-            raise ConversionException("Unable to convert rectangle region to {}".format(rtype), source=self)
 
     def is_empty(self):
         """ Check if the region is empty.
@@ -226,11 +229,37 @@ class Polygon(Shape):
         """ Create string from class """
         return ','.join(['{},{}'.format(p[0], p[1]) for p in self._points])
 
-    @property
-    def type(self):
-        """ Get the region type. """
-        return RegionType.POLYGON
 
+    @staticmethod
+    def convert(region: Region):
+        """ Convert region to polygon region. Note that some conversions degrade information.
+
+        Args:
+            region (Region): Region to convert
+
+        Raises:
+            ConversionException: Unable to convert region to polygon region
+
+        Returns:
+            Polygon -- Converted region
+        """
+        if isinstance(region, Polygon):
+            return region.copy()
+        elif isinstance(region, Rectangle):
+            return Polygon([(region.x, region.y), (region.x + region.width, region.y),
+                            (region.x + region.width, region.y + region.height), (region.x, region.y + region.height)])
+        elif isinstance(region, Mask):
+            bounds = mask_bounds(region.mask)
+            if None in bounds:
+                return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)])
+            return Polygon([
+                (bounds[0] + region.offset[0], bounds[1] + region.offset[1]),
+                (bounds[2] + region.offset[0], bounds[1] + region.offset[1]),
+                (bounds[2] + region.offset[0], bounds[3] + region.offset[1]),
+                (bounds[0] + region.offset[0], bounds[3] + region.offset[1])])
+        else:
+            raise ConversionException("Unable to convert {} region to polygon region".format(region.type), source=region)
+    
     @property
     def size(self):
         """ Get the number of points. """
@@ -251,31 +280,6 @@ class Polygon(Shape):
     def copy(self):
         """ Create a copy of the polygon. """
         return copy(self)
-
-    def convert(self, rtype: RegionType):
-        """ Convert the polygon to another region type.
-        
-        Args:
-            rtype (RegionType): Target region type.
-            
-        Returns:
-            Region: Converted region.
-        """
-        if rtype == RegionType.POLYGON:
-            return self.copy()
-        elif rtype == RegionType.RECTANGLE:
-            top = np.min(self._points[:, 1])
-            bottom = np.max(self._points[:, 1])
-            left = np.min(self._points[:, 0])
-            right = np.max(self._points[:, 0])
-
-            return Rectangle(left, top, right - left, bottom - top)
-        elif rtype == RegionType.MASK:
-            bounds = self.bounds()
-            mask = self.rasterize(bounds)
-            return Mask(mask, offset=(bounds[0], bounds[1]))
-        else:
-            raise ConversionException("Unable to convert polygon region to {}".format(rtype), source=self)
 
     def draw(self, handle: DrawHandle):
         """ Draw the polygon on the given handle.
@@ -399,41 +403,32 @@ class Mask(Shape):
         """ Get the offset of the mask in pixels."""
         return self._offset
 
-    @property
-    def type(self):
-        """ Get the region type."""
-        return RegionType.MASK
-
     def copy(self):
         """ Create a copy of the mask."""
         return copy(self)
 
-    def convert(self, rtype: RegionType):
-        """ Convert the mask to another region type. The mask is converted to a rectangle or polygon by approximating bounding box of the mask.
-        
+    @staticmethod
+    def convert(region: Region):
+        """ Convert region to mask region. Note that some conversions degrade information.
+
         Args:
-            rtype (RegionType): Target region type.
-            
+            region (Region): Region to convert
+
+        Raises:
+            ConversionException: Unable to convert region to mask region
+
         Returns:
-            Shape: Converted region.
+            Mask -- Converted region
         """
-        if rtype == RegionType.MASK:
-            return self.copy()
-        elif rtype == RegionType.RECTANGLE:
-            bounds = mask_bounds(self.mask)
-            return Rectangle(bounds[0] + self.offset[0], bounds[1] + self.offset[1],
-                            bounds[2] - bounds[0], bounds[3] - bounds[1])
-        elif rtype == RegionType.POLYGON:
-            bounds = mask_bounds(self.mask)
-            if None in bounds:
-                return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)])
-            return Polygon([
-                (bounds[0] + self.offset[0], bounds[1] + self.offset[1]),
-                (bounds[2] + self.offset[0], bounds[1] + self.offset[1]),
-                (bounds[2] + self.offset[0], bounds[3] + self.offset[1]),
-                (bounds[0] + self.offset[0], bounds[3] + self.offset[1])])
+        if isinstance(region, Mask):
+            return region.copy()
+        elif isinstance(region, Rectangle):
+            return Mask(region.rasterize((0, 0, int(region.x + region.width), int(region.y + region.height))), (int(region.x), int(region.y)), optimize=False)
+        elif isinstance(region, Polygon):
+            bounds = region.bounds()
+            return Mask(region.rasterize(bounds), (bounds[0], bounds[1]), optimize=False)
         else:
-            raise ConversionException("Unable to convert mask region to {}".format(rtype), source=self)
+            raise ConversionException("Unable to convert {} region to mask region".format(region.type), source=region)
 
     def draw(self, handle: DrawHandle):
         """ Draw the mask into an image.

@@ -502,12 +502,12 @@ class TrackerSorter(Attributee):
         experiment = next(filter(lambda x: x.identifier == self.experiment, experiments), None)
 
         if experiment is None:
-            raise RuntimeError("Experiment not found")
+            raise RuntimeError(f"Experiment not found {self.experiment}")
 
         analysis = next(filter(lambda x: x.name == self.analysis, experiment.analyses), None)
 
         if analysis is None:
-            raise RuntimeError("Analysis not found")
+            raise RuntimeError(f"Analysis not found {self.analysis} in experiment {self.experiment}")
 
         try:
             sequences = experiment.transform(sequences)
@@ -542,6 +542,9 @@ class Report(Attributee):
 
         for analysis in analyses:
             futures.append(wrap_future(analysis.commit(experiment, trackers, sequences)))
+
+        if len(futures) == 0:
+            return {}
 
         await wait(futures)
 
@@ -614,6 +617,8 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
             dest[key] += value
 
     logger = get_logger()
+
+    logger.info("Worker pool size: %d", config.worker_pool_size)
 
     if config.worker_pool_size == 1:
 

@@ -5,14 +5,14 @@ import os
 import fnmatch
 from typing import List
 from copy import copy
-from vot.region import Region, RegionType, Special, calculate_overlap
+from vot.region import Region, Special, calculate_overlap, is_special
 from vot.region.io import write_trajectory, read_trajectory
 from vot.utilities import to_string
 
 class Results(object):
     """Generic results interface for storing and retrieving results."""
 
-    def __init__(self, storage: "Storage"):
+    def __init__(self, storage: "vot.workspace.Storage"):
         """Creates a new results interface.
         
         Args:
@@ -292,7 +292,7 @@ class Trajectory(object):
             return False
 
         for r1, r2 in zip(self.regions(), trajectory.regions()):
-            if calculate_overlap(r1, r2) < overlap_threshold and not (r1.type == RegionType.SPECIAL and r2.type == RegionType.SPECIAL):
+            if calculate_overlap(r1, r2) < overlap_threshold and not (is_special(r1) and is_special(r2)):
                 return False
 
         if check_properties:

@@ -223,7 +223,7 @@ class TrackerProcess(object):
     """ A tracker process. This class is used to run trackers in a separate process and handles
      starting, stopping and communication with the process. """
     
-    def __init__(self, command: str, envvars=dict(), timeout=30, log=False, socket=False):
+    def __init__(self, command: str, envvars=None, timeout=30, log=False, socket=False):
         """ Initializes a new tracker process.
 
         Args:
@@ -234,8 +234,10 @@ class TrackerProcess(object):
             socket: Whether to use a socket for communication.
 
         """
+        
         environment = dict(os.environ)
-        environment.update(envvars)
+        if envvars is not None:
+            environment.update(envvars)
 
         self._workdir = tempfile.mkdtemp()
 

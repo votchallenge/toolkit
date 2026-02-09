@@ -12,7 +12,7 @@ from vot import ToolkitException
 from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.experiment import Experiment
-from vot.region import Region, RegionType
+from vot.region import Region
 from vot.utilities import class_fullname, arg_hash, Registry
 from vot.utilities.data import Grid
 
@@ -564,9 +564,10 @@ class SequenceSeparableAnalysis(SeparableAnalysis):
 
 def is_special(region: Region, code=None) -> bool:
     """Check if the region is special (not a shape) and optionally if it has a specific code."""
+    from vot.region import is_special
     if code is None:
-        return region.type == RegionType.SPECIAL
-    return region.type == RegionType.SPECIAL and region.code == code
+        return is_special(region)
+    return is_special(region) and region.code == code
 
 analysis_registry = Registry("analysis")
 

@@ -405,8 +405,8 @@ def to_number(val, max_n = None, min_n = None, conversion=int):
                 raise RuntimeError("Parameter lower than minimum allowed value ({}<{})".format(n, min_n))
 
         return n
-    except ValueError:
-        raise RuntimeError("Number conversion error")
+    except ValueError as ve:
+        raise RuntimeError("Number conversion error") from ve
 
 def to_logical(val):
     """Converts the given value to a logical value (True/False). If the value is not a logical value,
@@ -424,8 +424,8 @@ def to_logical(val):
         else:
             return bool(val)
 
-    except ValueError:
-        raise RuntimeError("Logical value conversion error")
+    except ValueError as ve:
+        raise RuntimeError("Logical value conversion error") from ve
 
 def format_size(num, suffix="B"):
     """Formats the given number as a human-readable size string. 
@@ -634,10 +634,10 @@ class Registry(ClassRegistry):
         Returns:
             Iterator: Iterator over the registered classes
         """
-        items = {key : self._entry_point.get_class(key) for key in self._entry_point.keys()}
-        items.update({key : super().get_class(key) for key in super().keys()})
+        items = {key for key in self._entry_point.keys()}
+        items.update({key for key in super().keys()})
 
-        return items.keys()
+        return items
  
     def classes(self):
         """Returns an iterator over the registered classes.
@@ -645,10 +645,20 @@ class Registry(ClassRegistry):
         Returns:
             Iterator: Iterator over the registered classes
         """
-        items = {key : self._entry_point.get_class(key) for key in self._entry_point.keys()}
-        items.update({key : super().get_class(key) for key in super().keys()})
 
-        return items.values()
+        items = {}
+        for key in self._entry_point.keys():
+            items[key] = self._entry_point.get_class(key)
+            
+        inherited_keys = super().keys()
+        for key in inherited_keys:
+            if key not in items:
+                items[key] = super().get_class(key)
+     
+        return iter(items.values())
+
+    def items(self):
+        return zip(self.keys(), self.classes())
 
 class ObjectResolver(object):
     

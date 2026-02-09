@@ -185,7 +185,7 @@ def read_trajectory_binary(fp: io.RawIOBase):
     """
     import struct
     from cachetools import LRUCache, cached
-    from vot.region import Special
+    from vot.region import Special, Point
     from vot.region.shapes import Rectangle, Polygon, Mask
 
     buffer = dict(data=fp.read(), offset = 0)
@@ -217,6 +217,7 @@ def read_trajectory_binary(fp: io.RawIOBase):
             tl_x, tl_y, region_w, region_h, n = read("<hhHHH")
             rle = np.array(read("<%dH" % (n)), dtype=np.int32)
             r = Mask(rle_to_mask(rle, region_w, region_h), (tl_x, tl_y))
+        elif type == 4: r = Point(*read("<ff"))
         else:
             raise IOError("Wrong region type")
         trajectory.append(r)
@@ -230,13 +231,14 @@ def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
         data (list): List of regions
     """
     import struct
-    from vot.region import Special
+    from vot.region import Special, Point
     from vot.region.shapes import Rectangle, Polygon, Mask
 
     fp.write(struct.pack("<hI", 1, len(data)))
 
     for r in data:
         if isinstance(r, Special): fp.write(struct.pack("<BI", 0, r.code))
+        elif isinstance(r, Point): fp.write(struct.pack("<Bff", 4, r.x, r.y))
         elif isinstance(r, Rectangle): fp.write(struct.pack("<Bffff", 1, r.x, r.y, r.width, r.height))
         elif isinstance(r, Polygon): fp.write(struct.pack("<BH%df" % (2 * r.size), 2, r.size, *[item for sublist in r.points() for item in sublist]))
         elif isinstance(r, Mask): 
@@ -262,7 +264,7 @@ def read_trajectory(fp: Union[str, TextIO], separator: str = ","):
                 v, = struct.unpack("<h", tfp.read(struct.calcsize("<h")))
                 binary = v == 1
                 # TODO: we can use the same file handle in case of binary format
-        except Exception as e:
+        except Exception as _:
             binary = False
 
         fp = open(fp, "rb" if binary else "r")
