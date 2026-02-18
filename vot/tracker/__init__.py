@@ -4,7 +4,7 @@ import os
 import re
 import configparser
 import copy
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Dict
 from collections import OrderedDict, namedtuple
 from abc import abstractmethod, ABC
 
@@ -12,7 +12,6 @@ import yaml
 
 from vot import ToolkitException
 from vot.dataset import Frame
-from vot.region import Region
 from vot.utilities import to_string
 
 class TrackerException(ToolkitException):
@@ -91,6 +90,18 @@ def parse_reference(reference):
     return matches.group(1), matches.group(2)[1:] if not matches.group(2) is None else None
 
 _runtime_protocols = {}
+
+def register_runtime_protocol(protocol, constructor):
+    """Registers a runtime protocol with the given constructor.
+
+    Args:
+        protocol (str): The name of the protocol.
+        constructor (callable): The constructor for the runtime protocol.
+    """
+    if protocol in _runtime_protocols:
+        raise ValueError("Runtime protocol '{}' is already registered".format(protocol))
+    
+    _runtime_protocols[protocol] = constructor
 
 class Registry(object):
     """ Repository of known trackers. Trackers are loaded from a manifest files in one or more directories. """
@@ -520,9 +531,20 @@ class Tracker(object):
 
 ObjectStatus = namedtuple("ObjectStatus", ["region", "properties"])
 
-Objects = Union[List[ObjectStatus], ObjectStatus]
+ObjectQuery = namedtuple("ObjectQuery", ["state", "properties", "offset"])
+
+Queries = List[ObjectQuery]
+
+FrameObjects = List[ObjectStatus]
+
+FrameStatus = namedtuple("FrameStatus", ["objects", "time"])
+
+RunStatus = namedtuple("RunStatus", ["objects", "times"])
+
 class TrackerRuntime(ABC):
-    """Base class for tracker runtime implementations. Tracker runtime is responsible for running the tracker executable and communicating with it."""
+    """Base class for tracker runtime implementations. 
+    Tracker runtime is responsible for running the tracker executable 
+    and communicating with it."""
 
     def __init__(self, tracker: Tracker):
         """Creates a new tracker runtime instance.
@@ -531,6 +553,21 @@ class TrackerRuntime(ABC):
             tracker (Tracker): The tracker instance.
         """
         self._tracker = tracker
+
+    def run(self, frames: List[Frame], queries: Queries) -> RunStatus: 
+        """
+        Runs the tracker on the specified frames and queries. 
+        Returns a dictionary containing the objects for each query.
+        
+        Args:
+            frames (List[Frame]): The frames to run the tracker on.
+            queries (Dict[str, ObjectQuery]): The queries to run the tracker on.
+
+        Returns:
+            Dict[str, Objects]: A dictionary containing the objects for each query.
+        """
+        
+        raise NotImplementedError("TrackerRuntime.run() is not implemented. Please implement the run() method in the tracker runtime implementation.")
 
     @property
     def tracker(self) -> Tracker:
@@ -553,372 +590,16 @@ class TrackerRuntime(ABC):
     @abstractmethod
     def stop(self):
         """Stops the tracker runtime."""
-        pass
-
-    @abstractmethod
-    def restart(self):
-        """Restarts the tracker runtime, usually stars a new process."""
-        pass
-
-    @abstractmethod
-    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
-        
-        Arguments:
-            frame {Frame} -- The frame to initialize the tracker with.
-            new {Objects} -- The objects to initialize the tracker with.
-            properties {dict} -- The properties to initialize the tracker with.
-
-        Returns:
-            Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker.
-        """
-        pass
-
-    @abstractmethod
-    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Updates the tracker runtime with specified frame and objects. Returns the updated objects and the time it took to update the tracker.
-
-        Arguments:
-            frame {Frame} -- The frame to update the tracker with.
-            new {Objects} -- The objects to update the tracker with.
-            properties {dict} -- The properties to update the tracker with.
-
-        Returns:
-            Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
-        """
-        pass
-
-class RealtimeTrackerRuntime(TrackerRuntime):
-    """Base class for realtime tracker runtime implementations. 
-    Realtime tracker runtime is responsible for running the tracker executable and communicating with it while simulating given real-time constraints."""
-
-    def __init__(self, runtime: TrackerRuntime, grace: int = 1, interval: float = 0.1):
-        """Initializes the realtime tracker runtime with specified tracker runtime, grace period and update interval.
-        
-        Arguments: 
-            runtime {TrackerRuntime} -- The tracker runtime to wrap.
-            grace {int} -- The grace period in seconds. The tracker will be updated at least once during the grace period. (default: {1})
-            interval {float} -- The update interval in seconds. (default: {0.1})
-            
-        """
-        super().__init__(runtime.tracker)
-        self._runtime = runtime
-        self._grace = grace
-        self._interval = interval
-        self._countdown = 0
-        self._time = 0
-        self._status = None
-
-    @property
-    def multiobject(self):
-        """Returns True if the tracker supports multiple objects, False otherwise."""
-        return self._runtime.multiobject
-
-    def stop(self):
-        """Stops the tracker runtime."""
-        self._runtime.stop()
-        self._time = 0
-        self._status = None
-
-    def restart(self):
-        """Restarts the tracker runtime, usually stars a new process."""
-        self._runtime.restart()
-        self._time = 0
-        self._status = None
-
-    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
-        
-        Arguments:
-            frame {Frame} -- The frame to initialize the tracker with.
-            new {Objects} -- The objects to initialize the tracker with.
-            properties {dict} -- The properties to initialize the tracker with.
-            
-        Returns:
-            Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker.
-        """
-        self._countdown = self._grace
-        self._status = None
-
-        status, time = self._runtime.initialize(frame, new, properties)
-
-        if time > self._interval:
-            if self._countdown > 0:
-                self._countdown = self._countdown - 1
-                self._time = 0
-            else:
-                self._time = time - self._interval
-                self._status = status
-        else:
-            self._time = 0
-
-        return status, time
-
-
-    def update(self, frame: Frame, _: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Updates the tracker runtime with specified frame and objects. Returns the updated objects and the time it took to update the tracker.
-        
-        Arguments:
-            frame {Frame} -- The frame to update the tracker with.
-            new {Objects} -- The objects to update the tracker with.
-            properties {dict} -- The properties to update the tracker with.
-            
-        Returns:
-            Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
-        """
-
-        if self._time > self._interval:
-            self._time = self._time - self._interval
-            return self._status, 0
-        else:
-            self._status = None
-            self._time = 0
-
-        status, time = self._runtime.update(frame, properties)
-
-        if time > self._interval:
-            if self._countdown > 0:
-                self._countdown = self._countdown - 1
-                self._time = 0
-            else:
-                self._time = time - self._interval
-                self._status = status
-
-        return status, time
-
-
-class PropertyInjectorTrackerRuntime(TrackerRuntime):
-    """Base class for tracker runtime implementations that inject properties into the tracker runtime."""
-
-    def __init__(self, runtime: TrackerRuntime, **kwargs):
-        """Initializes the property injector tracker runtime with specified tracker runtime and properties.
-
-        Arguments:
-            runtime {TrackerRuntime} -- The tracker runtime to wrap.
-            **kwargs -- The properties to inject into the tracker runtime.
-        """
-        super().__init__(runtime.tracker)
-        self._runtime = runtime
-        self._properties = {k : str(v) for k, v in kwargs.items()}
-
-    @property
-    def multiobject(self):
-        """Returns True if the tracker supports multiple objects, False otherwise."""
-        return self._runtime.multiobject
-
-    def stop(self):
-        """Stops the tracker runtime."""
-        self._runtime.stop()
-
-    def restart(self):
-        """Restarts the tracker runtime, usually stars a new process."""
-        self._runtime.restart()
-
-    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
-        This method injects the properties into the tracker runtime.
-        
-        Arguments:
-            frame {Frame} -- The frame to initialize the tracker with.
-            new {Objects} -- The objects to initialize the tracker with.
-            properties {dict} -- The properties to initialize the tracker with.
-            
-        Returns:
-            Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker."""
-
-        if not properties is None:
-            tproperties = dict(properties)
-        else:
-            tproperties = dict()
-
-        tproperties.update(self._properties)
-
-        return self._runtime.initialize(frame, new, tproperties)
-
-
-    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Updates the tracker runtime with specified frame and objects. Returns the updated objects and the time it took to update the tracker.
-
-        Arguments:
-            frame {Frame} -- The frame to update the tracker with.
-            new {Objects} -- The objects to update the tracker with.
-            properties {dict} -- The properties to update the tracker with.
-
-        Returns:
-            Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
-
-        """
-        return self._runtime.update(frame, new, properties)
-
-
-class SingleObjectTrackerRuntime(TrackerRuntime):
-    """Wrapper for tracker runtime that only support single object tracking. Used to enforce single object tracking even for multi object trackers."""
-
-    def __init__(self, runtime: TrackerRuntime):
-        """Initializes the single object tracker runtime with specified tracker runtime.
-        
-        Arguments:
-            runtime {TrackerRuntime} -- The tracker runtime to wrap.
-        """
-        super().__init__(runtime.tracker)
-        self._runtime = runtime
-
-    @property
-    def multiobject(self):
-        """Returns False, since the tracker runtime only supports single object tracking."""
-        return False
-
-    def stop(self):
-        """Stops the tracker runtime.
-        
-        Raises:
-            TrackerException -- If the tracker runtime does not support stopping.
-        """
-        self._runtime.stop()
-
-    def restart(self):
-        """Restarts the tracker runtime, usually stars a new process. 
-
-        Raises:
-            TrackerException -- If the tracker runtime does not support restarting.
-        """
-        self._runtime.restart()
-
-    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
-
-        Arguments:
-            frame {Frame} -- The frame to initialize the tracker with.
-            new {Objects} -- The objects to initialize the tracker with.
-            properties {dict} -- The properties to initialize the tracker with.
-        
-        Returns:
-            Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker.
-        """
-
-        if isinstance(new, list) and len(new) != 1: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
-        status, time = self._runtime.initialize(frame, new, properties)
-        if isinstance(status, list): status = status[0]
-        return status, time
-
-    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Updates the tracker runtime with specified frame and objects. Returns the updated objects and the time it took to update the tracker.
-        
-        Arguments:
-            frame {Frame} -- The frame to update the tracker with.
-            new {Objects} -- The objects to update the tracker with.
-            properties {dict} -- The properties to update the tracker with.
-            
-        Returns:
-            Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
-        """
-
-        if not new is None and isinstance(new, list) and len(new) != 0:
-            raise TrackerException("Only supports single object tracking", tracker=self.tracker)
-        if new is None: 
-            new = []
-        status, time = self._runtime.update(frame, new, properties)
-        if isinstance(status, list): status = status[0]
-        return status, time
-
-class MultiObjectTrackerRuntime(TrackerRuntime):
-    """ This is a wrapper for tracker runtimes that do not support multi object tracking. STILL IN DEVELOPMENT!"""
-
-    def __init__(self, runtime: TrackerRuntime):
-        """Initializes the multi object tracker runtime with specified tracker runtime.
-
-        Arguments:
-            runtime {TrackerRuntime} -- The tracker runtime to wrap.
-        """
-
-        super().__init__(runtime.tracker)
-        if runtime.multiobject:
-            self._runtime = runtime
-        else:
-            self._runtime = [runtime]
-            self._used = 0
-
-    @property
-    def multiobject(self):
-        """Always returns True, since the tracker runtime supports multi object tracking."""
-        return True
-
-    def stop(self):
-        """Stops the tracker runtime."""
-        if isinstance(self._runtime, TrackerRuntime):
-            self._runtime.stop()
-        else:
-            for r in self._runtime:
-                r.stop()
-
-    def restart(self):
-        """Restarts the tracker runtime, usually stars a new process."""
-        if isinstance(self._runtime, TrackerRuntime):
-            self._runtime.restart()
-        else:
-            for r in self._runtime:
-                r.restart()
-
-    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
-        Internally this method initializes the tracker runtime for each object in the objects list.
-        
-        Arguments:
-            frame {Frame} -- The frame to initialize the tracker with.
-            new {Objects} -- The objects to initialize the tracker with.
-            properties {dict} -- The properties to initialize the tracker with.
-            
-        Returns:
-            Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker.
-        """
-
-        if isinstance(self._runtime, TrackerRuntime):
-            return self._runtime.initialize(frame, new, properties)
-        if isinstance(new, ObjectStatus):
-            new = [new]
-
-        self._used = 0
-        status = []
-        for i, o in enumerate(new):
-            if i >= len(self._runtime):
-                self._runtime.append(self._tracker.runtime())
-                self._runtime.initialize(frame, new, properties)
-
-        if isinstance(status, list): status = status[0]
-        return status
-
-    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
-        """Updates the tracker runtime with specified frame and objects. Returns the updated objects and the time it took to update the tracker.
-        Internally this method updates the tracker runtime for each object in the new objects list.
-
-        Arguments:
-            frame {Frame} -- The frame to update the tracker with.
-            new {Objects} -- The objects to update the tracker with.
-            properties {dict} -- The properties to update the tracker with. 
-
-        Returns:
-            Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
-        """
-
-        if not new is None: raise TrackerException("Only supports single object tracking", tracker=self.tracker)
-        status = self._runtime.update(frame, new, properties)
-        if isinstance(status, list): status = status[0]
-        return status
+        raise NotImplementedError
 
 try:
-
-    from vot.tracker.trax import TraxTrackerRuntime, trax_matlab_adapter, trax_python_adapter, trax_octave_adapter
-
-    _runtime_protocols["trax"] = TraxTrackerRuntime
-    _runtime_protocols["traxmatlab"] = trax_matlab_adapter
-    _runtime_protocols["traxpython"] = trax_python_adapter
-    _runtime_protocols["traxoctave"] = trax_octave_adapter
-
+    import vot.tracker.trax
 except OSError:
     pass
-
 except ImportError:
-    logger.error("Unable to import support for TraX protocol")
-    pass
+    from vot import get_logger
+    get_logger().warning("Unable to import support for TraX protocol")
+
+import vot.tracker.folder
 
 from vot.tracker.results import Trajectory, Results

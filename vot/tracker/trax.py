@@ -31,7 +31,7 @@ from trax.region import Rectangle as TraxRectangle
 
 from vot.dataset import Frame, DatasetException
 from vot.region import Region, Polygon, Rectangle, Mask
-from vot.tracker import Tracker, TrackerRuntime, TrackerException, Objects, ObjectStatus
+from vot.tracker import Tracker, TrackerRuntime, TrackerException, FrameObjects, ObjectStatus
 from vot.utilities import to_logical, to_number, normalize_path
 
 PORT_POOL_MIN = 9090
@@ -148,7 +148,7 @@ def convert_traxregion(region: TraxRegion) -> Region:
         return Mask(region.array(), region.offset(), optimize=True)
     raise TraxException("Unknown region type {}".format(region.type))
 
-def convert_objects(objects: Objects) -> TraxRegion:
+def convert_objects(objects: FrameObjects) -> TraxRegion:
     """ Converts a list of objects to a Trax region.
 
     Args:
@@ -355,7 +355,7 @@ class TrackerProcess(object):
         self._returncode = self._process.returncode
         return self._returncode is None
 
-    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+    def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
         """ Initializes the tracker. This method is used to initialize the tracker with the first frame. It returns the initial state of the tracker.
 
         Args:
@@ -390,7 +390,7 @@ class TrackerProcess(object):
         return status, elapsed
 
 
-    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+    def update(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
         """ Updates the tracker with a new frame. This method is used to update the tracker with a new frame. It returns the new state of the tracker.
 
         Args:
@@ -481,6 +481,10 @@ class TrackerProcess(object):
 
         self._watchdog_reset(False)
 
+    @property
+    def multiobject(self):
+        """ Whether the tracker supports multiple objects."""
+        return self._multiobject
 
 class TraxTrackerRuntime(TrackerRuntime):
     """ The TraX tracker runtime. This class is used to run a tracker using the TraX protocol."""
@@ -539,7 +543,7 @@ class TraxTrackerRuntime(TrackerRuntime):
     def multiobject(self):
         """ Whether the tracker supports multiple objects."""
         self._connect()
-        return self._process._multiobject
+        return self._process.multiobject
 
     def _connect(self):
         """ Connects to the tracker. This method is used to connect to the tracker. It starts the tracker process if it is not running yet."""
@@ -578,7 +582,7 @@ class TraxTrackerRuntime(TrackerRuntime):
             logger.exception("Error during error handler for runtime of tracker %s", self._tracker.identifier, exc_info=e)
 
         if timeout:
-            raise TrackerException("Tracker interrupted, it did not reply in {} seconds".format(self._timeout), tracker=self._tracker, \
+            raise TrackerException(f"Tracker interrupted, it did not reply in {self._timeout} seconds", tracker=self._tracker, \
                 tracker_log=log if not self._output is None else None)
 
         raise TrackerException(exception, tracker=self._tracker, \
@@ -592,7 +596,7 @@ class TraxTrackerRuntime(TrackerRuntime):
         except TraxException as e:
             self._error(e)
 
-    def initialize(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+    def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
         """ Initializes the tracker. This method is used to initialize the tracker. It starts the tracker process if it is not running yet.
         
         Args:
@@ -604,6 +608,12 @@ class TraxTrackerRuntime(TrackerRuntime):
             A tuple containing the initial objects and the initial score.
         """
         try:
+            if not self.multiobject:
+                if len(new) != 1:
+                    raise TrackerException("Tracker does not support multiple objects, but multiple objects were provided for initialization", tracker=self._tracker)
+                else:
+                    new = new[0] 
+            
             if self._restart:
                 self.stop()
             self._connect()
@@ -617,7 +627,7 @@ class TraxTrackerRuntime(TrackerRuntime):
         except TraxException as e:
             self._error(e)
 
-    def update(self, frame: Frame, new: Objects = None, properties: dict = None) -> Tuple[Objects, float]:
+    def update(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
         """ Updates the tracker. This method is used to update the tracker state with a new frame.
         
         Args:
@@ -629,6 +639,9 @@ class TraxTrackerRuntime(TrackerRuntime):
             A tuple containing the updated objects and the updated score.
         """
         try:
+            if not self.multiobject and not (new is None or len(new) != 0):
+                raise TrackerException("Tracker does not support multiple objects, but multiple objects were provided for update", tracker=self._tracker)
+            
             if properties is None:
                 properties = dict()
             return self._process.update(frame, new, properties)
@@ -645,167 +658,24 @@ class TraxTrackerRuntime(TrackerRuntime):
         """ Destructor. This method is used to stop the tracker process when the object is deleted."""
         self.stop()
 
-def escape_path(path):
-    """ Escapes a path. This method is used to escape a path.
-    
-    Args:
-        path: The path to escape.
+from vot.tracker import register_runtime_protocol
+from vot.tracker.adapters import PythonAdapter, MatlabAdapter, OctaveAdapter
+
+class TraxMatlabAdapter(MatlabAdapter):
+    """ Adapter for running a tracker using the TraX protocol in Matlab. 
+    It only adds the bypass to use socket communication on Windows, 
+    which is required for Matlab to work properly. """
+
+    def __init__(self):
+        super().__init__(TraxTrackerRuntime)
         
-    Returns:
-        The escaped path.
-    """
-    if sys.platform.startswith("win"):
-        return path.replace("\\\\", "\\").replace("\\", "\\\\")
-    else:
-        return path
+    def __call__(self, tracker, command, envvars, paths="", log = False, timeout = 30, linkpaths=None, arguments=None, matlab=None, **kwargs):
+        if sys.platform.startswith("win"):
+            kwargs["socket"] = True # We have to use socket connection in this case
+       
+        return super().__call__(tracker, command, envvars, paths, log, timeout, linkpaths, arguments, matlab, **kwargs)
 
-def trax_python_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, python=None, socket=False, restart=False, **kwargs):
-    """ Creates a Python adapter for a tracker. This method is used to create a Python adapter for a tracker.
-
-    Args:
-        tracker: The tracker to create the adapter for.
-        command: The command to run the tracker.
-        envvars: The environment variables to set.
-        paths: The paths to add to the Python path.
-        log: Whether to log the tracker output.
-        timeout: The timeout in seconds.
-        linkpaths: The paths to link.
-        arguments: The arguments to pass to the tracker.
-        python: The Python interpreter to use.
-        socket: Whether to use a socket to communicate with the tracker.
-        restart: Whether to restart the tracker after each frame.
-        kwargs: Additional keyword arguments.
-
-    Returns:
-        The Python TraX runtime object.
-    """
-    if not isinstance(paths, list):
-        paths = paths.split(os.pathsep)
-
-    pathimport = " ".join(["sys.path.insert(0, '{}');".format(escape_path(x)) for x in normalize_paths(paths[::-1], tracker)])
-    interpreter = sys.executable if python is None else python
-
-    # simple check if the command is only a package name to be imported or a script
-    if re.match("^[a-zA-Z_][a-zA-Z0-9_\\.]*$", command) is None:
-        # We have to escape all double quotes
-        command = command.replace("\"", "\\\"")
-        command = '{} -c "import sys;{} {}"'.format(interpreter, pathimport, command)
-    else:
-        command = '{} -m {}'.format(interpreter, command)
-
-    envvars["PYTHONPATH"] = os.pathsep.join(normalize_paths(paths[::-1], tracker))   
-    envvars["PYTHONUNBUFFERED"] = "1"
-
-    return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
-
-def trax_matlab_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, matlab=None, socket=False, restart=False, **kwargs):
-    """ Creates a Matlab adapter for a tracker. This method is used to create a Matlab adapter for a tracker. 
-
-    Args:
-        tracker: The tracker to create the adapter for.
-        command: The command to run the tracker.
-        envvars: The environment variables to set.
-        paths: The paths to add to the Matlab path.
-        log: Whether to log the tracker output.
-        timeout: The timeout in seconds.
-        linkpaths: The paths to link.
-        arguments: The arguments to pass to the tracker.
-        matlab: The Matlab executable to use.
-        socket: Whether to use a socket to communicate with the tracker.
-        restart: Whether to restart the tracker after each frame.
-        kwargs: Additional keyword arguments.
-
-    Returns:
-        The Matlab TraX runtime object.
-    """
-    if not isinstance(paths, list):
-        paths = paths.split(os.pathsep)
-
-    pathimport = " ".join(["addpath('{}');".format(x) for x in normalize_paths(paths, tracker)])
-
-    if sys.platform.startswith("win"):
-        matlabname = "matlab.exe"
-        socket = True # We have to use socket connection in this case
-    else:
-        matlabname = "matlab"
-
-
-    if matlab is None:
-        matlabroot = os.getenv("MATLAB_ROOT", None)
-        if matlabroot is None:
-            testdirs = os.getenv("PATH", "").split(os.pathsep)
-            for testdir in testdirs:
-                if os.path.isfile(os.path.join(testdir, matlabname)):
-                    matlabroot = os.path.dirname(testdir)
-                    break
-            if matlabroot is None:
-                raise RuntimeError("Matlab executable not found, set MATLAB_ROOT environmental variable manually.")
-        matlab_executable = os.path.join(matlabroot, 'bin', matlabname)
-    else:
-        matlab_executable = matlab
-
-    if sys.platform.startswith("win"):
-        matlab_executable = '"' + matlab_executable + '"'
-        matlab_flags = ['-nodesktop', '-nosplash', '-wait', '-minimize']
-    else:
-        matlab_flags = ['-nodesktop', '-nosplash']
-
-    matlab_script = 'try; diary ''runtime.log''; {}{}; catch ex; disp(getReport(ex)); end; quit;'.format(pathimport, command)
-
-    command = '{} {} -r "{}"'.format(matlab_executable, " ".join(matlab_flags), matlab_script)
-
-    return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
-
-def trax_octave_adapter(tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, socket=False, restart=False, **kwargs):
-    """ Creates an Octave adapter for a tracker. This method is used to create an Octave adapter for a tracker. 
-
-    Args:
-        tracker: The tracker to create the adapter for.
-        command: The command to run the tracker.
-        envvars: The environment variables to set.
-        paths: The paths to add to the Octave path.
-        log: Whether to log the tracker output.
-        timeout: The timeout in seconds.
-        linkpaths: The paths to link.
-        arguments: The arguments to pass to the tracker.
-        socket: Whether to use a socket to communicate with the tracker.
-        restart: Whether to restart the tracker after each frame.
-        kwargs: Additional keyword arguments.
-
-    Returns:
-        The Octave TraX runtime object.
-    """
-
-    if not isinstance(paths, list):
-        paths = paths.split(os.pathsep)
-
-    pathimport = " ".join(["addpath('{}');".format(x) for x in normalize_paths(paths, tracker)])
-
-    octaveroot = os.getenv("OCTAVE_ROOT", None)
-
-    if sys.platform.startswith("win"):
-        octavename = "octave.exe"
-    else:
-        octavename = "octave"
-
-    if octaveroot is None:
-        testdirs = os.getenv("PATH", "").split(os.pathsep)
-        for testdir in testdirs:
-            if os.path.isfile(os.path.join(testdir, octavename)):
-                octaveroot = os.path.dirname(testdir)
-                break
-        if octaveroot is None:
-            raise RuntimeError("Octave executable not found, set OCTAVE_ROOT environmental variable manually.")
-
-    if sys.platform.startswith("win"):
-        octave_executable = '"' + os.path.join(octaveroot, 'bin', octavename) + '"'
-    else:
-        octave_executable = os.path.join(octaveroot, 'bin', octavename)
-
-    octave_flags = ['--no-gui', '--no-window-system']
-
-    octave_script = 'try; diary ''runtime.log''; {}{}; catch ex; disp(ex.message); for i = 1:size(ex.stack) disp(''filename''); disp(ex.stack(i).file); disp(''line''); disp(ex.stack(i).line); endfor; end; quit;'.format(pathimport, command)
-
-    command = '{} {} --eval "{}"'.format(octave_executable, " ".join(octave_flags), octave_script)
-
-    return TraxTrackerRuntime(tracker, command, log=log, timeout=timeout, linkpaths=linkpaths, envvars=envvars, arguments=arguments, socket=socket, restart=restart)
+register_runtime_protocol("trax", TraxTrackerRuntime)
+register_runtime_protocol("traxpython", PythonAdapter(TraxTrackerRuntime))
+register_runtime_protocol("traxmatlab", TraxMatlabAdapter())
+register_runtime_protocol("traxoctave", OctaveAdapter(TraxTrackerRuntime))

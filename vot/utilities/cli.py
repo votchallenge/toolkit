@@ -40,11 +40,9 @@ def do_test(config: argparse.Namespace):
     Args:
         config (argparse.Namespace): Configuration
     """
-    from vot.dataset.dummy import generate_dummy
-    from vot.dataset import load_sequence, Frame
-    from vot.tracker import ObjectStatus, Registry, TrackerException
-    from vot.experiment.helpers import MultiObjectHelper
-    from vot.dataset.proxy import ObjectsHideFilterSequence
+
+    from vot.tracker import Registry
+    from vot.tracker.tests import test_tracker_runtime
     from vot import config as global_config
 
     trackers = Registry(global_config.registry)
@@ -62,102 +60,10 @@ def do_test(config: argparse.Namespace):
 
     tracker = trackers[config.tracker]
 
-    def visualize(axes, frame: Frame, reference, state):
-        """Visualize the frame and the state of the tracker. 
-        
-        Args:
-            axes (matplotlib.axes.Axes): The axes to draw on.
-            frame (Frame): The frame to draw.
-            reference (list): List of references.
-            state (ObjectStatus): The state of the tracker.
-            
-        """
-        axes.clear()
-        handle.image(frame.channel())
-        if not isinstance(state, list):
-            state = [state]
-        for gt, st in zip(reference, state):
-            handle.style(color="green").region(gt)
-            handle.style(color="red").region(st.region)
-        
-    try:
+    runtime = tracker.runtime(log=True)
 
-        runtime = tracker.runtime(log=True)
+    test_tracker_runtime(runtime, config.visualize, config.sequence, config.ignore)
 
-        logger.info("Generating dummy sequence")
-
-        if config.sequence is None:
-            sequence = generate_dummy(50, objects=3 if runtime.multiobject else 1)
-        else:
-            sequence = load_sequence(normalize_path(config.sequence))
-
-        if config.ignore:
-            sequence = ObjectsHideFilterSequence(sequence, config.ignore)
-
-        logger.info("Obtaining runtime for tracker %s", tracker.identifier)
-
-        context = {"continue" : True}
-
-        def on_press(event):
-            """Callback for key press event.
-            
-            Args:
-                event (matplotlib.backend_bases.Event): The event.
-            """
-            if event.key == 'q':
-                context["continue"] = False
-
-        if config.visualize:
-            import matplotlib.pylab as plt
-            from vot.utilities.draw import MatplotlibDrawHandle
-            figure = plt.figure()
-            if hasattr(figure.canvas, "set_window_title"):
-                figure.canvas.set_window_title('VOT Test')
-            axes = figure.add_subplot(1, 1, 1)
-            axes.set_aspect("equal")
-            handle = MatplotlibDrawHandle(axes, size=sequence.size)
-            context["click"] = figure.canvas.mpl_connect('key_press_event', on_press)
-            handle.style(fill=False)
-            figure.show()
-
-        helper = MultiObjectHelper(sequence)
-
-        logger.info("Initializing tracker")
-
-        frame = sequence.frame(0)
-        state, _ = runtime.initialize(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(0)])
-
-        if config.visualize:
-            visualize(axes, frame, [frame.object(x) for x in helper.objects(0)], state)
-            figure.canvas.draw()
-
-        for i in range(1, len(sequence)):
-            
-            logger.info("Processing frame %d/%d", i, len(sequence)-1)
-            frame = sequence.frame(i)
-            state, _ = runtime.update(frame, [ObjectStatus(frame.object(x), {}) for x in helper.new(i)])
-
-            if config.visualize:
-                visualize(axes, frame, [frame.object(x) for x in helper.objects(i)], state)
-                figure.canvas.draw()
-                figure.canvas.flush_events()
-
-            if not context["continue"]:
-                break
-
-        logger.info("Stopping tracker")
-
-        runtime.stop()
-
-        logger.info("Test concluded successfuly")
-
-    except TrackerException as te:
-        logger.error("Error during tracker execution: {}".format(te))
-        if runtime:
-            runtime.stop()
-    except KeyboardInterrupt:
-        if runtime:
-            runtime.stop()
 
 def do_initialize(config: argparse.Namespace):
     """Initialize a workspace. If a stack is provided, the workspace is initialized with the stack. If no stack is provided,

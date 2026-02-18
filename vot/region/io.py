@@ -150,7 +150,7 @@ def parse_region(string: str, separator: str = ",") -> "Region":
         Region: resulting region
     """
     from vot import config
-    from vot.region import Special
+    from vot.region import Special, Point
     from vot.region.shapes import Rectangle, Polygon, Mask
 
     if string[0] == 'm':
@@ -162,6 +162,11 @@ def parse_region(string: str, separator: str = ",") -> "Region":
         tokens = [float(t) for t in string.split(separator)]
         if len(tokens) == 1:
             return Special(tokens[0])
+        if len(tokens) == 2:
+            if any([math.isnan(el) for el in tokens]):
+                return Special(0)
+            else:
+                return Point(tokens[0], tokens[1])
         if len(tokens) == 4:
             if any([math.isnan(el) for el in tokens]):
                 return Special(0)

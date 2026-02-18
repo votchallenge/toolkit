@@ -8,12 +8,12 @@ from attributee import Float, Integer, Boolean, Include, String
 
 from vot.tracker import Tracker
 from vot.dataset import Sequence
-from vot.region import Region, RegionType, calculate_overlaps
+from vot.region import Region, is_special, calculate_overlaps
 from vot.experiment import Experiment
 from vot.experiment.multirun import UnsupervisedExperiment, MultiRunExperiment
 from vot.analysis import SequenceAggregator, Analysis, SeparableAnalysis, \
-    MissingResultsException, Measure, Sorting, Curve, Plot, SequenceAggregator, \
-    Axes, Point, is_special, Analysis
+    MissingResultsException, Measure, Sorting, Curve, Plot, \
+    Axes, Point, is_special
 from vot.utilities.data import Grid
 
 def determine_thresholds(scores: Iterable[float], resolution: int) -> List[float]:
@@ -65,7 +65,7 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
     overlaps = np.array(calculate_overlaps(trajectory, sequence.groundtruth(), (sequence.size) if bounded else None, ignore=ignore_masks))
     confidence = np.array(confidence)
 
-    n_visible = len([region for region in sequence.groundtruth() if region.type is not RegionType.SPECIAL])
+    n_visible = len([region for region in sequence.groundtruth() if not is_special(region)])
 
     precision = len(thresholds) * [float(0)]
     recall = len(thresholds) * [float(0)]

@@ -3,12 +3,11 @@
 
 from typing import Callable
 
+from attributee import String
+
 from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.region import Special
-
-from attributee import String
-
 from vot.experiment import Experiment
 from vot.tracker import Tracker, Trajectory
 

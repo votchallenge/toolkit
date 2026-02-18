@@ -177,17 +177,9 @@ class Experiment(Attributee):
         Raises:
             TrackerException: If the tracker does not support multi-object experiments
         """
-        from ..tracker import SingleObjectTrackerRuntime, RealtimeTrackerRuntime, MultiObjectTrackerRuntime
+        from ..tracker.online import RealtimeTrackerRuntime
 
         runtime = tracker.runtime()
-
-        if multiobject:
-            if not runtime.multiobject:
-                # raise TrackerException("Tracker {} does not support multi-object experiments".format(tracker.identifier), tracker=tracker)
-                #runtime = MultiObjectTrackerRuntime(runtime)
-                runtime = SingleObjectTrackerRuntime(runtime)
-        else:
-            runtime = SingleObjectTrackerRuntime(runtime)
 
         if not self.realtime is None:
             grace = to_number(self.realtime.grace, min_n=0)
