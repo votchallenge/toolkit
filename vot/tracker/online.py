@@ -52,9 +52,9 @@ class OnlineTrackerRuntime(TrackerRuntime):
         """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
         
         Arguments:
-            frame {Frame} -- The frame to initialize the tracker with.
-            new {Objects} -- The objects to initialize the tracker with.
-            properties {dict} -- The properties to initialize the tracker with.
+            frame (Frame) -- The frame to initialize the tracker with.
+            new (Objects) -- The objects to initialize the tracker with.
+            properties (dict) -- The properties to initialize the tracker with.
 
         Returns:
             Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker.
@@ -66,9 +66,9 @@ class OnlineTrackerRuntime(TrackerRuntime):
         """Updates the tracker runtime with specified frame and objects. Returns the updated objects and the time it took to update the tracker.
 
         Arguments:
-            frame {Frame} -- The frame to update the tracker with.
-            new {Objects} -- The objects to update the tracker with.
-            properties {dict} -- The properties to update the tracker with.
+            frame (Frame) -- The frame to update the tracker with.
+            new (Objects) -- The objects to update the tracker with.
+            properties (dict) -- The properties to update the tracker with.
 
         Returns:
             Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
@@ -83,23 +83,22 @@ class OnlineTrackerRuntime(TrackerRuntime):
         on the given frames and queries.
 
         Arguments:
-            frames {list} -- The list of frames to run the tracker on.
-            queries {dict} -- The dictionary of object queries to run the tracker on.
+            frames (List[Frame]) -- The list of frames to run the tracker on.
+            queries (List[ObjectQuery]) -- The list of object queries to run the tracker on.
         """
         
         # Order the queries by offset and id
-        keys = sorted(queries.keys(), key=lambda x: (queries[x].offset, x))
         
-        statuses = dict()
+        statuses = []
         # Initialize statuses with empty lists for each query
-        for key in queries.keys():
-            statuses[key] = []
+        for i in range(len(queries)):
+            statuses.append([])
         
         times = []
         
         for i, frame in enumerate(frames):
             # Filter out objects appearing in the current frame
-            new = [ObjectStatus(queries[key].region, queries[key].properties) for key in keys if queries[key].offset == i]
+            new = [ObjectStatus(queries[j].state, queries[j].properties) for j in range(len(queries)) if queries[j].offset == i]
         
             if i == 0:
                 status, time = self.initialize(frames[0], new)
@@ -108,15 +107,13 @@ class OnlineTrackerRuntime(TrackerRuntime):
         
             times.append(time)
         
-            for j, key in enumerate(keys):
-                if queries[key].offset < i:
-                    statuses[key].append(status[j])
-                elif queries[key].offset == i:
-                    statuses[key].append(ObjectStatus(Special(Trajectory.INITIALIZATION), status[j].properties))
+            for j in range(len(queries)):
+                if queries[j].offset <= i:
+                    statuses[j].append(status[j])
                 else:
-                    statuses[key].append(ObjectStatus(Special(Trajectory.UNKNOWN), {})) 
+                    statuses[j].append(ObjectStatus(Special(Trajectory.UNKNOWN), {})) 
                    
-        return statuses
+        return RunStatus(statuses, times)
 
 class RealtimeTrackerRuntime(TrackerRuntime):
     """Base class for realtime tracker runtime implementations. 

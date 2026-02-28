@@ -415,6 +415,9 @@ class Tracker(object):
         if not self._command:
             raise TrackerException("Tracker does not have an attached executable", tracker=self)
 
+        if self._protocol is None:
+            raise TrackerException("Tracker does not have an attached protocol and can not be executed", tracker=self)
+
         if not self._protocol in _runtime_protocols:
             raise TrackerException("Runtime protocol '{}' not available".format(self._protocol), tracker=self)
 

@@ -31,7 +31,8 @@ from trax.region import Rectangle as TraxRectangle
 
 from vot.dataset import Frame, DatasetException
 from vot.region import Region, Polygon, Rectangle, Mask
-from vot.tracker import Tracker, TrackerRuntime, TrackerException, FrameObjects, ObjectStatus
+from vot.tracker import Tracker, TrackerException, FrameObjects, ObjectStatus
+from vot.tracker.online import OnlineTrackerRuntime
 from vot.utilities import to_logical, to_number, normalize_path
 
 PORT_POOL_MIN = 9090
@@ -486,7 +487,7 @@ class TrackerProcess(object):
         """ Whether the tracker supports multiple objects."""
         return self._multiobject
 
-class TraxTrackerRuntime(TrackerRuntime):
+class TraxTrackerRuntime(OnlineTrackerRuntime):
     """ The TraX tracker runtime. This class is used to run a tracker using the TraX protocol."""
 
     def __init__(self, tracker: Tracker, command: str, log: bool = False, timeout: int = 30, linkpaths=None, envvars=None, arguments=None, socket=False, restart=False, onerror=None):
@@ -639,7 +640,7 @@ class TraxTrackerRuntime(TrackerRuntime):
             A tuple containing the updated objects and the updated score.
         """
         try:
-            if not self.multiobject and not (new is None or len(new) != 0):
+            if not self.multiobject and (new is None or len(new) != 0):
                 raise TrackerException("Tracker does not support multiple objects, but multiple objects were provided for update", tracker=self._tracker)
             
             if properties is None:

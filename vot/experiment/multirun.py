@@ -2,16 +2,18 @@
  Multi-run experiments are used to run a tracker multiple times on the same sequence. """
 from typing import Callable
 
-from vot.dataset import Sequence
-from vot.region import Special, calculate_overlap
-
 from attributee import Boolean, Integer, Float, List, String
 
 from vot.experiment import Experiment
-from vot.tracker import Tracker, Trajectory, ObjectStatus
+from vot.tracker import Tracker, Trajectory, ObjectQuery
+from vot.tracker.online import OnlineTrackerRuntime
+from vot.dataset import Sequence
+from vot.region import Special, calculate_overlap
+from vot.dataset.proxy import FrameMapSequence
 
 class MultiRunExperiment(Experiment):
-    """Base class for multi-run experiments. Multi-run experiments are used to run a tracker multiple times on the same sequence."""
+    """Base class for multi-run experiments. 
+    Multi-run experiments are used to run a tracker multiple times on the same sequence."""
 
     repetitions = Integer(val_min=1, default=1)
     early_stop = Boolean(default=True)
@@ -60,9 +62,9 @@ class MultiRunExperiment(Experiment):
         assert self._multiobject or not multiobject
 
         for o in sequence.objects():
-            prefix = sequence.name if not multiobject else "%s_%s" % (sequence.name, o)
+            prefix = sequence.name if not multiobject else f"{sequence.name}_{o}"
             for i in range(1, self.repetitions+1):
-                name = "%s_%03d" % (prefix, i)
+                name = f"{prefix}_{i:03d}"
                 if Trajectory.exists(results, name):
                     files.extend(Trajectory.gather(results, name))
                 elif self._can_stop(tracker, sequence):
@@ -96,17 +98,21 @@ class MultiRunExperiment(Experiment):
             objects = list(sequence.objects())
 
         for o in objects:
-            prefix = sequence.name if not multiobject else "%s_%s" % (sequence.name, o)
+            prefix = sequence.name if not multiobject else f"{sequence.name}_{o}"
             for i in range(1, self.repetitions+1):
-                name =  "%s_%03d" % (prefix, i)
+                name =  f"{prefix}_{i:03d}"
                 if Trajectory.exists(results, name):
                     trajectories.append(Trajectory.read(results, name))
                 elif pad:
                     trajectories.append(None)
         return trajectories
+    
+    def execute(self, tracker, sequence, force = False, callback = None):
+        raise NotImplementedError("This method should be implemented by subclasses.")
 
 class UnsupervisedExperiment(MultiRunExperiment):
-    """Unsupervised experiment. This experiment is used to run a tracker multiple times on the same sequence without any supervision."""
+    """Unsupervised experiment. 
+    This experiment is used to run a tracker multiple times on the same sequence without any supervision."""
 
     multiobject = Boolean(default=False)
 
@@ -118,6 +124,26 @@ class UnsupervisedExperiment(MultiRunExperiment):
             bool: True if the experiment is multi-object, False otherwise.
         """
         return self.multiobject
+
+    def scan(self, tracker: Tracker, sequence: Sequence) -> tuple:
+        """Scan the results of the experiment for the given tracker and sequence.
+        
+        Args:
+            tracker (Tracker): The tracker to be scanned.
+            sequence (Sequence): The sequence to be scanned.
+            
+        Returns:
+            [tuple]: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
+        """
+        
+        complete, files, results = super().scan(tracker, sequence)
+        
+        if results.exists(f"{sequence.name}_time.txt"):
+            files.append(f"{sequence.name}_time.txt")
+        elif complete:
+            complete = False
+        
+        return complete, files, results
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
         """Execute the experiment for the given tracker and sequence.
@@ -140,7 +166,15 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
         def result_name(sequence, o, i):
             """Get the name of the result file."""
-            return "%s_%s_%03d" % (sequence.name, o, i) if multiobject else "%s_%03d" % (sequence.name, i)
+            return f"{sequence.name}_{o}_{i:03d}" if multiobject else f"{sequence.name}_{i:03d}"
+
+        # Generate object queries for all objects in the sequence
+        queries = []
+        queries_keys = []
+        for i in range(len(sequence)):
+            for o in helper.new(i):
+                queries.append(ObjectQuery(self._get_initialization(sequence, i, o), {}, i))
+                queries_keys.append(o)
 
         with self._get_runtime(tracker, sequence, self._multiobject) as runtime:
 
@@ -148,7 +182,10 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
                 trajectories = {}
 
-                for o in helper.all(): trajectories[o] = Trajectory(len(sequence))
+                times = []
+
+                for o in helper.all(): 
+                    trajectories[o] = Trajectory(len(sequence))
 
                 if all([Trajectory.exists(results, result_name(sequence, o, i)) for o in trajectories.keys()]) and not force:
                     continue
@@ -157,49 +194,55 @@ class UnsupervisedExperiment(MultiRunExperiment):
                     return
 
                 if runtime.multiobject:
-                    _, elapsed = runtime.initialize(sequence.frame(0), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(0)])
                     
-                    for x in helper.new(0):
-                        trajectories[x].set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
-
+                    status = runtime.run(sequence, queries)
+                    
+                    for o, key in enumerate(queries_keys):
+                        trajectories[key].set(0, Special(Trajectory.INITIALIZATION), status.objects[o][0].properties)
                     for frame in range(1, len(sequence)):
-                        state, elapsed = runtime.update(sequence.frame(frame), [ObjectStatus(self._get_initialization(sequence, 0, x), {}) for x in helper.new(frame)])
+                        for o, key in enumerate(queries_keys):
+                            trajectories[key].set(frame, status.objects[o][frame].region, status.objects[o][frame].properties)
 
-                        if not isinstance(state, list):
-                            state = [state]
+                    times = status.times
 
-                        for x, object in zip(helper.objects(frame), state):
-                            object.properties["time"] = elapsed # TODO: what to do with time stats?
-                            trajectories[x].set(frame, object.region, object.properties)
-
-                        if callback:
-                            callback(float(i-1) / self.repetitions + (float(frame) / (self.repetitions * len(sequence))))
-                else:
-                    for j, x in enumerate(helper.new(0)):  # Note: x is object id, j is trajectory (object) index
-                        _, elapsed = runtime.initialize(sequence.frame(0), self._get_initialization(sequence, 0, x))
+                    if callback:
+                        callback(float(i) / self.repetitions)
                         
-                        trajectories[x].set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
-
-                        for frame in range(1, len(sequence)):
-                            state, elapsed = runtime.update(sequence.frame(frame))
+                else:
+                    
+                    times = [0] * len(sequence)
+                    
+                    for q, query in enumerate(queries):
+                        offset = query.offset
+                        
+                        proxy = FrameMapSequence(sequence, list(range(offset, len(sequence))))
+                        status = runtime.run(proxy, [ObjectQuery(query.state, query.properties, 0)])
+                        
+                        trajectory = trajectories[queries_keys[q]]
+                        trajectory.set(offset, Special(Trajectory.INITIALIZATION), status.objects[0][0].properties)
+                        for frame in range(1, len(proxy)):
+                            trajectory.set(frame + offset, status.objects[0][frame].region, status.objects[0][frame].properties)
+                            times[frame + offset] += status.times[frame]
                             
-                            if isinstance(state, list):
-                                state = state[0]
-                            
-                            state.properties["time"] = elapsed # TODO: what to do with time stats?
-                            trajectories[x].set(frame, state.region, state.properties)
-
-                            if callback:
-                                callback((float(i-1) / self.repetitions) + \
-                                        (float(j) / (self.repetitions * len(trajectories))) + \
-                                            (float(frame) / (self.repetitions * len(trajectories) * len(sequence))))
+                        if callback:
+                            callback((float(i-1) / self.repetitions) + \
+                                    (float(q) / (self.repetitions * len(trajectories))))
+                    
+                with results.write(f"{sequence.name}_time.txt") as filehandle:
+                    filehandle.writelines([f"{t}\n" for t in times])
                         
                 for o, trajectory in trajectories.items():
                     trajectory.write(results, result_name(sequence, o, i))
 
 
 class SupervisedExperiment(MultiRunExperiment):
-    """Supervised experiment. This experiment is used to run a tracker multiple times on the same sequence with supervision (reinitialization in case of failure)."""
+    """Supervised experiment. 
+    This experiment is used to run a tracker multiple times 
+    on the same sequence with supervision (reinitialization in case of failure).
+    
+    Due to the nature of the experiment, it requires online tracker runtimes and only
+    works on single-target sequences. In all other cases the execution will fail with an error.
+    """
 
     FAILURE = 2
 
@@ -217,12 +260,18 @@ class SupervisedExperiment(MultiRunExperiment):
             callback (Callable, optional): The callback to be used. Defaults to None.
         """
 
+        if len(sequence.objects()) != 1:
+            raise ValueError("SupervisedExperiment only works on single-target sequences.")
+
         results = self.results(tracker, sequence)
 
         with self._get_runtime(tracker, sequence) as runtime:
 
+            if not isinstance(runtime, OnlineTrackerRuntime):
+                raise ValueError("SupervisedExperiment requires an online tracker runtime.")
+
             for i in range(1, self.repetitions+1):
-                name = "%s_%03d" % (sequence.name, i)
+                name = f"{sequence.name}_{i:03d}"
 
                 if Trajectory.exists(results, name) and not force:
                     continue
@@ -243,12 +292,12 @@ class SupervisedExperiment(MultiRunExperiment):
 
                     while frame < len(sequence):
 
-                        object, elapsed = runtime.update(sequence.frame(frame))
+                        target, elapsed = runtime.update(sequence.frame(frame))
 
-                        object.properties["time"] = elapsed
+                        target.properties["time"] = elapsed
 
-                        if calculate_overlap(object.region, sequence.groundtruth(frame), sequence.size) <= self.failure_overlap:
-                            trajectory.set(frame, Special(SupervisedExperiment.FAILURE), object.properties)
+                        if calculate_overlap(target.region, sequence.groundtruth(frame), sequence.size) <= self.failure_overlap:
+                            trajectory.set(frame, Special(SupervisedExperiment.FAILURE), target.properties)
                             frame = frame + self.skip_initialize
  
                             if self.skip_tags:
@@ -258,7 +307,7 @@ class SupervisedExperiment(MultiRunExperiment):
                                     frame = frame + 1
                             break
                         else:
-                            trajectory.set(frame, object.region, object.properties)
+                            trajectory.set(frame, target.region, target.properties)
                         frame = frame + 1
 
                 if  callback:

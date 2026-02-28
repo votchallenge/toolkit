@@ -511,6 +511,9 @@ class FrameList(object):
             index (int): Frame index
         """
         return NotImplementedError()
+    
+    def __getitem__(self, index: int) -> Frame:
+        return self.frame(index)
 
 class Sequence(FrameList):
     """A sequence is a list of frames (multiple channels) and a list of one or more annotated objects. It also contains

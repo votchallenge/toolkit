@@ -250,7 +250,7 @@ def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
             rle = mask_to_rle(r.mask, maxstride=255*255)
             fp.write(struct.pack("<BhhHHH%dH" % len(rle), 3, r.offset[0], r.offset[1], r.mask.shape[1], r.mask.shape[0], len(rle), *rle))
         else:
-            raise IOError("Wrong region type")
+            raise IOError(f"Wrong region type {type(r)}")
 
 def read_trajectory(fp: Union[str, TextIO], separator: str = ","):
     """Reads a trajectory from a file and returns a list of regions.

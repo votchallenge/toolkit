@@ -345,7 +345,7 @@ def write_sequence(directory: str, sequence: Sequence):
     if len(sequence.objects()) == 1:
         write_trajectory(os.path.join(directory, "groundtruth.txt"), [f.groundtruth() for f in sequence])
     else:
-        for id in sequence.objects():
-            write_trajectory(os.path.join(directory, "groundtruth_%s.txt" % id), [f.object(id) for f in sequence])
+        for oid in sequence.objects():
+            write_trajectory(os.path.join(directory, f"groundtruth_{oid}.txt"), [f.object(oid) for f in sequence])
 
     write_properties(os.path.join(directory, "sequence"), metadata)

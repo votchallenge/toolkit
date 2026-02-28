@@ -144,7 +144,7 @@ class Experiment(Attributee):
         # TODO: at some point this may be a property for all experiments
         return False
 
-    def _get_initialization(self, sequence: "Sequence", index: int, id: str = None):
+    def _get_initialization(self, sequence: "Sequence", index: int, oid: str = None):
         """Get initialization for a given sequence, index and object id.
 
         Args:
@@ -153,15 +153,15 @@ class Experiment(Attributee):
             id (str): Object id to get initialization for
 
         Returns:
-            Initialization: Initialization for the given sequence, index and object id
+            Initialization: Initialization state for the given sequence, index and object id
 
         Raises:
             ValueError: If the sequence does not contain the given index or object id
         """
-        if not self._multiobject and id is None:
+        if not self._multiobject and oid is None:
             return sequence.groundtruth(index)
         else:
-            return sequence.frame(index).object(id)
+            return sequence.frame(index).object(oid)
 
     def _get_runtime(self, tracker: "Tracker", sequence: "Sequence", multiobject=False):
         """Get runtime for a given tracker and sequence. Can convert single-object runtimes to multi-object runtimes.

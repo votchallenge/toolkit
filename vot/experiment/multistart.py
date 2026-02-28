@@ -9,7 +9,7 @@ from vot.dataset import Sequence
 from vot.dataset.proxy import FrameMapSequence
 from vot.region import Special
 from vot.experiment import Experiment
-from vot.tracker import Tracker, Trajectory
+from vot.tracker import ObjectQuery, Tracker, Trajectory
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
     """Find anchor frames in the sequence. Anchor frames are frames where the given object is visible and can be used for initialization.
@@ -35,7 +35,12 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
 class MultiStartExperiment(Experiment):
     """The multistart experiment. The experiment works by utilizing anchor frames in the sequence. 
     Anchor frames are frames where the given object is visible and can be used for initialization. 
+    
     The tracker is then initialized in each anchor frame and run until the end of the sequence either forward or backward. 
+    
+    This experiment assumes that anchor frames are labeled in the sequence with a specific value (default is "anchor") 
+    and that the value of the object is positive for forward anchors and negative for backward anchors. If no anchor
+    information is present in the sequence, the experiment will fail with an error. The experiment can be run with or without supervision.
     """
 
     anchor = String(default="anchor")
@@ -61,7 +66,7 @@ class MultiStartExperiment(Experiment):
             raise RuntimeError("Sequence does not contain any anchors")
 
         for i in forward + backward:
-            name = "%s_%08d" % (sequence.name, i)
+            name = f"{sequence.name}_{i:08d}"
             if Trajectory.exists(results, name):
                 files.extend(Trajectory.gather(results, name))
             else:
@@ -95,7 +100,7 @@ class MultiStartExperiment(Experiment):
         with self._get_runtime(tracker, sequence) as runtime:
 
             for i, reverse in [(f, False) for f in forward] + [(f, True) for f in backward]:
-                name = "%s_%08d" % (sequence.name, i)
+                name = f"{sequence.name}_{i:08d}"
 
                 if Trajectory.exists(results, name) and not force:
                     continue
@@ -105,18 +110,14 @@ class MultiStartExperiment(Experiment):
                 else:
                     proxy = FrameMapSequence(sequence, list(range(i, len(sequence))))
 
+                queries = [ObjectQuery(self._get_initialization(proxy, 0), {}, i)]
+                status = runtime.run(proxy, queries)
+
                 trajectory = Trajectory(len(proxy))
 
-                _, elapsed = runtime.initialize(proxy.frame(0), self._get_initialization(proxy, 0))
-
-                trajectory.set(0, Special(Trajectory.INITIALIZATION), {"time": elapsed})
-
+                trajectory.set(0, Special(Trajectory.INITIALIZATION), {"time": status.times[0][0]})
                 for frame in range(1, len(proxy)):
-                    object, elapsed = runtime.update(proxy.frame(frame))
-
-                    object.properties["time"] = elapsed
-
-                    trajectory.set(frame, object.region, object.properties)
+                    trajectory.set(frame, status.objects[0][frame], {"time": status.times[0][frame]})
 
                 trajectory.write(results, name)
 
