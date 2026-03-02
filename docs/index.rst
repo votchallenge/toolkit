@@ -19,6 +19,11 @@ Index
    :maxdepth: 1
 
    overview
+   cli
+   workspace
+   dataset
+   protocols
+   stack
    tutorials
    api
 

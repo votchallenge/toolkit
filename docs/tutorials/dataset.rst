@@ -1,50 +1,145 @@
-Datasets
-========
+Creating a custom dataset
+=========================
 
-The easiest way to use the VOT toolkit is by using one of the integrated stacks that also provides a dataset. Everything is provided, and you just select a stack.
-However, you can also use the toolkit with your own dataset. This document shows how to do this.
+This tutorial shows how to create a minimal dataset in the default toolkit format and use it inside a workspace.
+Note that this is only needed if you want to use your own dataset. If you just want to use one of the VOT challenges or benchmarks, the
+dataset will be automatically downloaded and prepared for you when you initialize the workspace with the appropriate stack. 
 
-Background
-----------
+Goal
+----
 
-When loading an existing workspace, the toolkit will attempt to load anything that is available in the sequences subdirectory (by default this is `sequences`). The loading process is divided into two
-steps, first an indexer will scan the directory for sequences and return the list of available sequences. Then, the sequence loader will load the sequence metadata into the appropriate structure.
+At the end, you will have:
 
-This allows you some flexibility, you can organize your sequences in the format that the toolkit uses by default, or you can provide your own indexer and/or loader that will load the sequences from your custom format.
-The toolkit comes with several loaders integrated, e.g. it can load sequences in formats for OTB, GoT10k, LaSOT, and TrackingNet. You can also provide your own loader, if you have a custom format and do not want to change it.
+* one sequence in the correct format,
+* a dataset index file,
+* an initialized workspace that uses your local data.
 
-Default dataset format
-----------------------
+Step 1: Prepare directories
+---------------------------
 
-The default dataset format is a directory with subdirectories for each sequence, accompanied by a `list.txt` file that contains the list of sequences. 
+Create a workspace root and a sequence directory:
 
-Each sequence directory contains the following units: 
+.. code-block:: bash
 
-- Metadata (`sequence`): A file with sequence metadata in INI (key-value) format. The metadata also defines which channels are available for the sequence.
-- Channels (usually `color`, `depth`, `ir`): Directories with images for each channel. The images are enumerated with a frame number and an extension that indicates the image format.
-- Annotations (either `groundtruth.txt` or `groundtruth_<object>.json`): A file with ground truth annotations for the sequence. 
-- Tags (denoted as `<name>.tag`): Per-frame tags that can be used to specify the binary state of each frame.
-- Values (denoted as `<name>.value`): Per-frame values that can be used to specify numeric values for each frame.
+	mkdir -p myworkspace/sequences/mysequence/color
 
-The `list.txt` file contains the list of sequences in the dataset. Each line contains the name of a sequence directory.
+The sequence name is the directory name (`mysequence`).
 
-Preparing a dataset
--------------------
+Step 2: Add frames
+------------------
 
-To use a custom dataset, you have to prepare an empty workspace directory that already contains the `sequences` subdirectory that will be recognized by one of the integrated loaders. Then initialize the workspace with the `vot initialize` command with a desired stack of experiments.
-Since the sequences are present, the command will not attempt to download them. If you would prefer to specify your own experiment stack, check out the tutorial on [creating a custom stack](stack.md).
+Put all images into the channel folder and name them with 8-digit indices:
 
+.. code-block:: text
 
-Creating a custom loader
-------------------------
+	myworkspace/sequences/mysequence/color/00000001.jpg
+	myworkspace/sequences/mysequence/color/00000002.jpg
+	myworkspace/sequences/mysequence/color/00000003.jpg
+	...
 
-As explained above, the toolkit uses an indexer and a loader to load sequences. Both are callable objects that accept a single string argument, the path to the directory. The indexer returns a list of sequence names, and the loader loads the Sequence object.
-These callables are registered using the `class-registry <https://class-registry.readthedocs.io/>`_ package, and can be added to the registry using the setuptools entry points mechanism.
+The default loader expects this numeric ordering. Supported channels are typically `color`, `depth`, and `ir`.
 
-To create a custom indexer, you have to create a callable that returns a list of directories that contain sequences. An example of a custom indexer is shown below:
+Step 3: Add annotations
+-----------------------
 
-```python
+For a single-object sequence, create `groundtruth.txt` in the sequence root:
 
-def my_indexer(path):
-    return ['sequence1', 'sequence2', 'sequence3']
-```
+.. code-block:: text
+
+	myworkspace/sequences/mysequence/groundtruth.txt
+
+Write one region per frame (for example rectangle format `x,y,w,h`), one line per frame:
+
+.. code-block:: text
+
+	120,80,64,92
+	121,81,64,92
+	122,81,65,93
+
+For multi-object sequences, use one file per object:
+
+.. code-block:: text
+
+	groundtruth_target1.txt
+	groundtruth_target2.txt
+
+Step 4: Create sequence metadata
+--------------------------------
+
+Create a file named `sequence` inside the sequence directory:
+
+.. code-block:: text
+
+	myworkspace/sequences/mysequence/sequence
+
+Use key-value entries:
+
+.. code-block:: ini
+
+	channel.default=color
+	channels.color=color/%08d.jpg
+	fps=30
+
+Optional fields such as `width`, `height`, and `length` can be added, but are not required for a basic setup.
+
+Step 5: (Optional) Add tags and values
+--------------------------------------
+
+You can attach per-frame metadata:
+
+* `<name>.tag` (binary flags, one line per frame, values `0` or `1`)
+* `<name>.value` (floating-point values, one line per frame)
+
+Example:
+
+.. code-block:: text
+
+	myworkspace/sequences/mysequence/occlusion.tag
+	myworkspace/sequences/mysequence/confidence.value
+
+Step 6: Index the dataset
+-------------------------
+
+Create `list.txt` in `sequences` and list one sequence name per line:
+
+.. code-block:: text
+
+	myworkspace/sequences/list.txt
+
+.. code-block:: text
+
+	mysequence
+
+Step 7: Initialize workspace using local dataset
+------------------------------------------------
+
+Initialize the workspace with a stack and disable dataset download:
+
+.. code-block:: bash
+
+	vot initialize <stack-name> --workspace myworkspace --nodownload
+
+This creates workspace configuration while keeping your local dataset in `sequences/`.
+
+Step 8: Verify
+--------------
+
+Check that files exist:
+
+.. code-block:: text
+
+	myworkspace/
+	├── config.yaml
+	├── sequences/
+	│   ├── list.txt
+	│   └── mysequence/
+	│       ├── sequence
+	│       ├── groundtruth.txt
+	│       └── color/
+	│           ├── 00000001.jpg
+	│           └── ...
+	├── results/
+	├── analysis/
+	└── cache/
+
+See `dataset specification <../dataset.md#default-dataset-format>`_ for more details on the expected format.

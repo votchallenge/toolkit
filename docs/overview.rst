@@ -10,23 +10,26 @@ Key concepts that are used throughout the toolkit are:
 
 * **Dataset** - a collection of sequences that is used for performance evaluation. A dataset is a collection of **sequences**.
 * **Sequence** - a sequence of frames with correspoding ground truth annotations for one or more objects. A sequence is a collection of **frames**.
-* **Tracker** - a tracker is an algorithm that takes frames from a sequence as input (one by one) and produces a set of **trajectories** as output.
+* **Tracker** - a tracker is an algorithm that takes frames from a sequence as input (one by one) and produces a set of **trajectories** as output. Each tracker can be implemented in a different way and can be integrated into the toolkit with one of the **protocols**.
 * **Experiment** - an experiment is a method that applies a tracker to a given sequence in a specific way.
 * **Analysis** - an analysis is a set of **measures** that are used to evaluate the performance of a tracker (compare predicted trajectories to groundtruth).
 * **Stack** - a stack is a collection of **experiments** and **analyses** that are performed on a given dataset.
 * **Workspace** - a workspace is a collection of experiments and analyses that are performed on a given dataset.
 * **Report** - a report is a representation of a list of analyses for a given experiment stack.
 
-Tracker support
----------------
+Tracker support (protocols)
+---------------------------
 
-The toolkit supports various ways of interacting with a tracking methods. Primary manner (at the only supported at the moment) is using the TraX protocol. 
-The toolkit provides a wrapper for the TraX protocol that allows to use any tracker that supports the protocol. Other ways of interacting with a tracker can be added in the future.
+The toolkit supports various ways of interacting with a tracking algorithms.
+
+ * **TraX** protocol is the primary maner for integration for most of the setups. It is primarily used in online tracking scenarios and supports frame by frame exchange of data between the tracker and the toolkit.
+ * **Python API** Python trackers can be run directly from the toolkit, only applicable to Python trackers run in the same environment as the toolkit.
+ * **Folder** protocol generates a folder with the entire sequence specification, runs the tracker process in the folder and expects it to write result files that are then parsed. This protocol if offline only and can not be used with some experiment setups.
 
 Dataset support
 ---------------
 
-The toolkit is capable of using any dataset that is provided in the official format or by registering a custom loaders.
+The toolkit is capable of using any dataset that is provided in the official format or by registering custom loaders.
 The toolkit format is a simple directory structure that contains a set of sequences. Each sequence is a directory that contains a set of frames and a groundtruth file. 
 The groundtruth file is a text file that contains one line per frame. Each line contains the bounding box of the object in the frame in the format `x,y,w,h`. The toolkit format is used by the toolkit itself and by the VOT challenges.
 
