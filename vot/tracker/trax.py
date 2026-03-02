@@ -31,8 +31,7 @@ from trax.region import Rectangle as TraxRectangle
 
 from vot.dataset import Frame, DatasetException
 from vot.region import Region, Polygon, Rectangle, Mask
-from vot.tracker import Tracker, TrackerException, FrameObjects, ObjectStatus
-from vot.tracker.online import OnlineTrackerRuntime
+from vot.tracker import Tracker, TrackerException, FrameObjects, ObjectStatus, OnlineTrackerRuntime
 from vot.utilities import to_logical, to_number, normalize_path
 
 PORT_POOL_MIN = 9090

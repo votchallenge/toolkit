@@ -177,7 +177,7 @@ class Experiment(Attributee):
         Raises:
             TrackerException: If the tracker does not support multi-object experiments
         """
-        from ..tracker.online import RealtimeTrackerRuntime
+        from vot.tracker import RealtimeTrackerRuntime
 
         runtime = tracker.runtime()
 

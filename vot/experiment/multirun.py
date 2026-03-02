@@ -5,8 +5,7 @@ from typing import Callable
 from attributee import Boolean, Integer, Float, List, String
 
 from vot.experiment import Experiment
-from vot.tracker import Tracker, Trajectory, ObjectQuery
-from vot.tracker.online import OnlineTrackerRuntime
+from vot.tracker import Tracker, Trajectory, ObjectQuery, OnlineTrackerRuntime
 from vot.dataset import Sequence
 from vot.region import Special, calculate_overlap
 from vot.dataset.proxy import FrameMapSequence

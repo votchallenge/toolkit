@@ -4,12 +4,11 @@ import unittest
 
 import matplotlib.pylab as plt
 
-
 from vot.utilities.draw import MatplotlibDrawHandle
 from vot.dataset.dummy import generate_dummy
 from vot.dataset import load_sequence, Frame
-from vot.tracker import ObjectStatus, TrackerRuntime, TrackerException, ObjectQuery
-from vot.tracker.online import OnlineTrackerRuntime
+from vot.tracker import ObjectStatus, TrackerRuntime, \
+    TrackerException, ObjectQuery, OnlineTrackerRuntime
 
 from vot.experiment.helpers import MultiObjectHelper
 from vot.dataset.proxy import ObjectsHideFilterSequence
