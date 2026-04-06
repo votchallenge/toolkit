@@ -251,6 +251,9 @@ def download_dataset_meta(url: str, path: str) -> None:
 
             data = {'name': sequence["name"], 'fps': sequence["fps"], 'format': 'default'}
 
+            if "metadata" in sequence and isinstance(sequence["metadata"], dict):
+                data.update(sequence["metadata"])
+
             annotations_url = join_url(base_url, sequence["annotations"]["url"])
 
             data["uid"] = sequence["annotations"]["uid"]

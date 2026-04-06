@@ -1,0 +1,6 @@
+title: VOTS2025 Referral Challenge Stack
+# Production: https://data.votchallenge.net/referral2026/debug_samples/description.json
+dataset: http://localhost:8198/description.json
+experiments:
+  baseline:
+    type: referral

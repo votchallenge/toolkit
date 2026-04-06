@@ -1,0 +1,15 @@
+title: VOTS2025 Referral Challenge Validation Stack
+# Production: https://data.votchallenge.net/referral2026/debug_samples/description.json
+dataset: http://localhost:8198/description.json
+experiments:
+  baseline:
+    type: referral
+    analyses:
+      - type: referral_average_accuracy
+        name: Quality
+        bounded: true
+        ignore_unknown: false
+        weighted: false
+      - type: referral_average_success_plot
+        name: Quality plot
+        ignore_unknown: false

@@ -25,5 +25,10 @@
     "supervised_ar": "vot.analysis.supervised.AccuracyRobustness",
     "supervised_average_ar": "vot.analysis.supervised.AverageAccuracyRobustness",
     "supervised_eao_curve": "vot.analysis.supervised.EAOCurve",
-    "supervised_eao_score": "vot.analysis.supervised.EAOScore"
+    "supervised_eao_score": "vot.analysis.supervised.EAOScore",
+
+    "referral_accuracy": "vot.analysis.referral.ReferralSequenceAccuracy",
+    "referral_average_accuracy": "vot.analysis.referral.ReferralAverageAccuracy",
+    "referral_success_plot": "vot.analysis.referral.ReferralSuccessPlot",
+    "referral_average_success_plot": "vot.analysis.referral.ReferralAverageSuccessPlot"
 }

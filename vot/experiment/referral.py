@@ -16,6 +16,11 @@ class ReferralExperiment(Experiment):
 
     prompt_name = String(default="prompts")
 
+    @property
+    def _multiobject(self) -> bool:
+        """Prevent SingleObject transformer from splitting sequences with ignore objects."""
+        return True
+
     def _extract_prompt(self, sequence: Sequence):
         prompts = sequence.metadata(self.prompt_name, "")
         if not prompts:
