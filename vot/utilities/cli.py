@@ -175,11 +175,11 @@ def do_evaluate(config: argparse.Namespace):
         logger.error("Evaluation interrupted by tracker error: {}".format(te))
 
 def do_analysis(args: argparse.Namespace):
-    """Run an analysis for a tracker on an experiment stack and a set of sequences. Analysis results are serialized
-    to disk either as a JSON file or as a YAML file.
+    """Run an analysis for a tracker on an experiment stack and a set of sequences.
+    Analysis results are serialized to disk either as a JSON file or as a YAML file.
 
-    Args:
-        args (argparse.Namespace): Configuration
+    :param args: Configuration
+    :type args: argparse.Namespace
     """
     from vot import config
 
@@ -227,7 +227,7 @@ def do_analysis(args: argparse.Namespace):
 
         with AnalysisProcessor(executor, cache):
 
-            results = process_stack_analyses(workspace, trackers)
+            results = process_stack_analyses(workspace, trackers, args.sequences.split(",") if args.sequences else None, args.experiments.split(",") if args.experiments else None)
 
             if results is None:
                 return
@@ -283,7 +283,7 @@ def do_report(config: argparse.Namespace):
 
     logger.debug("Running report generation for %d trackers", len(trackers))
 
-    generate_document(workspace, trackers, config.format, name, config.sequences, config.experiments)
+    generate_document(workspace, trackers, config.format, name, config.sequences.split(",") if config.sequences else None, config.experiments.split(",") if config.experiments else None)
     
     logger.info("Report generation successful, document available as %s", name)
     
@@ -388,6 +388,8 @@ def main():
     analysis_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
     analysis_parser.add_argument("--format", choices=("json", "yaml"), default="json", help='Analysis output format')
     analysis_parser.add_argument("--name", required=False, help='Analysis output name')
+    analysis_parser.add_argument("--sequences", default=None, help='Filter specified sequences (comma separated names)', required=False)
+    analysis_parser.add_argument("--experiments", default=None, help='Filter specified experiments (comma separated names)', required=False)
 
     report_parser = subparsers.add_parser('report', aliases=["document"], help='Generate report document')
     report_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')

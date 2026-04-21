@@ -592,14 +592,15 @@ class ReportConfiguration(Attributee):
     sort = Nested(TrackerSorter)
     index = List(Object(ObjectResolver(report_registry), subclass=Report), default=[], description="The reports to include.")
 
-def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[str] = None, select_experiments: typing.Optional[str] = None):
-    """Generate a report for a one or multiple trackers on an experiment stack and a set of sequences.
+def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[List[str]] = None, select_experiments: typing.Optional[List[str]] = None):
+    """Generate a report for a one or multiple trackers on an experiment stack and a set
+    of sequences.
 
-    Args:
-        workspace (Workspace): The workspace to use for the report.
-        trackers: The trackers to include in the report.
-        format: The format of the report.
-        name: The name of the report.
+    :param workspace: The workspace to use for the report.
+    :type workspace: Workspace
+    :param trackers: The trackers to include in the report.
+    :param format: The format of the report.
+    :param name: The name of the report.
     """
     from asyncio import ensure_future, get_event_loop, wait
 
@@ -652,9 +653,11 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
         sequences = workspace.dataset
         
         if not select_experiments is None:
-            experiments = [experiment for name, experiment in workspace.stack.experiments.items() if name in select_experiments.split(",")]
+            assert isinstance(select_experiments, list)
+            experiments = [experiment for name, experiment in workspace.stack.experiments.items() if name in select_experiments]
         if not select_sequences is None:
-            sequences = [sequence for sequence in sequences if sequence.name in select_sequences.split(",")]
+            assert isinstance(select_sequences, list)
+            sequences = [sequence for sequence in sequences if sequence.name in select_sequences]
 
 
         if len(experiments) == 0:

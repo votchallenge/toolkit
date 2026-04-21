@@ -824,13 +824,18 @@ class AnalysisProcessor(object):
         return processor.run(analysis, experiment, trackers, sequences)
 
 
-def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
-    """Process all analyses in the workspace stack. This function is used by the command line interface to run all the analyses provided in a stack.
-    
-    Args:
-        workspace (Workspace): The workspace to process.
-        trackers (List[Tracker]): The trackers to run the analyses on.
+def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], sequences: Optional[List[str]] = None, experiments: Optional[List[str]] = None):
+    """Process all analyses in the workspace stack. This function is used by the command
+    line interface to run all the analyses provided in a stack.
 
+    :param workspace: The workspace to process.
+    :type workspace: Workspace
+    :param trackers: The trackers to run the analyses on.
+    :type trackers: List[Tracker]
+    :param sequences: The sequences to run the analyses on. If None, all sequences are used. Defaults to None.
+    :type sequences: Optional[List[str]], optional
+    :param experiments: The experiments to run the analyses on. If None, all experiments are used. Defaults to None.
+    :type experiments: Optional[List[str]], optional
     """
 
     processor = AnalysisProcessor.default()
@@ -840,11 +845,13 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
     errors = []
 
     def insert_result(container: dict, key):
-        """Creates a callback that inserts the result of a computation into a container. The container is a dictionary that maps analyses to their results.
-        
-        Args:
-            container (dict): The container to insert the result into.
-            key (Analysis): The analysis to insert the result for.
+        """Creates a callback that inserts the result of a computation into a container.
+        The container is a dictionary that maps analyses to their results.
+
+        :param container: The container to insert the result into.
+        :type container: dict
+        :param key: The analysis to insert the result for.
+        :type key: Analysis
         """
         def insert(future: Future):
             """Inserts the result of a computation into a container."""
@@ -858,7 +865,13 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
     if isinstance(trackers, Tracker): trackers = [trackers]
 
-    for experiment in workspace.stack:
+    assert experiments is None or isinstance(experiments, list)
+    assert sequences is None or isinstance(sequences, list)
+
+    experiments = workspace.stack if experiments is None else [e for e in workspace.stack if e.identifier in experiments]
+    sequences = workspace.dataset.sequences if sequences is None else [s for s in workspace.dataset.sequences if s.name in sequences]
+
+    for experiment in experiments:
 
         logger.debug("Traversing experiment %s", experiment.identifier)
 
@@ -866,7 +879,7 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
         results[experiment] = experiment_results
 
-        sequences = experiment.transform(workspace.dataset)
+        experiment_sequences = experiment.transform(sequences)
 
         for analysis in experiment.analyses:
 
@@ -877,7 +890,7 @@ def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker]):
 
             with condition:
                 experiment_results[analysis] = None
-            promise = processor.commit(analysis, experiment, trackers, sequences)
+            promise = processor.commit(analysis, experiment, trackers, experiment_sequences)
             promise.add_done_callback(insert_result(experiment_results, analysis))
 
     if processor.total == 0:
