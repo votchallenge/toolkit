@@ -1,4 +1,4 @@
-""" Dummy sequences for testing purposes."""
+"""Dummy sequences for testing purposes."""
 
 import os
 import math
@@ -14,12 +14,15 @@ import numpy as np
 
 def _generate(base, length, size, objects):
     """Generate a new dummy sequence.
-    
-    Args:
-        base (str): The base directory for the sequence.
-        length (int): The length of the sequence.
-        size (tuple): The size of the sequence.
-        objects (int): The number of objects in the sequence.
+
+    :param base: The base directory for the sequence.
+    :type base: str
+    :param length: The length of the sequence.
+    :type length: int
+    :param size: The size of the sequence.
+    :type size: tuple
+    :param objects: The number of objects in the sequence.
+    :type objects: int
     """
 
     background_color = Image.fromarray(np.random.normal(15, 5, (size[1], size[0], 3)).astype(np.uint8))
@@ -82,11 +85,13 @@ def _generate(base, length, size, objects):
 
 def generate_dummy(length=100, size=(640, 480), objects=1):
         """Create a new dummy sequence.
-        
-        Args:
-            length (int, optional): The length of the sequence. Defaults to 100.
-            size (tuple, optional): The size of the sequence. Defaults to (640, 480).
-            objects (int, optional): The number of objects in the sequence. Defaults to 1.
+
+        :param length: The length of the sequence. Defaults to 100.
+        :type length: int, optional
+        :param size: The size of the sequence. Defaults to (640, 480).
+        :type size: tuple, optional
+        :param objects: The number of objects in the sequence. Defaults to 1.
+        :type objects: int, optional
         """
         from vot.dataset import load_sequence
 

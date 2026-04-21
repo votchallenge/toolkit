@@ -1,4 +1,4 @@
-""" Network utilities for the toolkit. """
+"""Network utilities for the toolkit."""
 
 import os
 import re
@@ -11,54 +11,52 @@ import requests
 from vot import ToolkitException, get_logger
 
 class NetworkException(ToolkitException):
-    """ Exception raised when a network error occurs. """  
+    """Exception raised when a network error occurs."""  
     pass
 
 def get_base_url(url):
-    """ Returns the base url of a given url. 
-    
-    Args:
-        url (str): The url to parse.
-        
-    Returns:
-        str: The base url."""
+    """Returns the base url of a given url.
+
+    :param url: The url to parse.
+    :type url: str
+
+    :returns: The base url.
+    :rtype: str"""
     return url.rsplit('/', 1)[0]
     
 def is_absolute_url(url):
-    """ Returns True if the given url is absolute.
+    """Returns True if the given url is absolute.
 
-    Args:
-        url (str): The url to parse.
+    :param url: The url to parse.
+    :type url: str
 
-    Returns:
-        bool: True if the url is absolute, False otherwise.
-    """
+    :returns: True if the url is absolute, False otherwise.
+    :rtype: bool"""
     
     return bool(urlparse(url).netloc)
 
 def join_url(url_base, url_path):
-    """ Joins a base url with a path. 
+    """Joins a base url with a path.
 
-    Args:
-        url_base (str): The base url.
-        url_path (str): The path to join.
-    
-    Returns:
-        str: The joined url.
-    """
+    :param url_base: The base url.
+    :type url_base: str
+    :param url_path: The path to join.
+    :type url_path: str
+
+    :returns: The joined url.
+    :rtype: str"""
     if is_absolute_url(url_path):
         return url_path
     return urljoin(url_base, url_path)
 
 def get_url_from_gdrive_confirmation(contents):
-    """ Returns the url of a google drive file from the confirmation page.
-    
-    Args:
-        contents (str): The contents of the confirmation page.
-        
-    Returns:    
-        str: The url of the file.
-    """
+    """Returns the url of a google drive file from the confirmation page.
+
+    :param contents: The contents of the confirmation page.
+    :type contents: str
+
+    :returns: The url of the file.
+    :rtype: str"""
     url = ''
     for line in contents.splitlines():
         m = re.search(r'href="(\/uc\?export=download[^"]+)', line)
@@ -80,26 +78,24 @@ def get_url_from_gdrive_confirmation(contents):
 
 
 def is_google_drive_url(url):
-    """ Returns True if the given url is a google drive url. 
+    """Returns True if the given url is a google drive url.
 
-    Args:
-        url (str): The url to parse.
+    :param url: The url to parse.
+    :type url: str
 
-    Returns:
-        bool: True if the url is a google drive url, False otherwise.
-    """
+    :returns: True if the url is a google drive url, False otherwise.
+    :rtype: bool"""
     m = re.match(r'^https?://drive.google.com/uc\?id=.*$', url)
     return m is not None
 
 def download_json(url):
-    """ Downloads a JSON file from the given url.
+    """Downloads a JSON file from the given url.
 
-    Args:
-        url (str): The url to parse.
+    :param url: The url to parse.
+    :type url: str
 
-    Returns:
-        dict: The JSON content.
-    """
+    :returns: The JSON content.
+    :rtype: dict"""
     try:
         return requests.get(url).json()
     except requests.exceptions.RequestException as e:
@@ -107,19 +103,21 @@ def download_json(url):
 
 
 def download(url, output, callback=None, chunk_size=1024*32, retry=10):
-    """ Downloads a file from the given url. Supports google drive urls. 
-    callback for progress report, automatically resumes download if connection is closed.
+    """Downloads a file from the given url. Supports google drive urls. callback for
+    progress report, automatically resumes download if connection is closed.
 
-    Args:
-        url (str): The url to parse.
-        output (str): The output file path or file handle.
-        callback (function): The callback function for progress report.
-        chunk_size (int): The chunk size for download.
-        retry (int): The number of retries.
+    :param url: The url to parse.
+    :type url: str
+    :param output: The output file path or file handle.
+    :type output: str
+    :param callback: The callback function for progress report.
+    :type callback: function
+    :param chunk_size: The chunk size for download.
+    :type chunk_size: int
+    :param retry: The number of retries.
+    :type retry: int
 
-    Raises:
-        NetworkException: If the file is not available.
-    """
+    :raises NetworkException: If the file is not available."""
     
     logger = get_logger()
 
@@ -218,15 +216,14 @@ def download(url, output, callback=None, chunk_size=1024*32, retry=10):
 
 
 def download_uncompress(url, path):
-    """ Downloads a file from the given url and uncompress it to the given path. 
+    """Downloads a file from the given url and uncompress it to the given path.
 
-    Args:
-        url (str): The url to parse.
-        path (str): The path to uncompress the file.
+    :param url: The url to parse.
+    :type url: str
+    :param path: The path to uncompress the file.
+    :type path: str
 
-    Raises:
-        NetworkException: If the file is not available.
-    """
+    :raises NetworkException: If the file is not available."""
     from vot.utilities import extract_files
     _, ext = os.path.splitext(urlparse(url).path)
     tmp_file = tempfile.mktemp(suffix=ext)
@@ -236,4 +233,3 @@ def download_uncompress(url, path):
     finally:
         if os.path.exists(tmp_file):
             os.unlink(tmp_file)
-        

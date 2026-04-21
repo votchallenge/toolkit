@@ -1,6 +1,10 @@
-""" Dataset adapter for the TrackingNet dataset. Note that the dataset is organized a different way than the VOT datasets,
-annotated frames are stored in a separate directory. The dataset also contains train and test splits. The loader 
-assumes that only one of the splits is used at a time and that the path is given to this part of the dataset. """
+"""Dataset adapter for the TrackingNet dataset.
+
+Note that the dataset is organized a different way than the VOT datasets, annotated
+frames are stored in a separate directory. The dataset also contains train and test
+splits. The loader assumes that only one of the splits is used at a time and that the
+path is given to this part of the dataset.
+"""
 
 import os
 import glob
@@ -14,16 +18,13 @@ from vot.region.io import read_trajectory
 logger = get_logger()
 
 def load_channel(source):
-    """ Load channel from the given source.
-    
-    Args:
-        source (str): Path to the source. If the source is a directory, it is
-            assumed to be a pattern file list. If the source is a file, it is
-            assumed to be a video file.
-            
-    Returns:
-        Channel: Channel object.
-    """
+    """Load channel from the given source.
+
+    :param source: Path to the source. If the source is a directory, it is assumed to be a pattern file list. If the source is a file, it is assumed to be a video file.
+    :type source: str
+
+    :returns: Channel object.
+    :rtype: Channel"""
     from vot.dataset import PatternFileListChannel
 
     extension = os.path.splitext(source)[1]
@@ -34,14 +35,14 @@ def load_channel(source):
 
 
 def _read_data(metadata):
-    """Internal function for reading data from the given metadata for a TrackingNet sequence.
-    
-    Args:
-        metadata (dict): Metadata dictionary.
-    
-    Returns:
-        SequenceData: Sequence data object.
-    """
+    """Internal function for reading data from the given metadata for a TrackingNet
+    sequence.
+
+    :param metadata: Metadata dictionary.
+    :type metadata: dict
+
+    :returns: Sequence data object.
+    :rtype: SequenceData"""
     from vot.dataset import BasedSequence, SequenceData, Sequence
 
     channels = {}
@@ -70,16 +71,15 @@ def _read_data(metadata):
     return SequenceData(channels, objects, tags, values, len(groundtruth))
 
 def read_sequence(path):
-    """ Read sequence from the given path. Different to VOT datasets, the sequence is not
+    """Read sequence from the given path. Different to VOT datasets, the sequence is not
     a directory, but a file. From the file name the sequence name is extracted and the
     path to image frames is inferred based on standard TrackingNet directory structure.
-    
-    Args:
-        path (str): Path to the sequence groundtruth.
-        
-    Returns:
-        Sequence: Sequence object.
-    """
+
+    :param path: Path to the sequence groundtruth.
+    :type path: str
+
+    :returns: Sequence object.
+    :rtype: Sequence"""
     from vot.dataset import BasedSequence
     
     if not os.path.isfile(path):
@@ -103,14 +103,14 @@ def read_sequence(path):
     return BasedSequence(name, _read_data, metadata)
 
 def list_sequences(path):
-    """ List sequences in the given path. The path is expected to be the root of the TrackingNet dataset split.
-    
-    Args:
-        path (str): Path to the dataset root.
-        
-    Returns:
-        list: List of sequences.
-    """
+    """List sequences in the given path. The path is expected to be the root of the
+    TrackingNet dataset split.
+
+    :param path: Path to the dataset root.
+    :type path: str
+
+    :returns: List of sequences.
+    :rtype: list"""
     for dirname in ["anno", "frames"]:
         if not os.path.isdir(os.path.join(path, dirname)):
             return None

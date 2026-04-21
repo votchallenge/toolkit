@@ -1,5 +1,6 @@
-"""Stacks are collections of experiments that are grouped together for convenience. Stacks are used to organize experiments and to run them in 
-batch mode.
+"""Stacks are collections of experiments that are grouped together for convenience.
+
+Stacks are used to organize experiments and to run them in batch mode.
 """
 import os
 from typing import List, Mapping
@@ -13,17 +14,19 @@ from vot.experiment import Experiment, experiment_registry
 
 
 def experiment_resolver(typename, context, **kwargs):
-    """Resolves experiment objects from stack definitions. This function is used by the stack module to resolve experiment objects from stack
-    definitions. It is not intended to be used directly.
+    """Resolves experiment objects from stack definitions. This function is used by the
+    stack module to resolve experiment objects from stack definitions. It is not
+    intended to be used directly.
 
-    Args:
-        typename (str): Name of the experiment class
-        context (Attributee): Context of the experiment
-        kwargs (dict): Additional arguments
+    :param typename: Name of the experiment class
+    :type typename: str
+    :param context: Context of the experiment
+    :type context: Attributee
+    :param kwargs: Additional arguments
+    :type kwargs: dict
 
-    Returns:
-        Experiment: Experiment object
-    """
+    :returns: Experiment object
+    :rtype: Experiment"""
 
     from vot.utilities import import_class
 
@@ -43,7 +46,9 @@ def experiment_resolver(typename, context, **kwargs):
         return experiment_class(_identifier=identifier, _storage=storage, **kwargs)
 
 class Stack(Attributee, Serializable):
-    """Stack class represents a collection of experiments. Stacks are used to organize experiments and to run them in batch mode.
+    """Stack class represents a collection of experiments.
+
+    Stacks are used to organize experiments and to run them in batch mode.
     """
 
     title = String(default="Stack")
@@ -68,27 +73,25 @@ class Stack(Attributee, Serializable):
     def __getitem__(self, identifier):
         """Returns the experiment with the given identifier.
 
-        Args:
-            identifier (str): Identifier of the experiment
-        
-        Returns:
-            Experiment: Experiment object
+        :param identifier: Identifier of the experiment
+        :type identifier: str
 
-        """
+        :returns: Experiment object
+        :rtype: Experiment"""
         return self.experiments[identifier]
     
 
 def resolve_stack(name: str, *directories: List[str]) -> str:
-    """Searches for stack file in the given directories and returns its absolute path. If given an absolute path as input
-    it simply returns it.
+    """Searches for stack file in the given directories and returns its absolute path.
+    If given an absolute path as input it simply returns it.
 
-    Args:
-        name (str): Name of the stack
-        directories (List[str]): Directories that will be used
+    :param name: Name of the stack
+    :type name: str
+    :param directories: Directories that will be used
+    :type directories: List[str]
 
-    Returns:
-        str: Absolute path to stack file
-    """
+    :returns: Absolute path to stack file
+    :rtype: str"""
     if os.path.isabs(name):
         return name if os.path.isfile(name) else None
     for directory in directories:
@@ -101,11 +104,10 @@ def resolve_stack(name: str, *directories: List[str]) -> str:
     return None
 
 def list_integrated_stacks() -> Mapping[str, str]:
-    """List stacks that come with the toolkit
+    """List stacks that come with the toolkit.
 
-    Returns:
-        Map[str, str]: A mapping of stack ids and stack title pairs
-    """
+    :returns: A mapping of stack ids and stack title pairs
+    :rtype: Map[str, str]"""
 
     from pathlib import Path
 

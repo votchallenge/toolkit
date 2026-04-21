@@ -1,5 +1,8 @@
-""" OTB dataset adapter module. OTB is one of the earliest tracking benchmarks. It is a collection of 50/100 sequences 
-with ground truth annotations. The dataset is available at http://cvlab.hanyang.ac.kr/tracker_benchmark/datasets.html.
+"""OTB dataset adapter module.
+
+OTB is one of the earliest tracking benchmarks. It is a collection of 50/100 sequences
+with ground truth annotations. The dataset is available at
+http://cvlab.hanyang.ac.kr/tracker_benchmark/datasets.html.
 """
 
 import os
@@ -127,9 +130,9 @@ _SEQUENCES = {
 
 def _load_sequence(metadata):
     """Load a sequence from the OTB dataset.
-    
-    Args:
-        metadata (dict): Sequence metadata.
+
+    :param metadata: Sequence metadata.
+    :type metadata: dict
     """
 
     channels = {}
@@ -162,15 +165,14 @@ from vot.dataset import sequence_reader
 
 @sequence_reader.register("otb")
 def read_sequence(path: str):
-    """Reads a sequence from OTB dataset. The sequence is identified by the name of the folder and the
-    groundtruth_rect.txt file is expected to be present in the folder.
-    
-    Args:
-        path (str): Path to the sequence folder.
-    
-    Returns:
-        Sequence: The sequence object.
-    """
+    """Reads a sequence from OTB dataset. The sequence is identified by the name of the
+    folder and the groundtruth_rect.txt file is expected to be present in the folder.
+
+    :param path: Path to the sequence folder.
+    :type path: str
+
+    :returns: The sequence object.
+    :rtype: Sequence"""
 
     if not os.path.isfile(os.path.join(path, 'groundtruth_rect.txt')):
         return None
@@ -185,9 +187,9 @@ def read_sequence(path: str):
 
 def download_otb50(path: str):
     """Downloads OTB50 dataset to the given path.
-    
-    Args:
-        path (str): Path to the dataset folder.
+
+    :param path: Path to the dataset folder.
+    :type path: str
     """
     dataset = _SEQUENCES
     dataset = {k: v for k, v in dataset.items() if k in _OTB50_SUBSET}
@@ -195,18 +197,18 @@ def download_otb50(path: str):
 
 def download_otb100(path: str):
     """Downloads OTB100 dataset to the given path.
-    
-    Args:
-        path (str): Path to the dataset folder.
+
+    :param path: Path to the dataset folder.
+    :type path: str
     """
     dataset = _SEQUENCES
     _download_dataset(path, dataset)
 
 def _download_dataset(path: str, dataset: dict):
     """Downloads the given dataset to the given path.
-    
-    Args:
-        path (str): Path to the dataset folder.
+
+    :param path: Path to the dataset folder.
+    :type path: str
     """
 
     from vot.utilities.net import download_uncompress, join_url, NetworkException

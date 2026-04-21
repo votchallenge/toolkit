@@ -1,5 +1,8 @@
-"""Multi-run experiments. This module contains the implementation of multi-run experiments. 
- Multi-run experiments are used to run a tracker multiple times on the same sequence. """
+"""Multi-run experiments.
+
+This module contains the implementation of multi-run experiments. Multi-run experiments
+are used to run a tracker multiple times on the same sequence.
+"""
 from typing import Callable
 
 from attributee import Boolean, Integer, Float, List, String
@@ -11,22 +14,24 @@ from vot.region import Special, calculate_overlap
 from vot.dataset.proxy import FrameMapSequence
 
 class MultiRunExperiment(Experiment):
-    """Base class for multi-run experiments. 
-    Multi-run experiments are used to run a tracker multiple times on the same sequence."""
+    """Base class for multi-run experiments.
+
+    Multi-run experiments are used to run a tracker multiple times on the same sequence.
+    """
 
     repetitions = Integer(val_min=1, default=1)
     early_stop = Boolean(default=True)
 
     def _can_stop(self, tracker: Tracker, sequence: Sequence):
         """Check whether the experiment can be stopped early.
-        
-        Args:
-            tracker (Tracker): The tracker to be checked.
-            sequence (Sequence): The sequence to be checked.
-            
-        Returns:
-            bool: True if the experiment can be stopped early, False otherwise.
-        """
+
+        :param tracker: The tracker to be checked.
+        :type tracker: Tracker
+        :param sequence: The sequence to be checked.
+        :type sequence: Sequence
+
+        :returns: True if the experiment can be stopped early, False otherwise.
+        :rtype: bool"""
         if not self.early_stop:
             return False
         
@@ -45,13 +50,13 @@ class MultiRunExperiment(Experiment):
     def scan(self, tracker: Tracker, sequence: Sequence):
         """Scan the results of the experiment for the given tracker and sequence.
 
-        Args:
-            tracker (Tracker): The tracker to be scanned.
-            sequence (Sequence): The sequence to be scanned.
+        :param tracker: The tracker to be scanned.
+        :type tracker: Tracker
+        :param sequence: The sequence to be scanned.
+        :type sequence: Sequence
 
-        Returns:
-            [tuple]: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
-        """
+        :returns: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
+        :rtype: [tuple]"""
         
         results = self.results(tracker, sequence)
 
@@ -76,16 +81,18 @@ class MultiRunExperiment(Experiment):
 
     def gather(self, tracker: Tracker, sequence: Sequence, objects = None, pad = False):
         """Gather trajectories for the given tracker and sequence.
-        
-        Args:
-            tracker (Tracker): The tracker to be used.
-            sequence (Sequence): The sequence to be used.
-            objects (list, optional): The list of objects to be gathered. Defaults to None.
-            pad (bool, optional): Whether to pad the list of trajectories with None values. Defaults to False.
-            
-        Returns:
-            list: The list of trajectories.
-        """
+
+        :param tracker: The tracker to be used.
+        :type tracker: Tracker
+        :param sequence: The sequence to be used.
+        :type sequence: Sequence
+        :param objects: The list of objects to be gathered. Defaults to None.
+        :type objects: list, optional
+        :param pad: Whether to pad the list of trajectories with None values. Defaults to False.
+        :type pad: bool, optional
+
+        :returns: The list of trajectories.
+        :rtype: list"""
         trajectories = list()
 
         multiobject = len(sequence.objects()) > 1
@@ -110,8 +117,11 @@ class MultiRunExperiment(Experiment):
         raise NotImplementedError("This method should be implemented by subclasses.")
 
 class UnsupervisedExperiment(MultiRunExperiment):
-    """Unsupervised experiment. 
-    This experiment is used to run a tracker multiple times on the same sequence without any supervision."""
+    """Unsupervised experiment.
+
+    This experiment is used to run a tracker multiple times on the same sequence without
+    any supervision.
+    """
 
     multiobject = Boolean(default=False)
 
@@ -119,21 +129,20 @@ class UnsupervisedExperiment(MultiRunExperiment):
     def _multiobject(self) -> bool:
         """Whether the experiment is multi-object or not.
 
-        Returns:
-            bool: True if the experiment is multi-object, False otherwise.
-        """
+        :returns: True if the experiment is multi-object, False otherwise.
+        :rtype: bool"""
         return self.multiobject
 
     def scan(self, tracker: Tracker, sequence: Sequence) -> tuple:
         """Scan the results of the experiment for the given tracker and sequence.
-        
-        Args:
-            tracker (Tracker): The tracker to be scanned.
-            sequence (Sequence): The sequence to be scanned.
-            
-        Returns:
-            [tuple]: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
-        """
+
+        :param tracker: The tracker to be scanned.
+        :type tracker: Tracker
+        :param sequence: The sequence to be scanned.
+        :type sequence: Sequence
+
+        :returns: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
+        :rtype: [tuple]"""
         
         complete, files, results = super().scan(tracker, sequence)
         
@@ -147,11 +156,14 @@ class UnsupervisedExperiment(MultiRunExperiment):
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
         """Execute the experiment for the given tracker and sequence.
 
-        Args:
-            tracker (Tracker): The tracker to be used.
-            sequence (Sequence): The sequence to be used.
-            force (bool, optional): Whether to force the execution. Defaults to False.
-            callback (Callable, optional): The callback to be used. Defaults to None.
+        :param tracker: The tracker to be used.
+        :type tracker: Tracker
+        :param sequence: The sequence to be used.
+        :type sequence: Sequence
+        :param force: Whether to force the execution. Defaults to False.
+        :type force: bool, optional
+        :param callback: The callback to be used. Defaults to None.
+        :type callback: Callable, optional
         """
 
         from .helpers import MultiObjectHelper
@@ -235,12 +247,12 @@ class UnsupervisedExperiment(MultiRunExperiment):
 
 
 class SupervisedExperiment(MultiRunExperiment):
-    """Supervised experiment. 
-    This experiment is used to run a tracker multiple times 
-    on the same sequence with supervision (reinitialization in case of failure).
-    
+    """Supervised experiment. This experiment is used to run a tracker multiple times on
+    the same sequence with supervision (reinitialization in case of failure).
+
     Due to the nature of the experiment, it requires online tracker runtimes and only
-    works on single-target sequences. In all other cases the execution will fail with an error.
+    works on single-target sequences. In all other cases the execution will fail with an
+    error.
     """
 
     FAILURE = 2
@@ -252,11 +264,14 @@ class SupervisedExperiment(MultiRunExperiment):
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
         """Execute the experiment for the given tracker and sequence.
 
-        Args:
-            tracker (Tracker): The tracker to be used.
-            sequence (Sequence): The sequence to be used.
-            force (bool, optional): Whether to force the execution. Defaults to False.
-            callback (Callable, optional): The callback to be used. Defaults to None.
+        :param tracker: The tracker to be used.
+        :type tracker: Tracker
+        :param sequence: The sequence to be used.
+        :type sequence: Sequence
+        :param force: Whether to force the execution. Defaults to False.
+        :type force: bool, optional
+        :param callback: The callback to be used. Defaults to None.
+        :type callback: Callable, optional
         """
 
         if len(sequence.objects()) != 1:

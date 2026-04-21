@@ -1,4 +1,4 @@
-""" Some basic functions and classes used by the toolkit. """
+"""Some basic functions and classes used by the toolkit."""
 
 import os
 import logging
@@ -8,25 +8,23 @@ from .version import __version__
 from lazy_object_proxy import Proxy
 
 class ToolkitException(Exception):
-    """Base class for all toolkit related exceptions
-    """
+    """Base class for all toolkit related exceptions."""
     pass
 
 
 def toolkit_version() -> str:
-    """Returns toolkit version as a string
+    """Returns toolkit version as a string.
 
-    Returns:
-        str: Version of the toolkit
-    """
+    :returns: Version of the toolkit
+    :rtype: str"""
     return __version__
 
 def check_updates() -> bool:
-    """Checks for toolkit updates on Github, requires internet access, fails silently on errors.
+    """Checks for toolkit updates on Github, requires internet access, fails silently on
+    errors.
 
-    Returns:
-        bool: True if an update is available, False otherwise.
-    """
+    :returns: True if an update is available, False otherwise.
+    :rtype: bool"""
 
     import re
     import packaging.version as packaging
@@ -58,8 +56,9 @@ def check_updates() -> bool:
 from attributee import Attributee, Integer, Boolean, List, String
 
 class GlobalConfiguration(Attributee):
-    """Global configuration object for the toolkit. It is used to store global configuration options. It can be initialized
-    from environment variables. The following options are supported:
+    """Global configuration object for the toolkit. It is used to store global
+    configuration options. It can be initialized from environment variables. The
+    following options are supported:
 
     - ``VOT_DEBUG_MODE``: Enables debug mode for the toolkit.
     - ``VOT_SEQUENCE_CACHE_SIZE``: Maximum number of sequences to keep in cache.
@@ -67,7 +66,6 @@ class GlobalConfiguration(Attributee):
     - ``VOT_MASK_OPTIMIZE_READ``: Enables mask optimization when reading masks.
     - ``VOT_WORKER_POOL_SIZE``: Number of workers to use for parallel processing.
     - ``VOT_PERSISTENT_CACHE``: Enables persistent cache for analysis results in workspace.
-
     """
 
     debug_mode = Boolean(default=False, description="Enables debug mode for the toolkit.")
@@ -79,11 +77,10 @@ class GlobalConfiguration(Attributee):
     registry = List(String(), default="", separator=os.pathsep, description="List of directories to search for tracker metadata.")
 
     def __init__(self):
-        """Initializes the global configuration object. It reads the configuration from environment variables.
-        
-        Raises:
-            ValueError: When an invalid value is provided for an attribute.
-        """
+        """Initializes the global configuration object. It reads the configuration from
+        environment variables.
+
+        :raises ValueError: When an invalid value is provided for an attribute."""
         
         kwargs = {}
         for k in self.attributes():
@@ -104,9 +101,8 @@ from vot.utilities import singleton
 def get_logger() -> logging.Logger:
     """Returns the default logger object used to log different messages.
 
-    Returns:
-        logging.Logger: Logger handle
-    """
+    :returns: Logger handle
+    :rtype: logging.Logger"""
 
     def init():
         from .utilities import ColoredFormatter
@@ -125,9 +121,8 @@ config = Proxy(lambda: GlobalConfiguration())
 def check_debug() -> bool:
     """Checks if debug is enabled for the toolkit via an environment variable.
 
-    Returns:
-        bool: True if debug is enabled, False otherwise
-    """
+    :returns: True if debug is enabled, False otherwise
+    :rtype: bool"""
     return config.debug_mode
 
 def print_config():

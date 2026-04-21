@@ -1,4 +1,8 @@
-"""This module contains the implementation of the analysis processor. The processor is responsible for executing the analysis tasks in parallel and caching the results."""
+"""This module contains the implementation of the analysis processor.
+
+The processor is responsible for executing the analysis tasks in parallel and caching
+the results.
+"""
 
 import logging
 import sys
@@ -9,7 +13,7 @@ if sys.version_info >= (3, 3):
 else:
     from collections import Iterable
 from functools import partial
-from typing import List, Union, Mapping, Tuple, Any
+from typing import List, Union, Mapping, Tuple, Optional
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from threading import RLock, Condition
 from queue import Queue, Empty
@@ -28,7 +32,10 @@ from vot.utilities.data import Grid
 logger = logging.getLogger("vot")
 
 def hashkey(analysis: Analysis, *args):
-    """Compute a hash key for the analysis and its arguments. The key is used for caching the results."""
+    """Compute a hash key for the analysis and its arguments.
+
+    The key is used for caching the results.
+    """
     def transform(arg):
         """Transform an argument into a hashable object."""
         if isinstance(arg, Sequence):
@@ -57,11 +64,11 @@ class AnalysisError(ToolkitException):
 
     def __init__(self, cause, task=None):
         """Creates an analysis error.
-        
-        Args:
-            cause (Exception): The cause of the error.
-            task (AnalysisTask, optional): The task that caused the error. Defaults to None.
-            
+
+        :param cause: The cause of the error.
+        :type cause: Exception
+        :param task: The task that caused the error. Defaults to None.
+        :type task: AnalysisTask, optional
         """
         self._tasks = []
         self._cause = cause
@@ -97,7 +104,9 @@ class AnalysisError(ToolkitException):
             return cause
 
 class DebugExecutor(Executor):
-    """A synchronous executor used for debugging. Do not use it in practice.
+    """A synchronous executor used for debugging.
+
+    Do not use it in practice.
     """
 
     Task = namedtuple("Task", ["fn", "args", "kwargs", "promise"])
@@ -105,8 +114,8 @@ class DebugExecutor(Executor):
     def __init__(self, strict=True):
         """Creates a single-thread debug executor.
 
-        Args:
-            strict (bool, optional): Strict mode means that the executor stops if any of the tasks fails. Defaults to True.
+        :param strict: Strict mode means that the executor stops if any of the tasks fails. Defaults to True.
+        :type strict: bool, optional
         """
         self._queue = Queue()
         self._lock = threading.RLock()
@@ -191,10 +200,11 @@ class DebugExecutor(Executor):
                     break
 
     def shutdown(self, wait=True):
-        """Shuts down the executor. If wait is True, the method blocks until all tasks are completed. 
-        
-        Args:
-            wait (bool, optional): Wait for all tasks to complete. Defaults to True.
+        """Shuts down the executor. If wait is True, the method blocks until all tasks
+        are completed.
+
+        :param wait: Wait for all tasks to complete. Defaults to True.
+        :type wait: bool, optional
         """
 
         self._alive = False
@@ -210,9 +220,9 @@ class ExecutorWrapper(object):
 
     def __init__(self, executor: Executor):
         """Creates an executor wrapper.
-        
-        Args:
-            executor (Executor): The executor to wrap.
+
+        :param executor: The executor to wrap.
+        :type executor: Executor
         """
         self._lock = RLock()
         self._executor = executor
@@ -225,16 +235,18 @@ class ExecutorWrapper(object):
         return self._total
 
     def submit(self, fn, *futures: Tuple[Future], mapping=None) -> Future:
-        """Submits a task to the executor. The task will be executed when all futures are completed. 
+        """Submits a task to the executor. The task will be executed when all futures
+        are completed.
 
-        Args:
-            fn (Callable): The task to execute.
-            futures (Tuple[Future]): The futures that must be completed before the task is executed.
-            mapping (Dict[Future, Any], optional): A mapping of futures to values. Defaults to None.
+        :param fn: The task to execute.
+        :type fn: Callable
+        :param futures: The futures that must be completed before the task is executed.
+        :type futures: Tuple[Future]
+        :param mapping: A mapping of futures to values. Defaults to None.
+        :type mapping: Dict[Future, Any], optional
 
-        Returns:
-            Future: A future that will be completed when the task is completed.
-        """
+        :returns: A future that will be completed when the task is completed.
+        :rtype: Future"""
 
         with self._lock:
 
@@ -254,7 +266,9 @@ class ExecutorWrapper(object):
             return proxy
 
     def _ready_callback(self, fn, mapping, proxy: Future, future: Future):
-        """ Internally handles completion of dependencies. Submits the task to the executor.
+        """Internally handles completion of dependencies.
+
+        Submits the task to the executor.
         """
 
         with self._lock:
@@ -282,11 +296,12 @@ class ExecutorWrapper(object):
             internal.add_done_callback(partial(self._done_callback, proxy))
 
     def _done_callback(self, proxy: Future, future: Future):
-        """ Internally handles completion of executor future, copies result to proxy
+        """Internally handles completion of executor future, copies result to proxy.
 
-        Args:
-            proxy (Future): Proxy future
-            future (Future): Executor future
+        :param proxy: Proxy future
+        :type proxy: Future
+        :param future: Executor future
+        :type future: Future
         """
 
         if future.cancelled():
@@ -300,11 +315,11 @@ class ExecutorWrapper(object):
 
 
     def _proxy_done(self, future: Future):
-        """ Internally handles events for proxy futures, this means handling cancellation.
+        """Internally handles events for proxy futures, this means handling
+        cancellation.
 
-        Args:
-            future (Future): Proxy future
-
+        :param future: Proxy future
+        :type future: Future
         """
 
         with self._lock:
@@ -325,8 +340,8 @@ class FuturesAggregator(Future):
     def __init__(self, *futures: Tuple[Future]):
         """Initializes the aggregator.
 
-        Args:
-            *futures (Tuple[Future]): The futures to aggregate.
+        :param *futures: The futures to aggregate.
+        :type *futures: Tuple[Future]
         """
 
         super().__init__()
@@ -379,12 +394,15 @@ class AnalysisTask(object):
     def __init__(self, analysis: Analysis, experiment: Experiment, 
             trackers: List[Tracker], sequences: List[Sequence]):
         """Initializes a new instance of the AnalysisTask class.
-        
-        Args:
-            analysis (Analysis): The analysis to compute.
-            experiment (Experiment): The experiment to compute the analysis for.
-            trackers (List[Tracker]): The trackers to compute the analysis for.
-            sequences (List[Sequence]): The sequences to compute the analysis for.
+
+        :param analysis: The analysis to compute.
+        :type analysis: Analysis
+        :param experiment: The experiment to compute the analysis for.
+        :type experiment: Experiment
+        :param trackers: The trackers to compute the analysis for.
+        :type trackers: List[Tracker]
+        :param sequences: The sequences to compute the analysis for.
+        :type sequences: List[Sequence]
         """
 
         self._analysis = analysis
@@ -394,14 +412,13 @@ class AnalysisTask(object):
         self._key = hashkey(analysis, experiment, trackers, sequences)
 
     def __call__(self, dependencies: List[Grid] = None):
-        """Computes the analysis. 
+        """Computes the analysis.
 
-        Args:
-            dependencies (List[Grid], optional): The dependencies to use. Defaults to None.
+        :param dependencies: The dependencies to use. Defaults to None.
+        :type dependencies: List[Grid], optional
 
-        Returns:
-            Grid: The computed analysis.
-        """
+        :returns: The computed analysis.
+        :rtype: Grid"""
 
         try:
             if dependencies is None:
@@ -416,12 +433,15 @@ class AnalysisPartTask(object):
     def __init__(self, analysis: SeparableAnalysis, experiment: Experiment,
             trackers: List[Tracker], sequences: List[Sequence]):
         """Initializes a new instance of the AnalysisPartTask class.
-        
-        Args:
-            analysis (SeparableAnalysis): The analysis to compute.
-            experiment (Experiment): The experiment to compute the analysis for.
-            trackers (List[Tracker]): The trackers to compute the analysis for.
-            sequences (List[Sequence]): The sequences to compute the analysis for.
+
+        :param analysis: The analysis to compute.
+        :type analysis: SeparableAnalysis
+        :param experiment: The experiment to compute the analysis for.
+        :type experiment: Experiment
+        :param trackers: The trackers to compute the analysis for.
+        :type trackers: List[Tracker]
+        :param sequences: The sequences to compute the analysis for.
+        :type sequences: List[Sequence]
         """
         self._analysis = analysis
         self._trackers = trackers
@@ -431,13 +451,12 @@ class AnalysisPartTask(object):
 
     def __call__(self, dependencies: List[Grid] = None):
         """Computes the analysis.
-        
-        Args:
-            dependencies (List[Grid], optional): The dependencies to use. Defaults to None.
 
-        Returns:
-            Grid: The computed analysis.
-        """
+        :param dependencies: The dependencies to use. Defaults to None.
+        :type dependencies: List[Grid], optional
+
+        :returns: The computed analysis.
+        :rtype: Grid"""
         try:
             if dependencies is None:
                 dependencies = []
@@ -452,12 +471,15 @@ class AnalysisJoinTask(object):
             trackers: List[Tracker], sequences: List[Sequence]):
         
         """Initializes a new instance of the AnalysisJoinTask class.
-        
-        Args:
-            analysis (Analysis): The analysis to join.
-            experiment (Experiment): The experiment to join the analysis for.
-            trackers (List[Tracker]): The trackers to join the analysis for.
-            sequences (List[Sequence]): The sequences to join the analysis for.    
+
+        :param analysis: The analysis to join.
+        :type analysis: Analysis
+        :param experiment: The experiment to join the analysis for.
+        :type experiment: Experiment
+        :param trackers: The trackers to join the analysis for.
+        :type trackers: List[Tracker]
+        :param sequences: The sequences to join the analysis for.
+        :type sequences: List[Sequence]
         """
         self._analysis = analysis
         self._trackers = trackers
@@ -468,12 +490,11 @@ class AnalysisJoinTask(object):
     def __call__(self, results: List[Grid]):
         """Joins the results of the analysis.
 
-        Args:
-            results (List[Grid]): The results to join.
+        :param results: The results to join.
+        :type results: List[Grid]
 
-        Returns:
-            Grid: The joined analysis.
-        """
+        :returns: The joined analysis.
+        :rtype: Grid"""
 
         try:
             return self._analysis.join(self._trackers, self._sequences, results)
@@ -486,8 +507,8 @@ class AnalysisFuture(Future):
     def __init__(self, key):
         """Initializes a new instance of the AnalysisFuture class.
 
-        Args:
-            key (str): The key of the analysis.
+        :param key: The key of the analysis.
+        :type key: str
         """
 
         super().__init__()
@@ -505,10 +526,10 @@ class AnalysisProcessor(object):
     def __init__(self, executor: Executor = None, cache: Cache = None):
         """Initializes a new instance of the AnalysisProcessor class.
 
-        Args:
-            executor (Executor, optional): The executor to use for computations. Defaults to None.
-            cache (Cache, optional): The cache to use for computations. Defaults to None.
-
+        :param executor: The executor to use for computations. Defaults to None.
+        :type executor: Executor, optional
+        :param cache: The cache to use for computations. Defaults to None.
+        :type cache: Cache, optional
         """
         if executor is None:
             executor = ThreadPoolExecutor(1)
@@ -522,17 +543,20 @@ class AnalysisProcessor(object):
 
     def commit(self, analysis: Analysis, experiment: Experiment,
         trackers: Union[Tracker, List[Tracker]], sequences: Union[Sequence, List[Sequence]]) -> Future:
-        """Commits an analysis for computation. If the analysis is already being computed, the existing future is returned.
+        """Commits an analysis for computation. If the analysis is already being
+        computed, the existing future is returned.
 
-        Args:
-            analysis (Analysis): The analysis to commit.
-            experiment (Experiment): The experiment to commit the analysis for.
-            trackers (Union[Tracker, List[Tracker]]): The trackers to commit the analysis for.
-            sequences (Union[Sequence, List[Sequence]]): The sequences to commit the analysis for.
+        :param analysis: The analysis to commit.
+        :type analysis: Analysis
+        :param experiment: The experiment to commit the analysis for.
+        :type experiment: Experiment
+        :param trackers: The trackers to commit the analysis for.
+        :type trackers: Union[Tracker, List[Tracker]]
+        :param sequences: The sequences to commit the analysis for.
+        :type sequences: Union[Sequence, List[Sequence]]
 
-        Returns:
-            Future: A future that represents the result of the analysis.
-        """
+        :returns: A future that represents the result of the analysis.
+        :rtype: Future"""
 
         key = hashkey(analysis, experiment, trackers, sequences)
 
@@ -596,13 +620,12 @@ class AnalysisProcessor(object):
 
     def _exists(self, key: str):
         """Checks if an analysis is already being computed.
-        
-        Args:
-            key (str): The key of the analysis to check.
 
-        Returns:
-            AnalysisFuture: The future that represents the analysis if it is already being computed, None otherwise.
-        """
+        :param key: The key of the analysis to check.
+        :type key: str
+
+        :returns: The future that represents the analysis if it is already being computed, None otherwise.
+        :rtype: AnalysisFuture"""
 
         if self._cache is not None and key in self._cache:
             promise = AnalysisFuture(key)
@@ -619,10 +642,9 @@ class AnalysisProcessor(object):
 
     def _future_done(self, future: Future):
         """Handles the completion of a future.
-        
-        Args:
-            future (Future): The future that completed.
 
+        :param future: The future that completed.
+        :type future: Future
         """
 
         with self._lock:
@@ -660,15 +682,14 @@ class AnalysisProcessor(object):
 
 
     def _promise_cancelled(self, future: Future):
-        """Handles the cancellation of a promise. If the promise is the last promise for a computation, the computation is cancelled.
+        """Handles the cancellation of a promise. If the promise is the last promise for
+        a computation, the computation is cancelled.
 
-        Args:
-            future (Future): The promise that was cancelled.
+        :param future: The promise that was cancelled.
+        :type future: Future
 
-        Returns: 
-            bool: True if the promise was the last promise for a computation, False otherwise.
-
-        """
+        :returns: True if the promise was the last promise for a computation, False otherwise.
+        :rtype: bool"""
 
         if not future.cancelled():
             return
@@ -709,7 +730,10 @@ class AnalysisProcessor(object):
                 future.cancel()
 
     def wait(self):
-        """Waits for all pending analyses to complete. If no analyses are pending, this method returns immediately."""
+        """Waits for all pending analyses to complete.
+
+        If no analyses are pending, this method returns immediately.
+        """
 
         if self.total == 0:
             return
@@ -731,10 +755,9 @@ class AnalysisProcessor(object):
 
     def __enter__(self):
         """Sets this analysis processor as the default for the current thread.
-        
-        Returns:
-            AnalysisProcessor: This analysis processor.
-        """
+
+        :returns: This analysis processor.
+        :rtype: AnalysisProcessor"""
 
         processor = getattr(AnalysisProcessor._context, 'analysis_processor', None)
 
@@ -761,10 +784,9 @@ class AnalysisProcessor(object):
     @staticmethod
     def default():
         """Returns the default analysis processor for the current thread.
-        
-        Returns: 
-            AnalysisProcessor: The default analysis processor for the current thread.
-        """
+
+        :returns: The default analysis processor for the current thread.
+        :rtype: AnalysisProcessor"""
 
         processor = getattr(AnalysisProcessor._context, 'analysis_processor', None)
 
@@ -781,23 +803,31 @@ class AnalysisProcessor(object):
 
     @staticmethod
     def commit_default(analysis: Analysis, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
-        """Commits an analysis to the default analysis processor. This method is thread-safe. If the analysis is already being computed, this method returns immediately."""
+        """Commits an analysis to the default analysis processor.
+
+        This method is thread-safe. If the analysis is already being computed, this
+        method returns immediately.
+        """
         processor = AnalysisProcessor.default()
         return processor.commit(analysis, experiment, trackers, sequences)
 
     def run(self, analysis: Analysis, experiment: Experiment,
         trackers: Union[Tracker, List[Tracker]], sequences: Union[Sequence, List[Sequence]]) -> Grid:
-        """Runs an analysis on a set of trackers and sequences. This method is thread-safe. If the analysis is already being computed, this method returns immediately.
+        """Runs an analysis on a set of trackers and sequences. This method is thread-
+        safe. If the analysis is already being computed, this method returns
+        immediately.
 
-        Args:
-            analysis (Analysis): The analysis to run.
-            experiment (Experiment): The experiment to run the analysis on.
-            trackers (Union[Tracker, List[Tracker]]): The trackers to run the analysis on.
-            sequences (Union[Sequence, List[Sequence]]): The sequences to run the analysis on.
+        :param analysis: The analysis to run.
+        :type analysis: Analysis
+        :param experiment: The experiment to run the analysis on.
+        :type experiment: Experiment
+        :param trackers: The trackers to run the analysis on.
+        :type trackers: Union[Tracker, List[Tracker]]
+        :param sequences: The sequences to run the analysis on.
+        :type sequences: Union[Sequence, List[Sequence]]
 
-        Returns:
-            Grid: The results of the analysis.
-        """
+        :returns: The results of the analysis.
+        :rtype: Grid"""
 
         assert self.pending == 0
 
@@ -809,16 +839,21 @@ class AnalysisProcessor(object):
 
     @staticmethod
     def run_default(analysis: Analysis, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence]):
-        """Runs an analysis on a set of trackers and sequences. This method is thread-safe. If the analysis is already being computed, this method returns immediately.
-        
-        Args:    
-            analysis (Analysis): The analysis to run.
-            experiment (Experiment): The experiment to run the analysis on.
-            trackers (List[Tracker]): The trackers to run the analysis on.
-            sequences (List[Sequence]): The sequences to run the analysis on.
-            
-        Returns:
-            Grid: The results of the analysis."""
+        """Runs an analysis on a set of trackers and sequences. This method is thread-
+        safe. If the analysis is already being computed, this method returns
+        immediately.
+
+        :param analysis: The analysis to run.
+        :type analysis: Analysis
+        :param experiment: The experiment to run the analysis on.
+        :type experiment: Experiment
+        :param trackers: The trackers to run the analysis on.
+        :type trackers: List[Tracker]
+        :param sequences: The sequences to run the analysis on.
+        :type sequences: List[Sequence]
+
+        :returns: The results of the analysis.
+        :rtype: Grid"""
         
         processor = AnalysisProcessor.default()
         return processor.run(analysis, experiment, trackers, sequences)

@@ -1,4 +1,7 @@
-"""This module contains the implementation of the FailureCount analysis. The analysis counts the number of failures in one or more sequences."""
+"""This module contains the implementation of the FailureCount analysis.
+
+The analysis counts the number of failures in one or more sequences.
+"""
 
 from typing import List, Tuple, Any
 
@@ -17,12 +20,18 @@ from vot.utilities.data import Grid
 
 
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
-    """Count the number of failures in a trajectory. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
+    """Count the number of failures in a trajectory.
+
+    A failure is defined as a region is annotated as Special.FAILURE by the experiment.
+    """
     return len([region for region in trajectory if is_special(region, SupervisedExperiment.FAILURE)]), len(trajectory)
 
 
 class FailureCount(SeparableAnalysis):
-    """Count the number of failures in a sequence. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
+    """Count the number of failures in a sequence.
+
+    A failure is defined as a region is annotated as Special.FAILURE by the experiment.
+    """
 
     def compatible(self, experiment: Experiment):
         """Check if the experiment is compatible with the analysis."""
@@ -58,7 +67,10 @@ class FailureCount(SeparableAnalysis):
         return objects_failures / len(objects), len(sequence)
 
 class CumulativeFailureCount(SequenceAggregator):
-    """Count the number of failures over all sequences. A failure is defined as a region is annotated as Special.FAILURE by the experiment."""
+    """Count the number of failures over all sequences.
+
+    A failure is defined as a region is annotated as Special.FAILURE by the experiment.
+    """
 
     analysis = Include(FailureCount)
 
@@ -80,15 +92,16 @@ class CumulativeFailureCount(SequenceAggregator):
         return Measure("Failures", "F", 0, None, Sorting.ASCENDING), 
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
-        """Aggregate the analysis for a list of sequences. The aggregation is done by summing the number of failures for each sequence.
+        """Aggregate the analysis for a list of sequences. The aggregation is done by
+        summing the number of failures for each sequence.
 
-        Args:
-            sequences (List[Sequence]): The list of sequences to aggregate.
-            results (Grid): The results of the analysis for each sequence.
+        :param sequences: The list of sequences to aggregate.
+        :type sequences: List[Sequence]
+        :param results: The results of the analysis for each sequence.
+        :type results: Grid
 
-        Returns:
-            Tuple[Any]: The aggregated analysis.
-        """
+        :returns: The aggregated analysis.
+        :rtype: Tuple[Any]"""
 
         failures = 0
 

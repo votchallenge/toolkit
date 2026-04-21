@@ -10,7 +10,10 @@ from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
-    """Reads a resource file from the package directory. The file is read as a string."""
+    """Reads a resource file from the package directory.
+
+    The file is read as a string.
+    """
     path = os.path.join(os.path.dirname(__file__), name)
     with open(path, "r") as filehandle:
         return filehandle.read()
@@ -20,12 +23,14 @@ def per_tracker(a):
     return a.axes == Axes.TRACKERS
 
 def extract_measures_table(trackers: List[Tracker], results) -> Table:
-    """Extracts a table of measures from the results. The table is a list of lists, where each list is a column. 
-    The first column is the tracker name, the second column is the measure name, and the rest of the columns are the values for each tracker.
-    
-    Args:
-        trackers (list): List of trackers.
-        results (dict): Dictionary of results. It is a dictionary of dictionaries, where the first key is the experiment, and the second key is the analysis. The value is a list of results for each tracker.
+    """Extracts a table of measures from the results. The table is a list of lists,
+    where each list is a column. The first column is the tracker name, the second column
+    is the measure name, and the rest of the columns are the values for each tracker.
+
+    :param trackers: List of trackers.
+    :type trackers: list
+    :param results: Dictionary of results. It is a dictionary of dictionaries, where the first key is the experiment, and the second key is the analysis. The value is a list of results for each tracker.
+    :type results: dict
     """
     table_header = [[], [], []]
     table_data = dict()
@@ -90,15 +95,16 @@ def extract_measures_table(trackers: List[Tracker], results) -> Table:
     return Table(table_header, table_data, table_order)
 
 def extract_plots(trackers: List[Tracker], results, order=None):
-    """Extracts a list of plots from the results. The list is a list of tuples, where each tuple is a pair of strings and a plot.
-    
-    Args:
-        trackers (list): List of trackers.
-        results (dict): Dictionary of results. It is a dictionary of dictionaries, where the first key is the experiment, and the second key is the analysis. The value is a list of results for each tracker.
-        
-    Returns:
-        list: List of plots.
-    """
+    """Extracts a list of plots from the results. The list is a list of tuples, where
+    each tuple is a pair of strings and a plot.
+
+    :param trackers: List of trackers.
+    :type trackers: list
+    :param results: Dictionary of results. It is a dictionary of dictionaries, where the first key is the experiment, and the second key is the analysis. The value is a list of results for each tracker.
+    :type results: dict
+
+    :returns: List of plots.
+    :rtype: list"""
     plots = dict()
     j = 0
 
@@ -149,16 +155,15 @@ def extract_plots(trackers: List[Tracker], results, order=None):
     return plots
 
 def format_value(data):
-    """Formats a value for display. If the value is a string, it is returned as is. If the value is an integer, it is returned as a string. 
-    If the value is a float, it is returned as a string with 3 decimal places. Otherwise, the value is converted to a string.
+    """Formats a value for display. If the value is a string, it is returned as is. If
+    the value is an integer, it is returned as a string. If the value is a float, it is
+    returned as a string with 3 decimal places. Otherwise, the value is converted to a
+    string.
 
-    Args:
-        data: Value to format.
+    :param data: Value to format.
 
-    Returns:
-        str: Formatted value.
-    
-    """
+    :returns: Formatted value.
+    :rtype: str"""
     if data is None:
         return "N/A"
     if isinstance(data, str):
@@ -192,7 +197,8 @@ def merge_repeats(objects):
     return repeats
 
 class StackAnalysesPlots(SeparableReport):
-    """ A document that produces plots for all analyses configures in stack experiments. """
+    """A document that produces plots for all analyses configures in stack
+    experiments."""
 
     async def perexperiment(self, experiment, trackers, sequences):
 
@@ -211,7 +217,8 @@ class StackAnalysesPlots(SeparableReport):
         return True
 
 class StackAnalysesTable(Report):
-    """ A document that produces plots for all analyses configures in stack experiments. """
+    """A document that produces plots for all analyses configures in stack
+    experiments."""
 
     async def generate(self, experiments, trackers, sequences):
 
@@ -228,7 +235,8 @@ class StackAnalysesTable(Report):
         return {"Overview": [table]}
 
 class SequenceOverlapPlots(SeparableReport):
-    """ A document that produces plots for all analyses configures in stack experiments. """
+    """A document that produces plots for all analyses configures in stack
+    experiments."""
 
     ignore_masks = String(default="_ignore", description="Object ID used to get ignore masks.")
 

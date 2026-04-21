@@ -1,4 +1,4 @@
-""" Transformer module for experiments."""
+"""Transformer module for experiments."""
 
 import os
 from abc import abstractmethod
@@ -15,27 +15,30 @@ from vot.region import Rectangle
 from vot.utilities import arg_hash
 
 class Transformer(Attributee):
-    """Base class for transformers. Transformers are used to generate new modified sequences from existing ones."""
+    """Base class for transformers.
+
+    Transformers are used to generate new modified sequences from existing ones.
+    """
 
     def __init__(self, cache: "LocalStorage", **kwargs):
         """Initialize the transformer.
 
-        Args:
-            cache (LocalStorage): The cache to be used for storing generated sequences.
+        :param cache: The cache to be used for storing generated sequences.
+        :type cache: LocalStorage
         """
         super().__init__(**kwargs)
         self._cache = cache
 
     @abstractmethod
     def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
-        """Generate a list of sequences from the given sequence. The generated sequences are stored in the cache if needed.
+        """Generate a list of sequences from the given sequence. The generated sequences
+        are stored in the cache if needed.
 
-        Args:
-            sequence (Sequence): The sequence to be transformed.
-        
-        Returns:
-            [list]: A list of generated sequences.
-        """
+        :param sequence: The sequence to be transformed.
+        :type sequence: Sequence
+
+        :returns: A list of generated sequences.
+        :rtype: [list]"""
         raise NotImplementedError
 
 class SingleObject(Transformer):
@@ -45,9 +48,9 @@ class SingleObject(Transformer):
 
     def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
         """Generate a list of sequences from the given sequence.
-        
-        Args:
-            sequence (Sequence): The sequence to be transformed.
+
+        :param sequence: The sequence to be transformed.
+        :type sequence: Sequence
         """
         from vot.dataset.proxy import ObjectFilterSequence
         
@@ -57,9 +60,11 @@ class SingleObject(Transformer):
         return [ObjectFilterSequence(sequence, id, self.trim) for id in sequence.objects()]
         
 class Redetection(Transformer):
-    """Transformer that test redetection of the object in the sequence. The object is shown in several frames and then moved to a different location.
-    
-    This tranformer can only be used with single-object sequences."""
+    """Transformer that test redetection of the object in the sequence. The object is
+    shown in several frames and then moved to a different location.
+
+    This tranformer can only be used with single-object sequences.
+    """
 
     length = Integer(default=100, val_min=1)
     initialization = Integer(default=5, val_min=1)
@@ -68,9 +73,9 @@ class Redetection(Transformer):
 
     def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
         """Generate a list of sequences from the given sequence.
-        
-        Args:
-            sequence (Sequence): The sequence to be transformed.
+
+        :param sequence: The sequence to be transformed.
+        :type sequence: Sequence
         """
 
         assert self._cache is not None, "Local cache is required for redetection transformer."
@@ -117,9 +122,9 @@ class IgnoreObjects(Transformer):
 
     def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
         """Generate a list of sequences from the given sequence.
-        
-        Args:
-            sequence (Sequence): The sequence to be transformed.
+
+        :param sequence: The sequence to be transformed.
+        :type sequence: Sequence
         """
         from vot.dataset.proxy import ObjectsHideFilterSequence
         
@@ -133,9 +138,9 @@ class Downsample(Transformer):
 
     def __call__(self, sequence: Sequence) -> typing.List[Sequence]:
         """Generate a list of sequences from the given sequence.
-        
-        Args:
-            sequence (Sequence): The sequence to be transformed.
+
+        :param sequence: The sequence to be transformed.
+        :type sequence: Sequence
         """
         from vot.dataset.proxy import FrameMapSequence
         

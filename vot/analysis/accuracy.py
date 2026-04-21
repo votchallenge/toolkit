@@ -1,4 +1,7 @@
-"""Accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
+"""Accuracy analysis.
+
+Computes average overlap between predicted and groundtruth regions.
+"""
 
 from typing import List, Tuple, Any
 
@@ -20,20 +23,27 @@ from vot.utilities.data import Grid
 
 def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin: int = 10, 
     ignore_unknown: bool = True, ignore_invisible: bool = False, bounds = None, threshold: float = None, ignore_masks: List[Region] = None) -> np.ndarray:
-    """Gather overlaps between trajectory and groundtruth regions. 
-    
-    Args:
-        trajectory (List[Region]): List of regions predicted by the tracker.
-        groundtruth (List[Region]): List of groundtruth regions.
-        burnin (int, optional): Number of frames to skip at the beginning of the sequence. Defaults to 10.
-        ignore_unknown (bool, optional): Ignore unknown regions in the groundtruth. Defaults to True.
-        ignore_invisible (bool, optional): Ignore invisible regions in the groundtruth. Defaults to False.
-        bounds ([type], optional): Bounds of the sequence. Defaults to None.
-        threshold (float, optional): Minimum overlap to consider. Defaults to None.
-        ignore_masks (List[Region], optional): List of regions to ignore. Defaults to None.
-        
-    Returns:
-        np.ndarray: List of overlaps."""
+    """Gather overlaps between trajectory and groundtruth regions.
+
+    :param trajectory: List of regions predicted by the tracker.
+    :type trajectory: List[Region]
+    :param groundtruth: List of groundtruth regions.
+    :type groundtruth: List[Region]
+    :param burnin: Number of frames to skip at the beginning of the sequence. Defaults to 10.
+    :type burnin: int, optional
+    :param ignore_unknown: Ignore unknown regions in the groundtruth. Defaults to True.
+    :type ignore_unknown: bool, optional
+    :param ignore_invisible: Ignore invisible regions in the groundtruth. Defaults to False.
+    :type ignore_invisible: bool, optional
+    :param bounds: Bounds of the sequence. Defaults to None.
+    :type bounds: [type], optional
+    :param threshold: Minimum overlap to consider. Defaults to None.
+    :type threshold: float, optional
+    :param ignore_masks: List of regions to ignore. Defaults to None.
+    :type ignore_masks: List[Region], optional
+
+    :returns: List of overlaps.
+    :rtype: np.ndarray"""
 
     assert len(trajectory) == len(groundtruth), "Trajectory and groundtruth must have the same length."
 
@@ -66,7 +76,10 @@ def gather_overlaps(trajectory: List[Region], groundtruth: List[Region], burnin:
     return overlaps[mask], [i for i in range(len(overlaps)) if mask[i]]
 
 class Overlaps(SeparableAnalysis):
-    """Overlaps analysis. Computes overlaps between predicted and groundtruth regions."""
+    """Overlaps analysis.
+
+    Computes overlaps between predicted and groundtruth regions.
+    """
 
     burnin = Integer(default=10, val_min=0, description="Number of frames to skip after the initialization.")
     ignore_unknown = Boolean(default=True, description="Ignore unknown regions in the groundtruth.")
@@ -90,17 +103,19 @@ class Overlaps(SeparableAnalysis):
         return Measure(self.title, "", 0, 1, Sorting.DESCENDING),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Compute the analysis for a single sequence. 
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): List of dependencies.
-            
-        Returns:
-            Tuple[Any]: Tuple of results.
-        """
+        """Compute the analysis for a single sequence.
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: List of dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Tuple of results.
+        :rtype: Tuple[Any]"""
         assert isinstance(experiment, MultiRunExperiment)
 
         objects = sequence.objects()
@@ -138,7 +153,10 @@ class Overlaps(SeparableAnalysis):
         return results,
 
 class SequenceAccuracy(SeparableAnalysis):
-    """Sequence accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
+    """Sequence accuracy analysis.
+
+    Computes average overlap between predicted and groundtruth regions.
+    """
 
     burnin = Integer(default=10, val_min=0, description="Number of frames to skip after the initialization.")
     ignore_unknown = Boolean(default=True, description="Ignore unknown regions in the groundtruth.")
@@ -162,17 +180,19 @@ class SequenceAccuracy(SeparableAnalysis):
         return Measure(self.title, "", 0, 1, Sorting.DESCENDING),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Compute the analysis for a single sequence. 
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): List of dependencies.
-            
-        Returns:
-            Tuple[Any]: Tuple of results.
-        """
+        """Compute the analysis for a single sequence.
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: List of dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Tuple of results.
+        :rtype: Tuple[Any]"""
         assert isinstance(experiment, MultiRunExperiment)
 
         objects = sequence.objects()
@@ -217,13 +237,19 @@ class SequenceAccuracy(SeparableAnalysis):
         return objects_accuracy / len(objects),
 
 class AverageAccuracy(SequenceAggregator):
-    """Average accuracy analysis. Computes average overlap between predicted and groundtruth regions."""
+    """Average accuracy analysis.
+
+    Computes average overlap between predicted and groundtruth regions.
+    """
 
     analysis = Include(SequenceAccuracy, description="Sequence accuracy analysis.")
     weighted = Boolean(default=True, description="Weight accuracy by the number of frames.")
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. This analysis requires a multirun experiment."""
+        """Check if the experiment is compatible with the analysis.
+
+        This analysis requires a multirun experiment.
+        """
         return isinstance(experiment, MultiRunExperiment)
 
     @property
@@ -241,15 +267,16 @@ class AverageAccuracy(SequenceAggregator):
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
         """Aggregate the results of the analysis.
-        
-        Args:    
-            tracker (Tracker): Tracker.
-            sequences (List[Sequence]): List of sequences.
-            results (Grid): Grid of results.
-            
-        Returns:
-            Tuple[Any]: Tuple of results.
-        """
+
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param results: Grid of results.
+        :type results: Grid
+
+        :returns: Tuple of results.
+        :rtype: Tuple[Any]"""
 
         accuracy = 0
         frames = 0
@@ -268,7 +295,10 @@ class AverageAccuracy(SequenceAggregator):
         return accuracy / frames,
 
 class SuccessPlot(SeparableAnalysis):
-    """Success plot analysis. Computes the success plot of the tracker."""
+    """Success plot analysis.
+
+    Computes the success plot of the tracker.
+    """
 
     ignore_unknown = Boolean(default=True, description="Ignore unknown regions in the groundtruth.")
     ignore_invisible = Boolean(default=False, description="Ignore invisible regions in the groundtruth.")
@@ -280,7 +310,10 @@ class SuccessPlot(SeparableAnalysis):
     filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. This analysis is only compatible with multi-run experiments."""
+        """Check if the experiment is compatible with the analysis.
+
+        This analysis is only compatible with multi-run experiments.
+        """
         return isinstance(experiment, MultiRunExperiment)
 
     @property
@@ -293,17 +326,19 @@ class SuccessPlot(SeparableAnalysis):
         return Curve("Plot", 2, "S", minimal=(0, 0), maximal=(1, 1), labels=("Threshold", "Success"), trait="success"),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Compute the analysis for a single sequence. 
+        """Compute the analysis for a single sequence.
 
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): List of dependencies.
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: List of dependencies.
+        :type dependencies: List[Grid]
 
-        Returns:
-            Tuple[Any]: Tuple of results.
-        """
+        :returns: Tuple of results.
+        :rtype: Tuple[Any]"""
 
         assert isinstance(experiment, MultiRunExperiment)
 
@@ -367,7 +402,10 @@ class SuccessPlot(SeparableAnalysis):
         return [(x, y) for x, y in zip(axis_x, axis_y)],
 
 class AverageSuccessPlot(SequenceAggregator):
-    """Average success plot analysis. Computes the average success plot of the tracker."""
+    """Average success plot analysis.
+
+    Computes the average success plot of the tracker.
+    """
 
     resolution = Integer(default=100, val_min=2)
     analysis = Include(SuccessPlot)
@@ -377,7 +415,10 @@ class AverageSuccessPlot(SequenceAggregator):
         return self.analysis,
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. This analysis is only compatible with multi-run experiments."""
+        """Check if the experiment is compatible with the analysis.
+
+        This analysis is only compatible with multi-run experiments.
+        """
         return isinstance(experiment, MultiRunExperiment)
 
     @property
@@ -391,15 +432,16 @@ class AverageSuccessPlot(SequenceAggregator):
 
     def aggregate(self, _: Tracker, sequences: List[Sequence], results: Grid):
         """Aggregate the results of the analysis.
-        
-        Args:    
-            tracker (Tracker): Tracker. 
-            sequences (List[Sequence]): List of sequences.
-            results (Grid): Grid of results.
-            
-        Returns:
-            Tuple[Any]: Tuple of results.
-        """
+
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param results: Grid of results.
+        :type results: Grid
+
+        :returns: Tuple of results.
+        :rtype: Tuple[Any]"""
         
         axis_x = np.linspace(0, 1, self.resolution)
         axis_y = np.zeros_like(axis_x)

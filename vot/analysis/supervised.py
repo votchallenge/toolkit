@@ -1,6 +1,5 @@
-""" This module constans common analysis routines for supervised experiment, e.g. Accuracy-Robustness and EAO as
- defined in VOT papers.
-"""
+"""This module constans common analysis routines for supervised experiment, e.g.
+Accuracy-Robustness and EAO as defined in VOT papers."""
 
 import math
 from typing import List, Tuple, Any
@@ -20,20 +19,24 @@ from vot.utilities.data import Grid
 
 def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int = 10, 
     ignore_unknown: bool = True, bounded: bool = True) -> float:
-    """ Computes accuracy of a tracker on a given sequence. Accuracy is defined as mean overlap of the tracker
-    region with the groundtruth region. The overlap is computed only for frames where the tracker is not in
-    initialization or failure state. The overlap is computed only for frames after the burnin period.
+    """Computes accuracy of a tracker on a given sequence. Accuracy is defined as mean
+    overlap of the tracker region with the groundtruth region. The overlap is computed
+    only for frames where the tracker is not in initialization or failure state. The
+    overlap is computed only for frames after the burnin period.
 
-    Args:
-        trajectory (List[Region]): Tracker trajectory.
-        sequence (Sequence): Sequence to compute accuracy on.
-        burnin (int, optional): Burnin period. Defaults to 10.
-        ignore_unknown (bool, optional): Ignore unknown regions. Defaults to True.
-        bounded (bool, optional): Consider only first N frames. Defaults to True.
+    :param trajectory: Tracker trajectory.
+    :type trajectory: List[Region]
+    :param sequence: Sequence to compute accuracy on.
+    :type sequence: Sequence
+    :param burnin: Burnin period. Defaults to 10.
+    :type burnin: int, optional
+    :param ignore_unknown: Ignore unknown regions. Defaults to True.
+    :type ignore_unknown: bool, optional
+    :param bounded: Consider only first N frames. Defaults to True.
+    :type bounded: bool, optional
 
-    Returns:
-        float: Accuracy.
-    """
+    :returns: Accuracy.
+    :rtype: float"""
 
     overlaps = np.array(calculate_overlaps(trajectory, sequence.groundtruth(), (sequence.size) if bounded else None))
     mask = np.ones(len(overlaps), dtype=bool)
@@ -53,12 +56,18 @@ def compute_accuracy(trajectory: List[Region], sequence: Sequence, burnin: int =
         return 0, 0
 
 def count_failures(trajectory: List[Region]) -> Tuple[int, int]:
-    """Counts number of failures in a trajectory. Failure is defined as a frame where the tracker is in failure state."""
+    """Counts number of failures in a trajectory.
+
+    Failure is defined as a frame where the tracker is in failure state.
+    """
     return len([region for region in trajectory if is_special(region, Trajectory.FAILURE)]), len(trajectory)
 
 
 def locate_failures_inits(trajectory: List[Region]) -> Tuple[int, int]:
-    """Locates failures and initializations in a trajectory. Failure is defined as a frame where the tracker is in failure state."""
+    """Locates failures and initializations in a trajectory.
+
+    Failure is defined as a frame where the tracker is in failure state.
+    """
     return [i for i, region in enumerate(trajectory) if is_special(region, Trajectory.FAILURE)], \
             [i for i, region in enumerate(trajectory) if is_special(region, Trajectory.INITIALIZATION)]
 
@@ -87,9 +96,12 @@ def compute_eao_curve(overlaps: List, weights: List[float], success: List[bool])
     return np.sum(weights_vector * overlaps_array_sum * mask_array, axis=0) / np.sum(mask_array * weights_vector, axis=0).tolist()
     
 class AccuracyRobustness(SeparableAnalysis):
-    """Accuracy-Robustness analysis. Computes accuracy and robustness of a tracker on a given sequence. 
-    Accuracy is defined as mean overlap of the tracker region with the groundtruth region. The overlap is computed only for frames where the tracker is not in
-    initialization or failure state. The overlap is computed only for frames after the burnin period.
+    """Accuracy-Robustness analysis.
+
+    Computes accuracy and robustness of a tracker on a given sequence. Accuracy is
+    defined as mean overlap of the tracker region with the groundtruth region. The
+    overlap is computed only for frames where the tracker is not in initialization or
+    failure state. The overlap is computed only for frames after the burnin period.
     Robustness is defined as a number of failures divided by the total number of frames.
     """
 
@@ -112,21 +124,26 @@ class AccuracyRobustness(SeparableAnalysis):
              None
 
     def compatible(self, experiment: Experiment):
-        """Returns True if the analysis is compatible with the experiment. Only SupervisedExperiment is compatible."""
+        """Returns True if the analysis is compatible with the experiment.
+
+        Only SupervisedExperiment is compatible.
+        """
         return isinstance(experiment, SupervisedExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Computes accuracy and robustness of a tracker on a given sequence. 
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): Dependencies.
-            
-        Returns:
-            Tuple[Any]: Accuracy, robustness, AR, number of frames.
-        """
+        """Computes accuracy and robustness of a tracker on a given sequence.
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: Dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Accuracy, robustness, AR, number of frames.
+        :rtype: Tuple[Any]"""
         trajectories = experiment.gather(tracker, sequence)
 
         if len(trajectories) == 0:
@@ -146,12 +163,15 @@ class AccuracyRobustness(SeparableAnalysis):
         return accuracy, failures, ar, len(sequence)
 
 class AverageAccuracyRobustness(SequenceAggregator):
-    """Average accuracy-robustness analysis. Computes average accuracy and robustness of a tracker on a given sequence. 
+    """Average accuracy-robustness analysis. Computes average accuracy and robustness of
+    a tracker on a given sequence.
 
-    Accuracy is defined as mean overlap of the tracker region with the groundtruth region. The overlap is computed only for frames where the tracker is not in
-    initialization or failure state. The overlap is computed only for frames after the burnin period.
-    Robustness is defined as a number of failures divided by the total number of frames. 
-    The analysis is computed as an average of accuracy and robustness over all sequences.
+    Accuracy is defined as mean overlap of the tracker region with the groundtruth
+    region. The overlap is computed only for frames where the tracker is not in
+    initialization or failure state. The overlap is computed only for frames after the
+    burnin period. Robustness is defined as a number of failures divided by the total
+    number of frames. The analysis is computed as an average of accuracy and robustness
+    over all sequences.
     """
 
     analysis = Include(AccuracyRobustness)
@@ -174,20 +194,24 @@ class AverageAccuracyRobustness(SequenceAggregator):
              None
 
     def compatible(self, experiment: Experiment):
-        """Returns True if the analysis is compatible with the experiment. Only SupervisedExperiment is compatible."""
+        """Returns True if the analysis is compatible with the experiment.
+
+        Only SupervisedExperiment is compatible.
+        """
         return isinstance(experiment, SupervisedExperiment)
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
         """Aggregates results of the analysis.
-        
-        Args:
-            tracker (Tracker): Tracker.
-            sequences (List[Sequence]): List of sequences.
-            results (Grid): Results of the analysis.
-            
-        Returns:
-            Tuple[Any]: Accuracy, robustness, AR, number of frames.
-        """
+
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param results: Results of the analysis.
+        :type results: Grid
+
+        :returns: Accuracy, robustness, AR, number of frames.
+        :rtype: Tuple[Any]"""
 
         failures = 0
         accuracy = 0
@@ -207,10 +231,12 @@ class AverageAccuracyRobustness(SequenceAggregator):
         return accuracy, failures, ar, length
 
 class EAOCurve(TrackerSeparableAnalysis):
-    """Expected Average Overlap curve analysis. Computes expected average overlap of a tracker on a given sequence.
-    The overlap is computed only for frames where the tracker is not in initialization or failure state.
-    The overlap is computed only for frames after the burnin period.
-    The analysis is computed as an average of accuracy and robustness over all sequences.
+    """Expected Average Overlap curve analysis.
+
+    Computes expected average overlap of a tracker on a given sequence. The overlap is
+    computed only for frames where the tracker is not in initialization or failure
+    state. The overlap is computed only for frames after the burnin period. The analysis
+    is computed as an average of accuracy and robustness over all sequences.
     """
 
     burnin = Integer(default=10, val_min=0)
@@ -226,21 +252,26 @@ class EAOCurve(TrackerSeparableAnalysis):
         return Plot("Expected Average Overlap", "EAO", minimal=0, maximal=1, trait="eao"),
 
     def compatible(self, experiment: Experiment):
-        """Returns True if the analysis is compatible with the experiment. Only SupervisedExperiment is compatible."""
+        """Returns True if the analysis is compatible with the experiment.
+
+        Only SupervisedExperiment is compatible.
+        """
         return isinstance(experiment, SupervisedExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequences: List[Sequence], dependencies: List[Grid]) -> Tuple[Any]:
         """Computes expected average overlap of a tracker on a given sequence.
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequences (List[Sequence]): List of sequences.
-            dependencies (List[Grid]): Dependencies.
-            
-        Returns:
-            Tuple[Any]: Expected average overlap.
-        """
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param dependencies: Dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Expected average overlap.
+        :rtype: Tuple[Any]"""
 
         overlaps_all = []
         weights_all = []
@@ -280,7 +311,9 @@ class EAOCurve(TrackerSeparableAnalysis):
         return compute_eao_curve(overlaps_all, weights_all, success_all),
 
 class EAOScore(Analysis):
-    """Expected Average Overlap score analysis. The analysis is computed as an average of EAO scores over multiple sequences.
+    """Expected Average Overlap score analysis.
+
+    The analysis is computed as an average of EAO scores over multiple sequences.
     """
 
     eaocurve = Include(EAOCurve)
@@ -297,7 +330,10 @@ class EAOScore(Analysis):
         return Measure("Expected average overlap", "EAO", 0, 1, Sorting.DESCENDING),
 
     def compatible(self, experiment: Experiment):
-        """Returns True if the analysis is compatible with the experiment. Only SupervisedExperiment is compatible."""
+        """Returns True if the analysis is compatible with the experiment.
+
+        Only SupervisedExperiment is compatible.
+        """
         return isinstance(experiment, SupervisedExperiment)
 
     def dependencies(self):
@@ -307,15 +343,17 @@ class EAOScore(Analysis):
     def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
         """Computes expected average overlap of a tracker on a given sequence.
 
-        Args:
-            experiment (Experiment): Experiment.
-            trackers (List[Tracker]): List of trackers.
-            sequences (List[Sequence]): List of sequences.
-            dependencies (List[Grid]): Dependencies.
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param trackers: List of trackers.
+        :type trackers: List[Tracker]
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param dependencies: Dependencies.
+        :type dependencies: List[Grid]
 
-        Returns:
-            Grid: Expected average overlap.
-        """
+        :returns: Expected average overlap.
+        :rtype: Grid"""
         return dependencies[0].foreach(lambda x, i, j: (float(np.mean(x[0][self.low:self.high + 1])), ) )
 
     @property

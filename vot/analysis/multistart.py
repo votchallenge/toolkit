@@ -1,4 +1,5 @@
-"""This module contains the implementation of the accuracy-robustness analysis and EAO analysis for the multistart experiment."""
+"""This module contains the implementation of the accuracy-robustness analysis and EAO
+analysis for the multistart experiment."""
 
 from typing import List, Tuple, Any
 
@@ -17,16 +18,18 @@ from vot.analysis import MissingResultsException, Measure, Plot, Analysis, Axes,
 from vot.utilities.data import Grid
 
 def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
-    """Compute the EAO curve for a single sequence. The curve is computed as the average overlap at each frame.
-    
-    Args:
-        overlaps (List): List of overlaps for each frame.
-        success (List[bool]): List of success flags for each frame.
-        curve_length (int): Length of the curve.
-        
-    Returns:
-        List[float]: EAO curve.
-    """
+    """Compute the EAO curve for a single sequence. The curve is computed as the average
+    overlap at each frame.
+
+    :param overlaps: List of overlaps for each frame.
+    :type overlaps: List
+    :param success: List of success flags for each frame.
+    :type success: List[bool]
+    :param curve_length: Length of the curve.
+    :type curve_length: int
+
+    :returns: EAO curve.
+    :rtype: List[float]"""
     phi = curve_length * [float(0)]
     active = curve_length * [float(0)]
 
@@ -47,7 +50,8 @@ def compute_eao_partial(overlaps: List, success: List[bool], curve_length: int):
     return phi, active
 
 class AccuracyRobustness(SeparableAnalysis):
-    """This analysis computes the accuracy-robustness curve for the multistart experiment."""
+    """This analysis computes the accuracy-robustness curve for the multistart
+    experiment."""
 
     burnin = Integer(default=10, val_min=0)
     grace = Integer(default=10, val_min=0)
@@ -69,21 +73,26 @@ class AccuracyRobustness(SeparableAnalysis):
              None, None
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
+        """Check if the experiment is compatible with the analysis.
+
+        The experiment must be a multistart experiment.
+        """
         return isinstance(experiment, MultiStartExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
         """Compute the accuracy-robustness for each sequence.
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): List of dependencies.
-            
-        Returns:
-            Tuple[Any]: Accuracy, robustness, AR curve, robustness, length of the sequence.
-        """
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: List of dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Accuracy, robustness, AR curve, robustness, length of the sequence.
+        :rtype: Tuple[Any]"""
 
         results = experiment.results(tracker, sequence)
 
@@ -133,7 +142,8 @@ class AccuracyRobustness(SeparableAnalysis):
         return accuracy / robustness if robustness > 0 else 0, robustness / total, ar, robustness, len(sequence)
 
 class AverageAccuracyRobustness(SequenceAggregator):
-    """This analysis computes the average accuracy-robustness curve for the multistart experiment."""
+    """This analysis computes the average accuracy-robustness curve for the multistart
+    experiment."""
 
     analysis = Include(AccuracyRobustness)
 
@@ -155,20 +165,24 @@ class AverageAccuracyRobustness(SequenceAggregator):
              None, None
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
+        """Check if the experiment is compatible with the analysis.
+
+        The experiment must be a multistart experiment.
+        """
         return isinstance(experiment, MultiStartExperiment)
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
         """Aggregate the results of the analysis.
-        
-        Args:
-            tracker (Tracker): Tracker.
-            sequences (List[Sequence]): List of sequences.
-            results (Grid): Grid of results.
-            
-        Returns:
-            Tuple[Any]: Aggregated results.
-        """
+
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param results: Grid of results.
+        :type results: Grid
+
+        :returns: Aggregated results.
+        :rtype: Tuple[Any]"""
         total_accuracy = 0
         total_robustness = 0
         weight_accuracy = 0
@@ -185,7 +199,8 @@ class AverageAccuracyRobustness(SequenceAggregator):
         return total_accuracy / weight_accuracy, total_robustness / weight_robustness, ar, weight_accuracy, weight_robustness
 
 class MultiStartFragments(SeparableAnalysis):
-    """This analysis computes the accuracy-robustness curve for the multistart experiment."""
+    """This analysis computes the accuracy-robustness curve for the multistart
+    experiment."""
 
     burnin = Integer(default=10, val_min=0)
     grace = Integer(default=10, val_min=0)
@@ -203,20 +218,27 @@ class MultiStartFragments(SeparableAnalysis):
         return Curve("Success", 2, "Sc", minimal=(0, 0), maximal=(1,1), trait="points"), Curve("Accuracy", 2, "Ac", minimal=(0, 0), maximal=(1,1), trait="points")
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
+        """Check if the experiment is compatible with the analysis.
+
+        The experiment must be a multistart experiment.
+        """
         return isinstance(experiment, MultiStartExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Compute the analysis for a single sequence. The sequence must contain at least one anchor.
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): List of dependencies.
-            
-        Returns:
-            Tuple[Any]: Results of the analysis."""
+        """Compute the analysis for a single sequence. The sequence must contain at
+        least one anchor.
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: List of dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Results of the analysis.
+        :rtype: Tuple[Any]"""
 
         results = experiment.results(tracker, sequence)
 
@@ -264,7 +286,8 @@ class MultiStartFragments(SeparableAnalysis):
 
 # TODO: remove high
 class EAOCurves(SeparableAnalysis):
-    """This analysis computes the expected average overlap curve for the multistart experiment."""
+    """This analysis computes the expected average overlap curve for the multistart
+    experiment."""
 
     burnin = Integer(default=10, val_min=0)
     grace = Integer(default=10, val_min=0)
@@ -284,21 +307,27 @@ class EAOCurves(SeparableAnalysis):
         return Plot("Expected average overlap", "EAO", minimal=0, maximal=1, wrt="frames", trait="eao"),
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
+        """Check if the experiment is compatible with the analysis.
+
+        The experiment must be a multistart experiment.
+        """
         return isinstance(experiment, MultiStartExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Compute the analysis for a single sequence. The sequence must contain at least one anchor.
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): List of dependencies.
-            
-        Returns:
-            Tuple[Any]: Results of the analysis.
-        """
+        """Compute the analysis for a single sequence. The sequence must contain at
+        least one anchor.
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: List of dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Results of the analysis.
+        :rtype: Tuple[Any]"""
         
         results = experiment.results(tracker, sequence)
 
@@ -352,7 +381,11 @@ class EAOCurves(SeparableAnalysis):
 
 #TODO: remove high
 class EAOCurve(SequenceAggregator):
-    """This analysis computes the expected average overlap curve for the multistart experiment. It is an aggregator of the curves for individual sequences."""
+    """This analysis computes the expected average overlap curve for the multistart
+    experiment.
+
+    It is an aggregator of the curves for individual sequences.
+    """
 
     curves = Include(EAOCurves)
     
@@ -366,7 +399,10 @@ class EAOCurve(SequenceAggregator):
         return Plot("Expected average overlap", "EAO", minimal=0, maximal=1, wrt="frames", trait="eao"),
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
+        """Check if the experiment is compatible with the analysis.
+
+        The experiment must be a multistart experiment.
+        """
         return isinstance(experiment, MultiStartExperiment)
 
     def dependencies(self):
@@ -374,16 +410,18 @@ class EAOCurve(SequenceAggregator):
         return self.curves,
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
-        """Aggregate the results of the analysis for multiple sequences. The sequences must contain at least one anchor.
-        
-        Args:
-            tracker (Tracker): Tracker.
-            sequences (List[Sequence]): List of sequences.
-            results (Grid): Grid of results.
+        """Aggregate the results of the analysis for multiple sequences. The sequences
+        must contain at least one anchor.
 
-        Returns:
-            Tuple[Any]: Results of the analysis.
-        """
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param results: Grid of results.
+        :type results: Grid
+
+        :returns: Results of the analysis.
+        :rtype: Tuple[Any]"""
 
         eao_curve = self.curves.high * [float(0)]
         eao_weights = self.curves.high * [float(0)]
@@ -396,7 +434,11 @@ class EAOCurve(SequenceAggregator):
         return [eao_ / w_ if w_ > 0 else 0 for eao_, w_ in zip(eao_curve, eao_weights)],
 
 class EAOScore(Analysis):
-    """This analysis computes the expected average overlap score for the multistart experiment. It does this by computing the EAO curve and then integrating it."""
+    """This analysis computes the expected average overlap score for the multistart
+    experiment.
+
+    It does this by computing the EAO curve and then integrating it.
+    """
 
     low = Integer()
     high = Integer()
@@ -412,7 +454,10 @@ class EAOScore(Analysis):
         return Measure("Expected average overlap", "EAO", minimal=0, maximal=1, direction=Sorting.DESCENDING),
 
     def compatible(self, experiment: Experiment):
-        """Check if the experiment is compatible with the analysis. The experiment must be a multistart experiment."""
+        """Check if the experiment is compatible with the analysis.
+
+        The experiment must be a multistart experiment.
+        """
         return isinstance(experiment, MultiStartExperiment)
 
     def dependencies(self):
@@ -420,17 +465,20 @@ class EAOScore(Analysis):
         return self.eaocurve,
 
     def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
-        """Compute the analysis for multiple sequences. The sequences must contain at least one anchor.
-        
-        Args:
-            experiment (Experiment): Experiment.
-            trackers (List[Tracker]): List of trackers.
-            sequences (List[Sequence]): List of sequences.
-            dependencies (List[Grid]): List of dependencies.
-            
-        Returns:
-            Grid: Grid of results.
-        """
+        """Compute the analysis for multiple sequences. The sequences must contain at
+        least one anchor.
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param trackers: List of trackers.
+        :type trackers: List[Tracker]
+        :param sequences: List of sequences.
+        :type sequences: List[Sequence]
+        :param dependencies: List of dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Grid of results.
+        :rtype: Grid"""
 
         return dependencies[0].foreach(lambda x, i, j: (float(np.mean(x[0][self.low:self.high + 1])), ) )
 

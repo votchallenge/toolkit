@@ -8,10 +8,10 @@ import numpy as np
 from vot.utilities.data import Grid
 
 class JSONEncoder(json.JSONEncoder):
-    """ JSON encoder for internal types. """
+    """JSON encoder for internal types."""
 
     def default(self, o):
-        """ Default encoder. """
+        """Default encoder."""
         if isinstance(o, Grid):
             return list(o)
         elif isinstance(o, datetime.date):
@@ -22,15 +22,15 @@ class JSONEncoder(json.JSONEncoder):
             return super().default(o)
 
 class YAMLEncoder(yaml.Dumper):
-    """ YAML encoder for internal types."""
+    """YAML encoder for internal types."""
 
     def represent_tuple(self, data):
-        """ Represents a tuple. """
+        """Represents a tuple."""
         return self.represent_list(list(data))
 
 
     def represent_object(self, o):
-        """ Represents an object. """
+        """Represents an object."""
         if isinstance(o, Grid):
             return self.represent_list(list(o))
         elif isinstance(o, datetime.date):

@@ -1,4 +1,8 @@
-"""Command line interface for the toolkit. This module provides a command line interface for the toolkit. It is used to run experiments, manage trackers and datasets, and to perform other tasks."""
+"""Command line interface for the toolkit.
+
+This module provides a command line interface for the toolkit. It is used to run
+experiments, manage trackers and datasets, and to perform other tasks.
+"""
 
 import os
 import sys
@@ -13,10 +17,10 @@ from . import Progress, normalize_path
 logger = get_logger()
 
 class EnvDefault(argparse.Action):
-    """Argparse action that resorts to a value in a specified envvar if no value is provided via program arguments.
-    """
+    """Argparse action that resorts to a value in a specified envvar if no value is
+    provided via program arguments."""
     def __init__(self, envvar, required=True, default=None, separator=None, **kwargs):
-        """Initialize the action"""
+        """Initialize the action."""
         if not default and envvar:
             if envvar in os.environ:
                 default = os.environ[envvar]
@@ -29,16 +33,16 @@ class EnvDefault(argparse.Action):
                                          **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        """Call the action"""
+        """Call the action."""
         if self.separator:
             values = values.split(self.separator)
         setattr(namespace, self.dest, values)
 
 def do_test(config: argparse.Namespace):
-    """Run a test for a tracker
+    """Run a test for a tracker.
 
-    Args:
-        config (argparse.Namespace): Configuration
+    :param config: Configuration
+    :type config: argparse.Namespace
     """
 
     from vot.tracker import Registry
@@ -66,12 +70,13 @@ def do_test(config: argparse.Namespace):
 
 
 def do_initialize(config: argparse.Namespace):
-    """Initialize a workspace. If a stack is provided, the workspace is initialized with the stack. If no stack is provided,
-    but a dataset exists, then a dummy config can be created for this custom dataset. If neither is provided, the user is prompted to
+    """Initialize a workspace. If a stack is provided, the workspace is initialized with
+    the stack. If no stack is provided, but a dataset exists, then a dummy config can be
+    created for this custom dataset. If neither is provided, the user is prompted to
     provide a stack.
 
-    Args:
-        config (argparse.Namespace): Configuration
+    :param config: Configuration
+    :type config: argparse.Namespace
     """
 
     from vot.workspace import WorkspaceException, Workspace
@@ -129,9 +134,9 @@ def do_initialize(config: argparse.Namespace):
 
 def do_evaluate(config: argparse.Namespace):
     """Run an evaluation for a tracker on an experiment stack and a set of sequences.
-    
-    Args:
-        config (argparse.Namespace): Configuration    
+
+    :param config: Configuration
+    :type config: argparse.Namespace
     """
 
     from vot.experiment import run_experiment
@@ -253,10 +258,11 @@ def do_analysis(args: argparse.Namespace):
         executor.shutdown(wait=True)
 
 def do_report(config: argparse.Namespace):
-    """Generate a report for a one or multiple trackers on an experiment stack and a set of sequences.
+    """Generate a report for a one or multiple trackers on an experiment stack and a set
+    of sequences.
 
-    Args:
-        config (argparse.Namespace): Configuration
+    :param config: Configuration
+    :type config: argparse.Namespace
     """
 
     from vot.report import generate_document
@@ -291,8 +297,8 @@ def do_report(config: argparse.Namespace):
 def do_pack(config: argparse.Namespace):
     """Package results to a ZIP file so that they can be submitted to a challenge.
 
-    Args:
-        config (argparse.Namespace): Configuration
+    :param config: Configuration
+    :type config: argparse.Namespace
     """
 
     import zipfile, io
@@ -356,8 +362,8 @@ def do_pack(config: argparse.Namespace):
     logger.info("Result packaging successful, archive available in %s", archive_name)
 
 def main():
-    """Entrypoint to the toolkit Command Line Interface utility, should be executed as a program and provided with arguments.
-    """
+    """Entrypoint to the toolkit Command Line Interface utility, should be executed as a
+    program and provided with arguments."""
 
     parser = argparse.ArgumentParser(description='VOT Toolkit Command Line Interface', prog="vot")
     parser.add_argument("--debug", "-d", default=False, help="Backup backend", required=False, action='store_true')

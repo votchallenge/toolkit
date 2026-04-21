@@ -1,4 +1,5 @@
-"""This module contains functionality for reading sequences from the storage using VOT compatible format."""
+"""This module contains functionality for reading sequences from the storage using VOT
+compatible format."""
 
 import os
 import glob
@@ -16,14 +17,14 @@ from vot.utilities import Progress, localize_path, read_properties, write_proper
 logger = logging.getLogger("vot")
 
 def convert_int(value: str) -> int:
-    """Converts the given value to an integer. If the value is not a valid integer, None is returned.
-    
-    Args:
-        value (str): The value to convert.
-    
-    Returns:
-        int: The converted value or None if the value is not a valid integer.
-    """
+    """Converts the given value to an integer. If the value is not a valid integer, None
+    is returned.
+
+    :param value: The value to convert.
+    :type value: str
+
+    :returns: The converted value or None if the value is not a valid integer.
+    :rtype: int"""
     try:
         if value is None:
             return None
@@ -34,13 +35,13 @@ def convert_int(value: str) -> int:
 def _load_channel(source, length=None):
     """Loads a channel from the given source.
 
-    Args:
-        source (str): The source to load the channel from.
-        length (int): The length of the channel. If not specified, the channel is loaded from a pattern file list.
+    :param source: The source to load the channel from.
+    :type source: str
+    :param length: The length of the channel. If not specified, the channel is loaded from a pattern file list.
+    :type length: int
 
-    Returns:
-        Channel: The loaded channel.
-    """
+    :returns: The loaded channel.
+    :rtype: Channel"""
 
     extension = os.path.splitext(source)[1]
 
@@ -50,13 +51,12 @@ def _load_channel(source, length=None):
 
 def _read_data(metadata):
     """Reads data from the given metadata.
-    
-    Args:
-        metadata (dict): The metadata to read data from.
-        
-    Returns:
-        dict: The data read from the metadata.
-    """
+
+    :param metadata: The metadata to read data from.
+    :type metadata: dict
+
+    :returns: The data read from the metadata.
+    :rtype: dict"""
 
     channels = {}
     tags = {}
@@ -132,14 +132,14 @@ def _read_data(metadata):
     return SequenceData(channels, objects, tags, values, length) 
 
 def _read_metadata(path):
-    """Reads metadata from the given path. The metadata is read from the sequence file in the given path.
-    
-    Args:
-        path (str): The path to read metadata from.
-        
-    Returns:
-        dict: The metadata read from the given path.
-    """
+    """Reads metadata from the given path. The metadata is read from the sequence file
+    in the given path.
+
+    :param path: The path to read metadata from.
+    :type path: str
+
+    :returns: The metadata read from the given path.
+    :rtype: dict"""
     metadata = dict(fps=30, format="default")
     metadata["channel.default"] = "color"
 
@@ -158,12 +158,11 @@ def _read_metadata(path):
 def read_sequence(path):
     """Reads a sequence from the given path.
 
-    Args:
-        path (str): The path to read the sequence from.
+    :param path: The path to read the sequence from.
+    :type path: str
 
-    Returns:
-        Sequence: The sequence read from the given path.
-    """
+    :returns: The sequence read from the given path.
+    :rtype: Sequence"""
     if not os.path.isfile(os.path.join(path, "sequence")):
         return None
 
@@ -172,12 +171,11 @@ def read_sequence(path):
 def read_sequence_legacy(path):
     """Reads a sequence from the given path.
 
-    Args:
-        path (str): The path to read the sequence from.
+    :param path: The path to read the sequence from.
+    :type path: str
 
-    Returns:
-        Sequence: The sequence read from the given path.
-    """
+    :returns: The sequence read from the given path.
+    :rtype: Sequence"""
     if not os.path.isfile(os.path.join(path, "groundtruth.txt")):
         return None
 
@@ -190,10 +188,11 @@ def read_sequence_legacy(path):
     return BasedSequence(os.path.basename(path), _read_data, metadata=metadata)
 
 def list_sequences(path: str) -> None:
-    """Indexes the sequences in the given path. Only works if there is a list.txt file in the given path or the path is a list file.
-    
-    Args:
-        path (str): The path to index sequences in.
+    """Indexes the sequences in the given path. Only works if there is a list.txt file
+    in the given path or the path is a list file.
+
+    :param path: The path to index sequences in.
+    :type path: str
     """
     names = None
 
@@ -213,12 +212,13 @@ def list_sequences(path: str) -> None:
     return names
 
 def download_dataset_meta(url: str, path: str) -> None:
-    """Downloads the metadata of a dataset from a given URL and stores it in the given path.
-    
-    Args:
-        url (str): The URL to download the metadata from.
-        path (str): The path to store the metadata in.
-        
+    """Downloads the metadata of a dataset from a given URL and stores it in the given
+    path.
+
+    :param url: The URL to download the metadata from.
+    :type url: str
+    :param path: The path to store the metadata in.
+    :type path: str
     """
     from vot.utilities.net import download_uncompress, download_json, get_base_url, join_url, NetworkException
     from vot.utilities import format_size
@@ -306,13 +306,14 @@ def download_dataset_meta(url: str, path: str) -> None:
                 fp.write('{}\n'.format(sequence["name"]))
 
 def write_sequence(directory: str, sequence: Sequence):
-    """Writes a sequence to a directory. The sequence is written as a set of images in a directory structure
-    corresponding to the channel names. The sequence metadata is written to a file called sequence in the root
-    directory.
-    
-    Args:
-        directory (str): The directory to write the sequence to.
-        sequence (Sequence): The sequence to write.
+    """Writes a sequence to a directory. The sequence is written as a set of images in a
+    directory structure corresponding to the channel names. The sequence metadata is
+    written to a file called sequence in the root directory.
+
+    :param directory: The directory to write the sequence to.
+    :type directory: str
+    :param sequence: The sequence to write.
+    :type sequence: Sequence
     """
 
     channels = sequence.channels()

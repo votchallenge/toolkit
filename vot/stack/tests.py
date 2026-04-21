@@ -7,21 +7,18 @@ from vot.workspace import NullStorage
 from vot.stack import Stack, list_integrated_stacks, resolve_stack
 
 class NoWorkspace:
-    """Empty workspace, does not save anything
-    """
+    """Empty workspace, does not save anything."""
 
     @property
     def storage(self):
-        """Returns the storage object for the workspace. """
+        """Returns the storage object for the workspace."""
         return NullStorage()
 
 class TestStacks(unittest.TestCase):
-    """Tests for the experiment stack utilities
-    """
+    """Tests for the experiment stack utilities."""
 
     def test_stacks(self):
-        """Test loading integrated stacks
-        """
+        """Test loading integrated stacks."""
        
         stacks = list_integrated_stacks()
         for stack_name in stacks:

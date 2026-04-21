@@ -1,4 +1,5 @@
-"""This module contains the implementation of the long term tracking performance measures."""
+"""This module contains the implementation of the long term tracking performance
+measures."""
 import math
 import numpy as np
 from typing import List, Iterable, Tuple, Any
@@ -17,16 +18,17 @@ from vot.analysis import SequenceAggregator, Analysis, SeparableAnalysis, \
 from vot.utilities.data import Grid
 
 def determine_thresholds(scores: Iterable[float], resolution: int) -> List[float]:
-    """Determine thresholds for a given set of scores and a resolution. 
-    The thresholds are determined by sorting the scores and selecting the thresholds that divide the sorted scores into equal sized bins. 
-    
-    Args:
-        scores (Iterable[float]): Scores to determine thresholds for.
-        resolution (int): Number of thresholds to determine.
-        
-    Returns:
-        List[float]: List of thresholds.
-    """
+    """Determine thresholds for a given set of scores and a resolution. The thresholds
+    are determined by sorting the scores and selecting the thresholds that divide the
+    sorted scores into equal sized bins.
+
+    :param scores: Scores to determine thresholds for.
+    :type scores: Iterable[float]
+    :param resolution: Number of thresholds to determine.
+    :type resolution: int
+
+    :returns: List of thresholds.
+    :rtype: List[float]"""
     scores = [score for score in scores if not math.isnan(score)] #and not score is None]
     scores = sorted(scores, reverse=True)
 
@@ -44,20 +46,25 @@ def determine_thresholds(scores: Iterable[float], resolution: int) -> List[float
 
 def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequence: Sequence, thresholds: List[float],
     ignore_unknown: bool = True, bounded: bool = True, ignore_masks: List[Region] = None) -> Tuple[List[float], List[float]]:
-    """Compute the TPR curves for a given trajectory and confidence scores. 
-    
-    Args:
-        trajectory (List[Region]): Trajectory to compute the TPR curves for.
-        confidence (List[float]): Confidence scores for the trajectory.
-        sequence (Sequence): Sequence to compute the TPR curves for.
-        thresholds (List[float]): Thresholds to compute the TPR curves for.
-        ignore_unknown (bool, optional): Ignore unknown regions. Defaults to True.
-        bounded (bool, optional): Bounded evaluation. Defaults to True.
-        ignore_masks (List[Region], optional): Ignore masks. Defaults to None.
+    """Compute the TPR curves for a given trajectory and confidence scores.
 
-    Returns:
-        List[float], List[float]: TPR curves for the given thresholds.
-    """
+    :param trajectory: Trajectory to compute the TPR curves for.
+    :type trajectory: List[Region]
+    :param confidence: Confidence scores for the trajectory.
+    :type confidence: List[float]
+    :param sequence: Sequence to compute the TPR curves for.
+    :type sequence: Sequence
+    :param thresholds: Thresholds to compute the TPR curves for.
+    :type thresholds: List[float]
+    :param ignore_unknown: Ignore unknown regions. Defaults to True.
+    :type ignore_unknown: bool, optional
+    :param bounded: Bounded evaluation. Defaults to True.
+    :type bounded: bool, optional
+    :param ignore_masks: Ignore masks. Defaults to None.
+    :type ignore_masks: List[Region], optional
+
+    :returns: TPR curves for the given thresholds.
+    :rtype: List[float], List[float]"""
     assert len(trajectory) == len(confidence), "Trajectory and confidence must have the same length"
     if ignore_masks is not None:
         assert len(trajectory) == len(ignore_masks), "Trajectory and ignore masks must have the same length"
@@ -84,7 +91,10 @@ def compute_tpr_curves(trajectory: List[Region], confidence: List[float], sequen
     return precision, recall
 
 class _ConfidenceScores(SeparableAnalysis):
-    """Computes the confidence scores for a tracker for given sequences. This is internal analysis and should not be used directly."""
+    """Computes the confidence scores for a tracker for given sequences.
+
+    This is internal analysis and should not be used directly.
+    """
 
     @property
     def _title_default(self):
@@ -96,21 +106,23 @@ class _ConfidenceScores(SeparableAnalysis):
         return None,
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. """
+        """Checks if the experiment is compatible with the analysis."""
         return isinstance(experiment, UnsupervisedExperiment)
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
         """Computes the confidence scores for a tracker for given sequences.
-        
-        Args:
-            experiment (Experiment): Experiment to compute the confidence scores for.
-            tracker (Tracker): Tracker to compute the confidence scores for.
-            sequence (Sequence): Sequence to compute the confidence scores for.
-            dependencies (List[Grid]): Dependencies of the analysis.
-            
-        Returns:
-            Tuple[Any]: Confidence scores for the given sequence.
-        """
+
+        :param experiment: Experiment to compute the confidence scores for.
+        :type experiment: Experiment
+        :param tracker: Tracker to compute the confidence scores for.
+        :type tracker: Tracker
+        :param sequence: Sequence to compute the confidence scores for.
+        :type sequence: Sequence
+        :param dependencies: Dependencies of the analysis.
+        :type dependencies: List[Grid]
+
+        :returns: Confidence scores for the given sequence.
+        :rtype: Tuple[Any]"""
 
         scores_all = []
         trajectories = experiment.gather(tracker, sequence)
@@ -125,7 +137,10 @@ class _ConfidenceScores(SeparableAnalysis):
         return scores_all,
 
 class _Thresholds(SequenceAggregator):
-    """Computes the thresholds for a tracker for given sequences. This is internal analysis and should not be used directly."""
+    """Computes the thresholds for a tracker for given sequences.
+
+    This is internal analysis and should not be used directly.
+    """
 
     resolution = Integer(default=100)
 
@@ -139,7 +154,7 @@ class _Thresholds(SequenceAggregator):
         return None,
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. """
+        """Checks if the experiment is compatible with the analysis."""
         return isinstance(experiment, UnsupervisedExperiment)
 
     def dependencies(self):
@@ -148,21 +163,23 @@ class _Thresholds(SequenceAggregator):
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
         """Computes the thresholds for a tracker for given sequences.
-        
-        Args:    
-            tracker (Tracker): Tracker to compute the thresholds for.
-            sequences (List[Sequence]): Sequences to compute the thresholds for.
-            results (Grid): Results of the dependencies.
-            
-        Returns:
-            Tuple[Any]: Thresholds for the given sequences."""
+
+        :param tracker: Tracker to compute the thresholds for.
+        :type tracker: Tracker
+        :param sequences: Sequences to compute the thresholds for.
+        :type sequences: List[Sequence]
+        :param results: Results of the dependencies.
+        :type results: Grid
+
+        :returns: Thresholds for the given sequences.
+        :rtype: Tuple[Any]"""
 
         thresholds = determine_thresholds(itertools.chain(*[result[0] for result in results]), self.resolution),
 
         return thresholds,
 
 class PrecisionRecallCurves(SeparableAnalysis):
-    """ Computes the precision/recall curves for a tracker for given sequences. """
+    """Computes the precision/recall curves for a tracker for given sequences."""
 
     thresholds = Include(_Thresholds)
     ignore_unknown = Boolean(default=True, description="Ignore unknown regions")
@@ -187,17 +204,19 @@ class PrecisionRecallCurves(SeparableAnalysis):
         return self.thresholds,
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Computes the precision/recall curves for a tracker for given sequences. 
-        
-        Args:
-            experiment (Experiment): Experiment to compute the precision/recall curves for.
-            tracker (Tracker): Tracker to compute the precision/recall curves for.
-            sequence (Sequence): Sequence to compute the precision/recall curves for.
-            dependencies (List[Grid]): Dependencies of the analysis.
-            
-        Returns:
-            Tuple[Any]: Precision/recall curves for the given sequence.
-        """
+        """Computes the precision/recall curves for a tracker for given sequences.
+
+        :param experiment: Experiment to compute the precision/recall curves for.
+        :type experiment: Experiment
+        :param tracker: Tracker to compute the precision/recall curves for.
+        :type tracker: Tracker
+        :param sequence: Sequence to compute the precision/recall curves for.
+        :type sequence: Sequence
+        :param dependencies: Dependencies of the analysis.
+        :type dependencies: List[Grid]
+
+        :returns: Precision/recall curves for the given sequence.
+        :rtype: Tuple[Any]"""
 
         thresholds = dependencies[0, 0][0][0] # dependencies[0][0, 0]
 
@@ -221,7 +240,7 @@ class PrecisionRecallCurves(SeparableAnalysis):
         return [(pr / len(trajectories), re / len(trajectories)) for pr, re in zip(precision, recall)], thresholds
 
 class PrecisionRecallCurve(SequenceAggregator):
-    """ Computes the average precision/recall curve for a tracker. """
+    """Computes the average precision/recall curve for a tracker."""
 
     curves = Include(PrecisionRecallCurves)
 
@@ -235,7 +254,10 @@ class PrecisionRecallCurve(SequenceAggregator):
         return self.curves.describe()
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. This analysis is compatible with unsupervised experiments."""
+        """Checks if the experiment is compatible with the analysis.
+
+        This analysis is compatible with unsupervised experiments.
+        """
         return isinstance(experiment, UnsupervisedExperiment)
 
     def dependencies(self):
@@ -243,16 +265,17 @@ class PrecisionRecallCurve(SequenceAggregator):
         return self.curves,
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
-        """Computes the average precision/recall curve for a tracker. 
-        
-        Args:
-            tracker (Tracker): Tracker to compute the average precision/recall curve for.
-            sequences (List[Sequence]): Sequences to compute the average precision/recall curve for.
-            results (Grid): Results of the dependencies.
-            
-        Returns:
-            Tuple[Any]: Average precision/recall curve for the given sequences.
-        """
+        """Computes the average precision/recall curve for a tracker.
+
+        :param tracker: Tracker to compute the average precision/recall curve for.
+        :type tracker: Tracker
+        :param sequences: Sequences to compute the average precision/recall curve for.
+        :type sequences: List[Sequence]
+        :param results: Results of the dependencies.
+        :type results: Grid
+
+        :returns: Average precision/recall curve for the given sequences.
+        :rtype: Tuple[Any]"""
 
         curve = None
         thresholds = None
@@ -269,7 +292,7 @@ class PrecisionRecallCurve(SequenceAggregator):
         return curve, thresholds
 
 class FScoreCurve(Analysis):
-    """ Computes the F-score curve for a tracker. """
+    """Computes the F-score curve for a tracker."""
 
     beta = Float(default=1, description="Beta value for the F-score")
     prcurve = Include(PrecisionRecallCurve)
@@ -284,7 +307,10 @@ class FScoreCurve(Analysis):
         return Plot("Tracking F-score curve", "F", wrt="normalized threshold", minimal=0, maximal=1), None
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. This analysis is compatible with unsupervised experiments."""
+        """Checks if the experiment is compatible with the analysis.
+
+        This analysis is compatible with unsupervised experiments.
+        """
         return isinstance(experiment, UnsupervisedExperiment)
 
     def dependencies(self):
@@ -292,17 +318,19 @@ class FScoreCurve(Analysis):
         return self.prcurve,
 
     def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
-        """Computes the F-score curve for a tracker. 
-        
-        Args:
-            experiment (Experiment): Experiment to compute the F-score curve for.
-            trackers (List[Tracker]): Trackers to compute the F-score curve for.
-            sequences (List[Sequence]): Sequences to compute the F-score curve for.
-            dependencies (List[Grid]): Dependencies of the analysis.
-            
-        Returns:
-            Grid: F-score curve for the given sequences.
-        """
+        """Computes the F-score curve for a tracker.
+
+        :param experiment: Experiment to compute the F-score curve for.
+        :type experiment: Experiment
+        :param trackers: Trackers to compute the F-score curve for.
+        :type trackers: List[Tracker]
+        :param sequences: Sequences to compute the F-score curve for.
+        :type sequences: List[Sequence]
+        :param dependencies: Dependencies of the analysis.
+        :type dependencies: List[Grid]
+
+        :returns: F-score curve for the given sequences.
+        :rtype: Grid"""
 
         processed_results = Grid(len(trackers), 1)
 
@@ -320,7 +348,7 @@ class FScoreCurve(Analysis):
         return Axes.TRACKERS
     
 class PrecisionRecall(Analysis):
-    """ Computes the average precision/recall for a tracker. """
+    """Computes the average precision/recall for a tracker."""
 
     prcurve = Include(PrecisionRecallCurve)
     fcurve = Include(FScoreCurve)
@@ -337,7 +365,10 @@ class PrecisionRecall(Analysis):
              Measure("F Score", "F", minimal=0, maximal=1, direction=Sorting.DESCENDING)
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. This analysis is compatible with unsupervised experiments."""
+        """Checks if the experiment is compatible with the analysis.
+
+        This analysis is compatible with unsupervised experiments.
+        """
         return isinstance(experiment, UnsupervisedExperiment)
 
     def dependencies(self):
@@ -345,17 +376,19 @@ class PrecisionRecall(Analysis):
         return self.prcurve, self.fcurve
 
     def compute(self, experiment: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
-        """Computes the average precision/recall for a tracker. 
-        
-        Args:
-            experiment (Experiment): Experiment to compute the average precision/recall for.
-            trackers (List[Tracker]): Trackers to compute the average precision/recall for.
-            sequences (List[Sequence]): Sequences to compute the average precision/recall for.
-            dependencies (List[Grid]): Dependencies of the analysis.
+        """Computes the average precision/recall for a tracker.
 
-        Returns:
-            Grid: Average precision/recall for the given sequences.
-        """
+        :param experiment: Experiment to compute the average precision/recall for.
+        :type experiment: Experiment
+        :param trackers: Trackers to compute the average precision/recall for.
+        :type trackers: List[Tracker]
+        :param sequences: Sequences to compute the average precision/recall for.
+        :type sequences: List[Sequence]
+        :param dependencies: Dependencies of the analysis.
+        :type dependencies: List[Grid]
+
+        :returns: Average precision/recall for the given sequences.
+        :rtype: Grid"""
 
         f_curves = dependencies[1]
         pr_curves = dependencies[0]
@@ -379,18 +412,22 @@ class PrecisionRecall(Analysis):
 
 
 def count_frames(trajectory: List[Region], groundtruth: List[Region], bounds = None, threshold: float = 0, ignore_masks: List[Region] = None) -> float:
-    """Counts the number of frames where the tracker is correct, fails, misses, hallucinates or notices an object.
-    
-    Args:
-        trajectory (List[Region]): Trajectory of the tracker.
-        groundtruth (List[Region]): Groundtruth trajectory.
-        bounds (Optional[Region]): Bounds of the sequence.
-        threshold (float): Threshold for the overlap.
-        ignore_masks (List[Region]): Ignore masks.
-        
-    Returns:
-        float: Number of frames where the tracker is correct, fails, misses, hallucinates or notices an object.
-    """
+    """Counts the number of frames where the tracker is correct, fails, misses,
+    hallucinates or notices an object.
+
+    :param trajectory: Trajectory of the tracker.
+    :type trajectory: List[Region]
+    :param groundtruth: Groundtruth trajectory.
+    :type groundtruth: List[Region]
+    :param bounds: Bounds of the sequence.
+    :type bounds: Optional[Region]
+    :param threshold: Threshold for the overlap.
+    :type threshold: float
+    :param ignore_masks: Ignore masks.
+    :type ignore_masks: List[Region]
+
+    :returns: Number of frames where the tracker is correct, fails, misses, hallucinates or notices an object.
+    :rtype: float"""
 
     assert len(trajectory) == len(groundtruth), "Trajectory and groundtruth must have the same length"
 
@@ -443,7 +480,8 @@ class SafeAverage(object):
         return self._count == 0
 
 class CountFrames(SeparableAnalysis):
-    """Counts the number of frames where the tracker is correct, fails, misses, hallucinates or notices an object."""
+    """Counts the number of frames where the tracker is correct, fails, misses,
+    hallucinates or notices an object."""
 
     threshold = Float(default=0.0, val_min=0, val_max=1)
     bounded = Boolean(default=True)
@@ -451,7 +489,10 @@ class CountFrames(SeparableAnalysis):
     filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
+        """Checks if the experiment is compatible with the analysis.
+
+        This analysis is compatible with multi-run experiments.
+        """
         return isinstance(experiment, MultiRunExperiment)
 
     def describe(self):
@@ -459,7 +500,8 @@ class CountFrames(SeparableAnalysis):
         return None, 
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Computes the number of frames where the tracker is correct, fails, misses, hallucinates or notices an object."""
+        """Computes the number of frames where the tracker is correct, fails, misses,
+        hallucinates or notices an object."""
 
         assert isinstance(experiment, MultiRunExperiment)
 
@@ -508,7 +550,8 @@ class CountFrames(SeparableAnalysis):
         return distribution,
 
 class QualityAuxiliary(SeparableAnalysis):
-    """Computes the non-reported error, drift-rate error and absence-detection quality."""
+    """Computes the non-reported error, drift-rate error and absence-detection
+    quality."""
 
     threshold = Float(default=0.0, val_min=0, val_max=1)
     bounded = Boolean(default=True)
@@ -517,7 +560,10 @@ class QualityAuxiliary(SeparableAnalysis):
     filter_tag = String(default=None, description="Filter tag for the analysis.")
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
+        """Checks if the experiment is compatible with the analysis.
+
+        This analysis is compatible with multi-run experiments.
+        """
         return isinstance(experiment, MultiRunExperiment)
 
     @property
@@ -532,18 +578,20 @@ class QualityAuxiliary(SeparableAnalysis):
             Measure("Absence-detection Quality", "ADQ", 0, 1, Sorting.DESCENDING),
 
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
-        """Computes the non-reported error, drift-rate error and absence-detection quality.
-        
-        Args:
-            experiment (Experiment): Experiment.
-            tracker (Tracker): Tracker.
-            sequence (Sequence): Sequence.
-            dependencies (List[Grid]): Dependencies.
-            
-        Returns:
-            Tuple[Any]: Non-reported error, drift-rate error and absence-detection quality.
+        """Computes the non-reported error, drift-rate error and absence-detection
+        quality.
 
-        """
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequence: Sequence.
+        :type sequence: Sequence
+        :param dependencies: Dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Non-reported error, drift-rate error and absence-detection quality.
+        :rtype: Tuple[Any]"""
 
         assert isinstance(experiment, MultiRunExperiment)
 
@@ -600,7 +648,8 @@ class QualityAuxiliary(SeparableAnalysis):
         return not_reported_error.average(), drift_rate_error.average(), absence_detection.average(),
 
 class AverageQualityAuxiliary(SequenceAggregator):
-    """Computes the average non-reported error, drift-rate error and absence-detection quality."""
+    """Computes the average non-reported error, drift-rate error and absence-detection
+    quality."""
 
     analysis = Include(QualityAuxiliary)
 
@@ -620,20 +669,25 @@ class AverageQualityAuxiliary(SequenceAggregator):
             Measure("Absence-detection Quality", "ADQ", 0, 1, Sorting.DESCENDING),
 
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
+        """Checks if the experiment is compatible with the analysis.
+
+        This analysis is compatible with multi-run experiments.
+        """
         return isinstance(experiment, MultiRunExperiment)
 
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid):
-        """Aggregates the non-reported error, drift-rate error and absence-detection quality.
-        
-        Args:
-            tracker (Tracker): Tracker.
-            sequences (List[Sequence]): Sequences.
-            results (Grid): Results.
-            
-        Returns:
-            Tuple[Any]: Non-reported error, drift-rate error and absence-detection quality.
-        """
+        """Aggregates the non-reported error, drift-rate error and absence-detection
+        quality.
+
+        :param tracker: Tracker.
+        :type tracker: Tracker
+        :param sequences: Sequences.
+        :type sequences: List[Sequence]
+        :param results: Results.
+        :type results: Grid
+
+        :returns: Non-reported error, drift-rate error and absence-detection quality.
+        :rtype: Tuple[Any]"""
 
         not_reported_error = SafeAverage()
         drift_rate_error = SafeAverage()
@@ -650,7 +704,7 @@ from vot.analysis import SequenceAggregator
 from vot.analysis.accuracy import SequenceAccuracy
 
 class AccuracyRobustness(Analysis):
-    """Longterm multi-object accuracy-robustness measure. """
+    """Longterm multi-object accuracy-robustness measure."""
 
     threshold = Float(default=0.0, val_min=0, val_max=1)
     bounded = Boolean(default=True)
@@ -663,7 +717,10 @@ class AccuracyRobustness(Analysis):
         return self.counts, SequenceAccuracy(burnin=0, threshold=self.threshold, bounded=self.bounded, ignore_invisible=True, ignore_unknown=False, ignore_masks=self.ignore_masks, filter_tag=self.filter_tag)
     
     def compatible(self, experiment: Experiment):
-        """Checks if the experiment is compatible with the analysis. This analysis is compatible with multi-run experiments."""
+        """Checks if the experiment is compatible with the analysis.
+
+        This analysis is compatible with multi-run experiments.
+        """
         return isinstance(experiment, MultiRunExperiment)
 
     @property
@@ -680,16 +737,18 @@ class AccuracyRobustness(Analysis):
 
     def compute(self, _: Experiment, trackers: List[Tracker], sequences: List[Sequence], dependencies: List[Grid]) -> Grid:
         """Aggregate results from multiple sequences into a single value.
-        
-        Args:
-            experiment (Experiment): Experiment.
-            trackers (List[Tracker]): Trackers.
-            sequences (List[Sequence]): Sequences.
-            dependencies (List[Grid]): Dependencies.
-            
-        Returns:
-            Grid: Aggregated results.
-        """
+
+        :param experiment: Experiment.
+        :type experiment: Experiment
+        :param trackers: Trackers.
+        :type trackers: List[Tracker]
+        :param sequences: Sequences.
+        :type sequences: List[Sequence]
+        :param dependencies: Dependencies.
+        :type dependencies: List[Grid]
+
+        :returns: Aggregated results.
+        :rtype: Grid"""
 
         frame_counts = dependencies[0]
         accuracy_analysis = dependencies[1]

@@ -1,4 +1,5 @@
-"""This module contains the Workspace class that represents the main junction of trackers, datasets and experiments."""
+"""This module contains the Workspace class that represents the main junction of
+trackers, datasets and experiments."""
 
 import os
 import typing
@@ -20,24 +21,23 @@ from .storage import LocalStorage, Storage, NullStorage
 _logger = get_logger()
 
 class WorkspaceException(ToolkitException):
-    """Errors related to workspace raise this exception
-    """
+    """Errors related to workspace raise this exception."""
     pass
 
 class StackLoader(Attribute):
-    """Special attribute that converts a string or a dictionary input to a Stack object.
-    """
+    """Special attribute that converts a string or a dictionary input to a Stack
+    object."""
 
     def coerce(self, value, context: typing.Optional[CoerceContext]):
-        """Coerce a value to a Stack object
-        
-        Args:
-            value (typing.Any): Value to coerce
-            context (typing.Optional[CoerceContext]): Coercion context
-            
-        Returns:
-            Stack: Coerced value
-        """
+        """Coerce a value to a Stack object.
+
+        :param value: Value to coerce
+        :type value: typing.Any
+        :param context: Coercion context
+        :type context: typing.Optional[CoerceContext]
+
+        :returns: Coerced value
+        :rtype: Stack"""
         importlib.import_module("vot.analysis")
         importlib.import_module("vot.experiment")
         if isinstance(value, str):
@@ -55,22 +55,22 @@ class StackLoader(Attribute):
             return Stack(**value)
 
     def dump(self, value: "Stack") -> str:
-        """Dump a Stack object to a string or a dictionary
-        
-        Args:
-            value (Stack): Value to dump
-            
-        Returns:
-            str: Dumped value
-        """
+        """Dump a Stack object to a string or a dictionary.
+
+        :param value: Value to dump
+        :type value: Stack
+
+        :returns: Dumped value
+        :rtype: str"""
         if value.name is None:
             return value.dump()
         else:
             return value.name
 
 class RegistryLoader(Attribute):
-    """Special attribute that converts a list of strings input to a Registry object. The paths are appended to
-    the global registry search paths.
+    """Special attribute that converts a list of strings input to a Registry object.
+
+    The paths are appended to the global registry search paths.
     """
     
     def coerce(self, value, context: typing.Optional[CoerceContext]):
@@ -93,8 +93,10 @@ class RegistryLoader(Attribute):
         return value._paths
 
 class Workspace(Attributee):
-    """Workspace class represents the main junction of trackers, datasets and experiments. Each workspace performs 
-    given experiments on a provided dataset.
+    """Workspace class represents the main junction of trackers, datasets and
+    experiments.
+
+    Each workspace performs given experiments on a provided dataset.
     """
 
     registry = RegistryLoader() # List(String(transformer=lambda x, ctx: normalize_path(x, ctx.parent.directory)))
@@ -106,26 +108,25 @@ class Workspace(Attributee):
     def exists(directory: str) -> bool:
         """Check if a workspace exists in a given directory.
 
-        Args:
-            directory (str): Directory to check
+        :param directory: Directory to check
+        :type directory: str
 
-        Returns:
-            bool: True if the workspace exists, False otherwise.
-        """
+        :returns: True if the workspace exists, False otherwise.
+        :rtype: bool"""
         return os.path.isfile(os.path.join(directory, "config.yaml"))
 
     @staticmethod
     def initialize(directory: str, config: typing.Optional[typing.Dict] = None, download: bool = True) -> None:
-        """Initialize a new workspace in a given directory with the given config
+        """Initialize a new workspace in a given directory with the given config.
 
-        Args:
-            directory (str): Root for workspace storage
-            config (typing.Optional[typing.Dict], optional): Workspace initial configuration. Defaults to None.
-            download (bool, optional): Download the dataset immediately. Defaults to True.
+        :param directory: Root for workspace storage
+        :type directory: str
+        :param config: Workspace initial configuration. Defaults to None.
+        :type config: typing.Optional[typing.Dict], optional
+        :param download: Download the dataset immediately. Defaults to True.
+        :type download: bool, optional
 
-        Raises:
-            WorkspaceException: When a workspace cannot be created.
-        """
+        :raises WorkspaceException: When a workspace cannot be created."""
 
         config_file = os.path.join(directory, "config.yaml")
         if Workspace.exists(directory):
@@ -159,10 +160,10 @@ class Workspace(Attributee):
     def download_dataset(dataset: str, directory: str) -> None:
         """Download the dataset if no dataset is present already.
 
-        Args:
-            dataset (str): Dataset URL or ID
-            directory (str): Directory where the dataset is saved
-
+        :param dataset: Dataset URL or ID
+        :type dataset: str
+        :param directory: Directory where the dataset is saved
+        :type directory: str
         """
         if os.path.exists(os.path.join(directory, "list.txt")): #TODO: this has to be improved now that we also support other datasets that may not have list.txt
             return False
@@ -174,17 +175,14 @@ class Workspace(Attributee):
 
     @staticmethod
     def load(directory):
-        """Load a workspace from a given location. This 
+        """Load a workspace from a given location. This.
 
-        Args:
-            directory ([type]): [description]
+        :param directory: [description]
+        :type directory: [type]
 
-        Raises:
-            WorkspaceException: [description]
-
-        Returns:
-            [type]: [description]
-        """
+        :raises WorkspaceException: [description]
+        :returns: [description]
+        :rtype: [type]"""
         directory = normalize_path(directory)
         config_file = os.path.join(directory, "config.yaml")
         if not os.path.isfile(config_file):
@@ -195,11 +193,11 @@ class Workspace(Attributee):
             return Workspace(directory, **config)
 
     def __init__(self, directory: str, **kwargs):
-        """Do not call this constructor directly unless you know what you are doing, 
+        """Do not call this constructor directly unless you know what you are doing,
         instead use the static Workspace.load method.
 
-        Args:
-            directory ([type]): [description]
+        :param directory: [description]
+        :type directory: [type]
         """
         self._directory = directory
 
@@ -222,36 +220,32 @@ class Workspace(Attributee):
     def directory(self) -> str:
         """Returns the root directory for the workspace.
 
-        Returns:
-            str: The absolute path to the root of the workspace.
-        """
+        :returns: The absolute path to the root of the workspace.
+        :rtype: str"""
         return self._directory
 
     @property
     def dataset(self) -> Dataset:
-        """Returns dataset associated with the workspace
+        """Returns dataset associated with the workspace.
 
-        Returns:
-            Dataset: The dataset object.
-        """
+        :returns: The dataset object.
+        :rtype: Dataset"""
         return self._dataset
 
     @property
     def storage(self) -> Storage:
         """Returns the storage object associated with this workspace.
 
-        Returns:
-            Storage: The storage object.
-        """
+        :returns: The storage object.
+        :rtype: Storage"""
         return self._storage
 
     def list_results(self, registry: "Registry") -> typing.List["Tracker"]:
-        """Utility method that looks for all subfolders in the results folder and tries to resolve them
-        as tracker references. It returns a list of Tracker objects, i.e. trackers that have at least 
-        some results or an existing results directory.
+        """Utility method that looks for all subfolders in the results folder and tries
+        to resolve them as tracker references. It returns a list of Tracker objects,
+        i.e. trackers that have at least some results or an existing results directory.
 
-        Returns:
-            [typing.List[Tracker]]: A list of trackers with results.
-        """
+        :returns: A list of trackers with results.
+        :rtype: [typing.List[Tracker]]"""
         references = self._storage.substorage("results").folders()
         return registry.resolve(*references)

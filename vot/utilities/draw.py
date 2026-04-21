@@ -1,4 +1,4 @@
-""" Drawing utilities for visualizing results."""
+"""Drawing utilities for visualizing results."""
 
 from typing import Tuple, List, Union
 
@@ -37,7 +37,10 @@ _PALETTE = {
 }
 
 def resolve_color(color: Union[Tuple[float, float, float], str]):
-    """Resolves a color to a tuple of floats. If the color is a string, it is resolved from an internal palette."""
+    """Resolves a color to a tuple of floats.
+
+    If the color is a string, it is resolved from an internal palette.
+    """
 
     if isinstance(color, str):
         return _PALETTE.get(color, (0, 0, 0, 1))
@@ -48,11 +51,13 @@ class DrawHandle(object):
 
     def __init__(self, color: Union[Tuple[float, float, float], str] = (1, 0, 0), width: int = 1, fill: bool = False):
         """Initializes the drawing handle.
-        
-        Args:
-            color (tuple or str): Color of the drawing handle.
-            width (int): Width of the drawing handle.
-            fill (bool): Whether to fill the drawing handle.
+
+        :param color: Color of the drawing handle.
+        :type color: tuple or str
+        :param width: Width of the drawing handle.
+        :type width: int
+        :param fill: Whether to fill the drawing handle.
+        :type fill: bool
         """
         self._color = resolve_color(color)
         self._width = width
@@ -60,14 +65,15 @@ class DrawHandle(object):
 
     def style(self, color: Union[Tuple[float, float, float], str] = (1, 0, 0), width: int = 1, fill: bool = False) -> 'DrawHandle':
         """Sets the style of the drawing handle. Returns self for chaining.
-        
-        Args:
-            color (tuple or str): Color of the drawing handle.
-            width (int): Width of the drawing handle.
-            fill (bool): Whether to fill the drawing handle.
-            
-        Returns:
-            self"""
+
+        :param color: Color of the drawing handle.
+        :type color: tuple or str
+        :param width: Width of the drawing handle.
+        :type width: int
+        :param fill: Whether to fill the drawing handle.
+        :type fill: bool
+
+        :returns: self"""
         color = resolve_color(color)
         self._color = (color[0], color[1], color[2], 1)
         self._width = width
@@ -103,8 +109,8 @@ class DrawHandle(object):
         return self
 
     def rectangle(self, left: float, top: float, right: float, bottom: float):
-        """Draws a rectangle. 
-        
+        """Draws a rectangle.
+
         The rectangle is defined by the top-left and bottom-right corners.
         """
         self.polygon([(left, top), (right, top), (right, bottom), (left, bottom)])
@@ -115,7 +121,10 @@ class DrawHandle(object):
         return self
 
 class MatplotlibDrawHandle(DrawHandle):
-    """Draw handle for Matplotlib. This handle is used for drawing to a Matplotlib axis."""
+    """Draw handle for Matplotlib.
+
+    This handle is used for drawing to a Matplotlib axis.
+    """
 
     def __init__(self, axis, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False, size: Tuple[int, int] = None):
         """Initializes a new instance of the MatplotlibDrawHandle class."""
@@ -194,7 +203,10 @@ class MatplotlibDrawHandle(DrawHandle):
 
 
 class ImageDrawHandle(DrawHandle):
-    """Draw handle for Pillow. This handle is used for drawing to a Pillow image."""
+    """Draw handle for Pillow.
+
+    This handle is used for drawing to a Pillow image.
+    """
 
     @staticmethod
     def _convert_color(c, alpha=255):

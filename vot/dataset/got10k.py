@@ -1,5 +1,8 @@
-""" GOT-10k dataset adapter module. The format of GOT-10k dataset is very similar to a subset of VOT, so there
-is a lot of code duplication."""
+"""GOT-10k dataset adapter module.
+
+The format of GOT-10k dataset is very similar to a subset of VOT, so there is a lot of
+code duplication.
+"""
 
 import os
 import glob
@@ -16,16 +19,13 @@ from vot.region.io import read_trajectory
 logger = get_logger()
 
 def load_channel(source):
-    """ Load channel from the given source.
-    
-    Args:
-        source (str): Path to the source. If the source is a directory, it is
-            assumed to be a pattern file list. If the source is a file, it is
-            assumed to be a video file.
-            
-    Returns:
-        Channel: Channel object.
-    """
+    """Load channel from the given source.
+
+    :param source: Path to the source. If the source is a directory, it is assumed to be a pattern file list. If the source is a file, it is assumed to be a video file.
+    :type source: str
+
+    :returns: Channel object.
+    :rtype: Channel"""
     extension = os.path.splitext(source)[1]
 
     if extension == '':
@@ -34,10 +34,10 @@ def load_channel(source):
 
 
 def _read_data(metadata):
-    """ Read data from the given metadata.
-    
-    Args:
-        metadata (dict): Metadata dictionary.
+    """Read data from the given metadata.
+
+    :param metadata: Metadata dictionary.
+    :type metadata: dict
     """
     channels = {}
     tags = {}
@@ -102,10 +102,10 @@ from vot.dataset import sequence_reader
 
 @sequence_reader.register("GOT-10k")
 def read_sequence(path):
-    """ Read GOT-10k sequence from the given path.
-    
-    Args:
-        path (str): Path to the sequence.
+    """Read GOT-10k sequence from the given path.
+
+    :param path: Path to the sequence.
+    :type path: str
     """
 
     if not (os.path.isfile(os.path.join(path, 'groundtruth.txt')) and os.path.isfile(os.path.join(path, 'meta_info.ini'))):

@@ -10,9 +10,12 @@ from vot.dataset import Sequence
 from vot.region import Special
 
 class ReferralExperiment(Experiment):
-    """Experiment with text referral initialization. The experiment does not provide an initalization region, 
-    but a text prompt that describes the object to be tracked. 
-    The tracker is then expected to use this prompt to find the object in the sequence."""
+    """Experiment with text referral initialization.
+
+    The experiment does not provide an initalization region, but a text prompt that
+    describes the object to be tracked. The tracker is then expected to use this prompt
+    to find the object in the sequence.
+    """
 
     prompt_name = String(default="prompts")
 
@@ -25,13 +28,13 @@ class ReferralExperiment(Experiment):
     def scan(self, tracker: Tracker, sequence: Sequence):
         """Scan the results of the experiment for the given tracker and sequence.
 
-        Args:
-            tracker (Tracker): The tracker to be scanned.
-            sequence (Sequence): The sequence to be scanned.
+        :param tracker: The tracker to be scanned.
+        :type tracker: Tracker
+        :param sequence: The sequence to be scanned.
+        :type sequence: Sequence
 
-        Returns:
-            [tuple]: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
-        """
+        :returns: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
+        :rtype: [tuple]"""
         
         results = self.results(tracker, sequence)
 
@@ -54,16 +57,18 @@ class ReferralExperiment(Experiment):
 
     def gather(self, tracker: Tracker, sequence: Sequence, objects = None, pad = False):
         """Gather trajectories for the given tracker and sequence.
-        
-        Args:
-            tracker (Tracker): The tracker to be used.
-            sequence (Sequence): The sequence to be used.
-            objects (list, optional): The list of objects to be gathered. Defaults to None.
-            pad (bool, optional): Whether to pad the list of trajectories with None values. Defaults to False.
-            
-        Returns:
-            list: The list of trajectories.
-        """
+
+        :param tracker: The tracker to be used.
+        :type tracker: Tracker
+        :param sequence: The sequence to be used.
+        :type sequence: Sequence
+        :param objects: The list of objects to be gathered. Defaults to None.
+        :type objects: list, optional
+        :param pad: Whether to pad the list of trajectories with None values. Defaults to False.
+        :type pad: bool, optional
+
+        :returns: The list of trajectories.
+        :rtype: list"""
         trajectories = list()
 
         assert len(sequence.objects()) == 1, "Referral experiment only supports single object sequences."

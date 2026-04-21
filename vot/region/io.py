@@ -1,4 +1,4 @@
-""" Utilities for reading and writing regions from and to files. """
+"""Utilities for reading and writing regions from and to files."""
 
 import math
 from typing import List, Union, TextIO
@@ -9,15 +9,16 @@ import numba
 
 @numba.njit(cache=True)
 def mask_to_rle(m, maxstride=100000000):
-    """ Converts a binary mask to RLE encoding. This is a Numba decorated function that is compiled just-in-time for faster execution.
+    """Converts a binary mask to RLE encoding. This is a Numba decorated function that
+    is compiled just-in-time for faster execution.
 
-    Args:
-        m (np.ndarray): 2-D binary mask
-        maxstride (int): Maximum number of consecutive 0s or 1s in the RLE encoding. If the number of consecutive 0s or 1s is larger than maxstride, it is split into multiple elements.
-    
-    Returns:
-        List[int]: RLE encoding of the mask
-    """
+    :param m: 2-D binary mask
+    :type m: np.ndarray
+    :param maxstride: Maximum number of consecutive 0s or 1s in the RLE encoding. If the number of consecutive 0s or 1s is larger than maxstride, it is split into multiple elements.
+    :type maxstride: int
+
+    :returns: RLE encoding of the mask
+    :rtype: List[int]"""
     # reshape mask to vector
     v = m.reshape((m.shape[0] * m.shape[1]))
 
@@ -65,16 +66,18 @@ def mask_to_rle(m, maxstride=100000000):
 
 @numba.njit(cache=True)
 def rle_to_mask(rle, width, height):
-    """ Converts RLE encoding to a binary mask. This is a Numba decorated function that is compiled just-in-time for faster execution.
+    """Converts RLE encoding to a binary mask. This is a Numba decorated function that
+    is compiled just-in-time for faster execution.
 
-    Args:
-        rle (List[int]): RLE encoding of the mask
-        width (int): Width of the mask
-        height (int): Height of the mask
+    :param rle: RLE encoding of the mask
+    :type rle: List[int]
+    :param width: Width of the mask
+    :type width: int
+    :param height: Height of the mask
+    :type height: int
 
-    Returns:
-        np.ndarray: 2-D binary mask
-    """
+    :returns: 2-D binary mask
+    :rtype: np.ndarray"""
 
     # allocate list of zeros
     v = np.zeros(width * height, dtype=np.uint8)
@@ -114,12 +117,11 @@ from vot.region.raster import mask_bounds
 def encode_mask(mask):
     """ Encode a binary mask to a string in the following format: x0, y0, w, h, RLE.
 
-    Args:
-        mask (np.ndarray): 2-D binary mask
+    :param mask: 2-D binary mask
+    :type mask: np.ndarray
 
-    Returns:
-        str: Encoded mask
-    """
+    :returns: Encoded mask
+    :rtype: str"""
     # calculate coordinates of the top-left corner and region width and height (minimal region containing all 1s)
     x_min, y_min, x_max, y_max = mask_bounds(mask)
 
@@ -140,15 +142,15 @@ def encode_mask(mask):
         return (tl_x, tl_y, region_w, region_h), rle
 
 def parse_region(string: str, separator: str = ",") -> "Region":
-    """Parse input string to the appropriate region format and return Region object
+    """Parse input string to the appropriate region format and return Region object.
 
-    Args:
-        string (str): comma separated list of values
-        separator (str): separator of values in the input string
+    :param string: comma separated list of values
+    :type string: str
+    :param separator: separator of values in the input string
+    :type separator: str
 
-    Returns:
-        Region: resulting region
-    """
+    :returns: resulting region
+    :rtype: Region"""
     from vot import config
     from vot.region import Special, Point
     from vot.region.shapes import Rectangle, Polygon, Mask
@@ -181,13 +183,12 @@ def parse_region(string: str, separator: str = ",") -> "Region":
 
 def read_trajectory_binary(fp: io.RawIOBase):
     """Reads a trajectory from a binary file and returns a list of regions.
-    
-    Args:
-        fp (io.RawIOBase): File pointer to the binary file
-        
-    Returns:
-        list: List of regions
-    """
+
+    :param fp: File pointer to the binary file
+    :type fp: io.RawIOBase
+
+    :returns: List of regions
+    :rtype: list"""
     import struct
     from cachetools import LRUCache, cached
     from vot.region import Special, Point
@@ -197,11 +198,11 @@ def read_trajectory_binary(fp: io.RawIOBase):
 
     @cached(cache=LRUCache(maxsize=32))
     def calcsize(format):
-        """Calculate size of the struct format"""
+        """Calculate size of the struct format."""
         return struct.calcsize(format)
 
     def read(format: str):
-        """Read struct from the buffer and update offset"""
+        """Read struct from the buffer and update offset."""
         unpacked = struct.unpack_from(format, buffer["data"], buffer["offset"])
         buffer["offset"] += calcsize(format)
         return unpacked
@@ -231,9 +232,10 @@ def read_trajectory_binary(fp: io.RawIOBase):
 def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
     """Writes a trajectory to a binary file.
 
-    Args:
-        fp (io.RawIOBase): File pointer to the binary file
-        data (list): List of regions
+    :param fp: File pointer to the binary file
+    :type fp: io.RawIOBase
+    :param data: List of regions
+    :type data: list
     """
     import struct
     from vot.region import Special, Point
@@ -254,14 +256,14 @@ def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
 
 def read_trajectory(fp: Union[str, TextIO], separator: str = ","):
     """Reads a trajectory from a file and returns a list of regions.
-    
-    Args:
-        fp (str or TextIO): File path or file pointer to the trajectory file
-        separator (str): Separator of values in the region, only used for text files
-        
-    Returns:
-        list: List of regions
-    """
+
+    :param fp: File path or file pointer to the trajectory file
+    :type fp: str or TextIO
+    :param separator: Separator of values in the region, only used for text files
+    :type separator: str
+
+    :returns: List of regions
+    :rtype: list"""
     if isinstance(fp, str):
         try:
             import struct
@@ -291,16 +293,16 @@ def read_trajectory(fp: Union[str, TextIO], separator: str = ","):
     return regions
 
 def write_trajectory(fp: Union[str, TextIO], data: List["Region"]):
-    """ Write a trajectory to a file handle or a file with a given name. Based on the suffix of a file or properties of a file handle, the output may be either text based
+    """Write a trajectory to a file handle or a file with a given name. Based on the
+    suffix of a file or properties of a file handle, the output may be either text based
     or binary.
 
-    Args:
-        fp (Union[str, TextIO]): File handle or file name
-        data (List[Region]): Trajectory, a list of region objects
+    :param fp: File handle or file name
+    :type fp: Union[str, TextIO]
+    :param data: Trajectory, a list of region objects
+    :type data: List[Region]
 
-    Raises:
-        IOError: If the file format is not supported
-    """
+    :raises IOError: If the file format is not supported"""
 
     if isinstance(fp, str):
         binary = fp.endswith(".bin")

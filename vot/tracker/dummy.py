@@ -1,4 +1,4 @@
-""" Dummy tracker for testing purposes. """
+"""Dummy tracker for testing purposes."""
 
 from __future__ import absolute_import
 import os
@@ -6,7 +6,7 @@ from sys import path
 import time
 
 def _main_trax():
-    """ Dummy TraX tracker main function for testing purposes."""
+    """Dummy TraX tracker main function for testing purposes."""
     from trax import Image, Region, Server, TraxStatus
 
     objects = None
@@ -21,7 +21,7 @@ def _main_trax():
             time.sleep(0.1)
 
 def _main_folder():
-    """ Dummy tracker main function for testing purposes."""
+    """Dummy tracker main function for testing purposes."""
    
     from vot.region.io import parse_region
    

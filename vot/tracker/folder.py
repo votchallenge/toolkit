@@ -93,22 +93,22 @@ def parse_outputs(folder: str, oids: List[str]) -> Dict[str, List[ObjectStatus]]
     return {oid: parse_output(folder, oid) for oid in oids}
 
 class TrackerFolderRuntime(TrackerRuntime):
-    """A tracker runtime that executes a tracker process in a temporary folder. 
-    The folder is deleted after the tracker process finishes.
-    
-    The core idea is that a tracker runs as a batch program over a directory of structured data. 
+    """A tracker runtime that executes a tracker process in a temporary folder. The
+    folder is deleted after the tracker process finishes.
+
+    The core idea is that a tracker runs as a batch program over a directory of structured data.
     The tracker then outputs the required output in the specified files.
 
     Sequence specification
-    
-    The sequence is specified as a sequence of image files. 
+
+    The sequence is specified as a sequence of image files.
     Multiple input channels are supported, depending on the sequence.
-    The file is “frames_<CHANNEL>.txt”, and each line contains a single path to a frame file. 
+    The file is “frames_<CHANNEL>.txt”, and each line contains a single path to a frame file.
     This can be an absolute or a relative path (in this case, relative to the working directory).
 
     Query specification
 
-    A query is specified in a single file per object. 
+    A query is specified in a single file per object.
     All files follow the naming pattern “query_<ID>.txt”, where <ID> denotes the string identifier of an object (alphanumeric sequence). The file contains the following lines:
 
     * Offset - a single value for the temporal location of the query; frames start with number 0.
@@ -119,20 +119,19 @@ class TrackerFolderRuntime(TrackerRuntime):
         * Polygon - six or more (even) numbers
         * Mask - using the same format as the toolkit is using (code from the toolkit can be used)
     * Additional lines contain optional arguments in the form of key=value
-    
+
     Output trajectories
 
     At the end of the tracking process, the tracker should output a sequence of files.
     For each query object, the mandatory file is “output_<ID>.txt”, which contains the object states, one line per frame in the sequence.
     This means that if the object is not present in a given frame or was even queried at a later frame, the tracker should output “0” for that frame.
 
-    Additionally, the tracker may return optional values for the object in the form of “output_<ID>_<VALUE>.txt”, where each frame's values are provided.    
+    Additionally, the tracker may return optional values for the object in the form of “output_<ID>_<VALUE>.txt”, where each frame's values are provided.
     """
     
     def __init__(self, tracker: Tracker, command: str, log: bool = False, timeout: int = 30, linkpaths=None, envvars=None, arguments=None, **kwargs):
         """Initializes the tracker runtime.
-        
-        Arguments:
+
             tracker (Tracker) -- The tracker to run.
             command (str) -- The command to run the tracker.
             log (bool) -- Whether to log the tracker output.

@@ -5,21 +5,18 @@ import re
 from vot.utilities import normalize_path
 
 def escape_path(path):
-    """ Escapes a path. This method is used to escape a path.
-    
-    Args:
-        path: The path to escape.
-        
-    Returns:
-        The escaped path.
-    """
+    """Escapes a path. This method is used to escape a path.
+
+    :param path: The path to escape.
+
+    :returns: The escaped path."""
     if sys.platform.startswith("win"):
         return path.replace("\\\\", "\\").replace("\\", "\\\\")
     else:
         return path.replace("'", "'\\''")
 
 def normalize_paths(paths, tracker):
-    """ Normalizes a list of paths relative to the tracker source."""
+    """Normalizes a list of paths relative to the tracker source."""
     root = os.path.dirname(tracker.source)
     return [normalize_path(path, root) for path in paths]
 
@@ -29,23 +26,21 @@ class PythonAdapter():
         self.constructor = constructor
     
     def __call__(self, tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, python=None, **kwargs):
-        """ Creates a Python adapter for a tracker. This method is used to create a Python adapter for a tracker runtime creation.
+        """Creates a Python adapter for a tracker. This method is used to create a
+        Python adapter for a tracker runtime creation.
 
-        Args:
-            tracker: The tracker to create the adapter for.
-            command: The command to run the tracker.
-            envvars: The environment variables to set.
-            paths: The paths to add to the Python path.
-            log: Whether to log the tracker output.
-            timeout: The timeout in seconds.
-            linkpaths: The paths to link.
-            arguments: The arguments to pass to the tracker.
-            python: The Python interpreter to use.
-            kwargs: Additional keyword arguments for constructor.
+        :param tracker: The tracker to create the adapter for.
+        :param command: The command to run the tracker.
+        :param envvars: The environment variables to set.
+        :param paths: The paths to add to the Python path.
+        :param log: Whether to log the tracker output.
+        :param timeout: The timeout in seconds.
+        :param linkpaths: The paths to link.
+        :param arguments: The arguments to pass to the tracker.
+        :param python: The Python interpreter to use.
+        :param kwargs: Additional keyword arguments for constructor.
 
-        Returns:
-            The tracker runtime object.
-        """
+        :returns: The tracker runtime object."""
         if not isinstance(paths, list):
             paths = paths.split(os.pathsep)
 
@@ -70,23 +65,21 @@ class MatlabAdapter():
         self.constructor = constructor
 
     def __call__(self, tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, matlab=None, **kwargs):
-        """ Creates a Matlab adapter for a tracker. This method is used to create a Matlab adapter for a tracker. 
+        """Creates a Matlab adapter for a tracker. This method is used to create a
+        Matlab adapter for a tracker.
 
-        Args:
-            tracker: The tracker to create the adapter for.
-            command: The command to run the tracker.
-            envvars: The environment variables to set.
-            paths: The paths to add to the Matlab path.
-            log: Whether to log the tracker output.
-            timeout: The timeout in seconds.
-            linkpaths: The paths to link.
-            arguments: The arguments to pass to the tracker.
-            matlab: The Matlab executable to use.
-            kwargs: Additional keyword arguments for constructor.
+        :param tracker: The tracker to create the adapter for.
+        :param command: The command to run the tracker.
+        :param envvars: The environment variables to set.
+        :param paths: The paths to add to the Matlab path.
+        :param log: Whether to log the tracker output.
+        :param timeout: The timeout in seconds.
+        :param linkpaths: The paths to link.
+        :param arguments: The arguments to pass to the tracker.
+        :param matlab: The Matlab executable to use.
+        :param kwargs: Additional keyword arguments for constructor.
 
-        Returns:
-            The tracker runtime object.
-        """
+        :returns: The tracker runtime object."""
         if not isinstance(paths, list):
             paths = paths.split(os.pathsep)
 
@@ -129,22 +122,20 @@ class OctaveAdapter():
         self.constructor = constructor
 
     def __call__(self, tracker, command, envvars, paths="", log: bool = False, timeout: int = 30, linkpaths=None, arguments=None, **kwargs):
-        """ Creates an Octave adapter for a tracker. This method is used to create an Octave adapter for a tracker. 
+        """Creates an Octave adapter for a tracker. This method is used to create an
+        Octave adapter for a tracker.
 
-        Args:
-            tracker: The tracker to create the adapter for.
-            command: The command to run the tracker.
-            envvars: The environment variables to set.
-            paths: The paths to add to the Octave path.
-            log: Whether to log the tracker output.
-            timeout: The timeout in seconds.
-            linkpaths: The paths to link.
-            arguments: The arguments to pass to the tracker.
-            kwargs: Additional keyword arguments.
+        :param tracker: The tracker to create the adapter for.
+        :param command: The command to run the tracker.
+        :param envvars: The environment variables to set.
+        :param paths: The paths to add to the Octave path.
+        :param log: Whether to log the tracker output.
+        :param timeout: The timeout in seconds.
+        :param linkpaths: The paths to link.
+        :param arguments: The arguments to pass to the tracker.
+        :param kwargs: Additional keyword arguments.
 
-        Returns:
-            The Octave TraX runtime object.
-        """
+        :returns: The Octave TraX runtime object."""
 
         if not isinstance(paths, list):
             paths = paths.split(os.pathsep)

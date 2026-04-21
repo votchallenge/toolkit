@@ -1,4 +1,4 @@
-""" This module contains classes for generating reports and visualizations. """
+"""This module contains classes for generating reports and visualizations."""
 
 import typing
 import json
@@ -32,19 +32,24 @@ from vot.utilities import Registry, ObjectResolver
 Table = collections.namedtuple("Table", ["header", "data", "order"])
 
 class Plot(object):
-    """ Base class for all plots. """
+    """Base class for all plots."""
 
     def __init__(self, identifier: str, xlabel: str, ylabel: str,
         xlimits: typing.Tuple[float, float], ylimits: typing.Tuple[float, float], trait = None):
-        """ Initializes the plot.
-        
-        Args:
-            identifier (str): The identifier of the plot.
-            xlabel (str): The label of the x axis.
-            ylabel (str): The label of the y axis.
-            xlimits (tuple): The limits of the x axis.
-            ylimits (tuple): The limits of the y axis.
-            trait (str): The trait of the plot.    
+        """Initializes the plot.
+
+        :param identifier: The identifier of the plot.
+        :type identifier: str
+        :param xlabel: The label of the x axis.
+        :type xlabel: str
+        :param ylabel: The label of the y axis.
+        :type ylabel: str
+        :param xlimits: The limits of the x axis.
+        :type xlimits: tuple
+        :param ylimits: The limits of the y axis.
+        :type ylimits: tuple
+        :param trait: The trait of the plot.
+        :type trait: str
         """
 
         self._identifier = identifier
@@ -64,43 +69,47 @@ class Plot(object):
             self._axes.autoscale(False, axis="y")
 
     def __call__(self, key, data):
-        """ Draws the data on the plot."""
+        """Draws the data on the plot."""
         self.draw(key, data)
 
     def draw(self, key, data):
-        """ Draws the data on the plot."""
+        """Draws the data on the plot."""
         raise NotImplementedError
     
     @property
     def axes(self) -> Axes:
-        """ Returns the axes of the plot."""
+        """Returns the axes of the plot."""
         return self._axes
 
     def save(self, output: str, fmt: str):
-        """ Saves the plot to a file.
-        
-        Args:
-            output (str): The output file.
-            fmt (str): The format of the output file.
+        """Saves the plot to a file.
+
+        :param output: The output file.
+        :type output: str
+        :param fmt: The format of the output file.
+        :type fmt: str
         """
         self._figure.savefig(output, format=fmt, bbox_inches='tight', transparent=True)
 
     @property
     def identifier(self):
-        """ Returns the identifier of the plot."""
+        """Returns the identifier of the plot."""
         return self._identifier
 
 class Video(object):
-    """ Base class for all videos. """
+    """Base class for all videos."""
 
     def __init__(self, identifier: str, frames: FrameList, fps: int = 30, trait = None):
-        """ Initializes the video object.
-        
-        Args:
-            identifier (str): The identifier of the video.
-            frames (FrameList): The frames of the video.
-            fps (int): The frames per second of the video.
-            trait (str): The trait of the video.    
+        """Initializes the video object.
+
+        :param identifier: The identifier of the video.
+        :type identifier: str
+        :param frames: The frames of the video.
+        :type frames: FrameList
+        :param fps: The frames per second of the video.
+        :type fps: int
+        :param trait: The trait of the video.
+        :type trait: str
         """
 
         self._identifier = identifier
@@ -109,15 +118,15 @@ class Video(object):
         self._manager = StyleManager.default()
 
     def __call__(self, frame: int, key, data):
-        """ Draws the data on the frame."""
+        """Draws the data on the frame."""
         self.draw(frame, key, data)
 
     def draw(self, frame: int, key, data):
-        """ Draws the data on the plot."""
+        """Draws the data on the plot."""
         raise NotImplementedError
 
     def render(self, frame: int):
-        """ Renders the frame and returns it as a NumPy array."""
+        """Renders the frame and returns it as a NumPy array."""
         raise NotImplementedError
 
     def save(self, output: str, fmt: str):
@@ -158,14 +167,14 @@ class Video(object):
 
     @property
     def identifier(self):
-        """ Returns the identifier of the plot."""
+        """Returns the identifier of the plot."""
         return self._identifier
 
 class ScatterPlot(Plot):
-    """ A scatter plot."""
+    """A scatter plot."""
 
     def draw(self, key, data):
-        """ Draws the data on the plot. """
+        """Draws the data on the plot."""
         if data is None or len(data) != 2:
             return
 
@@ -173,10 +182,10 @@ class ScatterPlot(Plot):
         self._axes.scatter(data[0], data[1], **style.point_style())
 
 class LinePlot(Plot):
-    """ A line plot."""
+    """A line plot."""
 
     def draw(self, key, data):
-        """ Draws the data on the plot."""
+        """Draws the data on the plot."""
         if data is None or len(data) < 1:
             return
 
@@ -231,7 +240,7 @@ class ObjectVideo(Video):
 
 
 def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[Sequence], results, storage: "Storage", serializer: str, name: str):
-    """ Generates a serialized report of the results.  """
+    """Generates a serialized report of the results."""
 
     from vot.utilities.io import JSONEncoder, YAMLEncoder
 
@@ -260,7 +269,7 @@ def generate_serialized(trackers: typing.List[Tracker], sequences: typing.List[S
         raise RuntimeError("Unknown serializer")
 
 def configure_axes(figure, rect=None, _=None):
-    """ Configures the axes of the plot. """
+    """Configures the axes of the plot."""
 
     axes = PlotAxes(figure, rect or [0, 0, 1, 1])
 
@@ -269,7 +278,7 @@ def configure_axes(figure, rect=None, _=None):
     return axes
 
 def configure_figure(traits=None):
-    """ Configures the figure of the plot. """
+    """Configures the figure of the plot."""
 
     args = {}
     if traits == "ar":
@@ -282,18 +291,18 @@ def configure_figure(traits=None):
     return Figure(**args)
 
 class PlotStyle(object):
-    """ A style for a plot."""
+    """A style for a plot."""
 
     def line_style(self, opacity=1):
-        """ Returns the style for a line."""
+        """Returns the style for a line."""
         raise NotImplementedError
 
     def point_style(self):
-        """ Returns the style for a point."""
+        """Returns the style for a point."""
         raise NotImplementedError
 
     def region_style(self):
-        """ Returns the style for a region, used with DrawHandle."""
+        """Returns the style for a region, used with DrawHandle."""
         raise NotImplementedError
 
 def _get_default_colormap():
@@ -306,26 +315,26 @@ def _get_default_colormap():
         return colormaps["Set1"]
 
 class DefaultStyle(PlotStyle):
-    """ The default style for a plot."""
+    """The default style for a plot."""
 
     colormap = _get_default_colormap()
     colorcount = 20
     markers = ["o", "v", "<", ">", "^", "8", "*"]
 
     def __init__(self, number):
-        """ Initializes the style. 
-        
-        Args:
-            number (int): The number of the style.
+        """Initializes the style.
+
+        :param number: The number of the style.
+        :type number: int
         """
         super().__init__()
         self._number = number
 
     def line_style(self, opacity=1):
-        """ Returns the style for a line.
-        
-        Args:
-            opacity (float): The opacity of the line.
+        """Returns the style for a line.
+
+        :param opacity: The opacity of the line.
+        :type opacity: float
         """
         color = self.colormap((self._number % self.colormap.N))
         if opacity < 1:
@@ -333,56 +342,57 @@ class DefaultStyle(PlotStyle):
         return dict(linewidth=1, c=color)
 
     def point_style(self):
-        """ Returns the style for a point.
-        
-        Args:
-            color (str): The color of the point.
-            opacity (float): The opacity of the line.
+        """Returns the style for a point.
+
+        :param color: The color of the point.
+        :type color: str
+        :param opacity: The opacity of the line.
+        :type opacity: float
         """
         color = self.colormap((self._number % self.colormap.N))
         marker = DefaultStyle.markers[self._number % len(DefaultStyle.markers)]
         return dict(marker=marker, c=[color])
 
     def region_style(self):
-        """ Returns the style for a region, used with DrawHandle."""
+        """Returns the style for a region, used with DrawHandle."""
         color = self.colormap((self._number % self.colormap.N))
         return dict(color=color, fill=True)
 
 class Legend(object):
-    """ A legend for a plot."""
+    """A legend for a plot."""
 
     def __init__(self, style_factory=DefaultStyle):
-        """ Initializes the legend.
-        
-        Args:
-            style_factory (PlotStyleFactory): The style factory.
+        """Initializes the legend.
+
+        :param style_factory: The style factory.
+        :type style_factory: PlotStyleFactory
         """
         self._mapping = collections.OrderedDict()
         self._counter = 0
         self._style_factory = style_factory
 
     def _number(self, key):
-        """ Returns the number for a key."""
+        """Returns the number for a key."""
         if not key in self._mapping:
             self._mapping[key] = self._counter
             self._counter += 1
         return self._mapping[key]
 
     def __getitem__(self, key) -> PlotStyle:
-        """ Returns the style for a key."""
+        """Returns the style for a key."""
         number = self._number(key)
         return self._style_factory(number)
 
     def _style(self, number):
-        """ Returns the style for a number."""
+        """Returns the style for a number."""
         raise NotImplementedError
 
     def keys(self):
-        """ Returns the keys of the legend."""
+        """Returns the keys of the legend."""
         return self._mapping.keys()
 
     def figure(self, key):
-        """ Returns a figure for a key."""
+        """Returns a figure for a key."""
         style = self[key]
         figure = Figure(figsize=(0.1, 0.1))  # TODO: hardcoded
         axes = PlotAxes(figure, [0, 0, 1, 1], yticks=[], xticks=[], frame_on=False)
@@ -394,7 +404,7 @@ class Legend(object):
         return figure
 
 class StyleManager(Attributee):
-    """ A manager for styles. """
+    """A manager for styles."""
 
     plots = Callable(default=DefaultStyle)
     axes = Callable(default=configure_axes)
@@ -403,16 +413,16 @@ class StyleManager(Attributee):
     _context = threading.local()
 
     def __init__(self, **kwargs):
-        """ Initializes a new instance of the StyleManager class."""
+        """Initializes a new instance of the StyleManager class."""
         super().__init__(**kwargs)
         self._legends = dict()
 
     def __getitem__(self, key) -> PlotStyle:
-        """ Gets the style for the given key."""
+        """Gets the style for the given key."""
         return self.plot_style(key)
 
     def legend(self, key) -> Legend:
-        """ Gets the legend for a given key."""
+        """Gets the legend for a given key."""
         if inspect.isclass(key):
             klass = key
         else:
@@ -424,22 +434,20 @@ class StyleManager(Attributee):
         return self._legends[klass]
 
     def plot_style(self, key) -> PlotStyle:
-        """ Gets the plot style for a given key."""
+        """Gets the plot style for a given key."""
         return self.legend(key)[key]
 
     def make_axes(self, figure, rect=None, trait=None) -> Axes:
-        """ Makes the axes for a given figure."""
+        """Makes the axes for a given figure."""
         return self.axes(figure, rect, trait)
 
     def make_figure(self, trait=None) -> typing.Tuple[Figure, Axes]:
-        """ Makes the figure for a given trait.
-        
-        Args:
-            trait (str): The trait for which to make the figure.
+        """Makes the figure for a given trait.
 
-        Returns:
-            A tuple containing the figure and the axes.
-        """
+        :param trait: The trait for which to make the figure.
+        :type trait: str
+
+        :returns: A tuple containing the figure and the axes."""
         figure = self.figure(trait)
         axes = self.make_axes(figure, trait=trait)
 
@@ -466,7 +474,7 @@ class StyleManager(Attributee):
 
     @staticmethod
     def default() -> "StyleManager":
-        """ Gets the default style manager."""
+        """Gets the default style manager."""
 
         manager = getattr(StyleManager._context, 'style_manager', None)
         if manager is None:
@@ -477,23 +485,23 @@ class StyleManager(Attributee):
         return manager
 
 class TrackerSorter(Attributee):
-    """ A sorter for trackers. """
+    """A sorter for trackers."""
 
     experiment = String(default=None)
     analysis = String(default=None)
     result = Integer(val_min=0, default=0)
 
     def __call__(self, experiments: typing.List["Experiment"], trackers: typing.List["Tracker"], sequences: typing.List["Sequence"]):
-        """ Sorts the trackers. 
-        
-        Arguments:
-            experiments (typing.List[Experiment]): The experiments.
-            trackers (typing.List[Tracker]): The trackers.
-            sequences (typing.List[Sequence]): The sequences.
-            
-        Returns:
-            A list of indices of the trackers in the sorted order.
-        """
+        """Sorts the trackers.
+
+        :param experiments: The experiments.
+        :type experiments: typing.List[Experiment]
+        :param trackers: The trackers.
+        :type trackers: typing.List[Tracker]
+        :param sequences: The sequences.
+        :type sequences: typing.List[Sequence]
+
+        :returns: A list of indices of the trackers in the sorted order."""
         from vot.analysis import AnalysisError
 
         if self.experiment is None or self.analysis is None:
@@ -522,7 +530,10 @@ class TrackerSorter(Attributee):
         return indices
 
 class Report(Attributee):
-    """ A report generator for various reports. Base class for all report generators. """
+    """A report generator for various reports.
+
+    Base class for all report generators.
+    """
 
     async def generate(self, experiments, trackers, sequences):
         raise NotImplementedError()
@@ -551,7 +562,10 @@ class Report(Attributee):
         return (future.result() for future in futures)
 
 class SeparableReport(Report):
-    """ A report generator that is separable across experiments. Base class for all separable report generators. """
+    """A report generator that is separable across experiments.
+
+    Base class for all separable report generators.
+    """
 
     async def perexperiment(self, experiment, trackers, sequences):
         raise NotImplementedError()
@@ -586,7 +600,7 @@ class SeparableReport(Report):
 report_registry = Registry("report")
 
 class ReportConfiguration(Attributee):
-    """ A configuration for reports."""
+    """A configuration for reports."""
 
     style = Nested(StyleManager)
     sort = Nested(TrackerSorter)
@@ -708,9 +722,8 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
 
         def only_plots(reports, storage: "Storage"):
             """Filter out all non-plot items from the report and save them to storage.
-            
-            Args:
-                reports: The reports to filter.
+
+            :param reports: The reports to filter.
             """
             for key, section in reports.items():
                 for item in section:

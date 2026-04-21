@@ -1,4 +1,4 @@
-""" Unit tests for the tracker module. """
+"""Unit tests for the tracker module."""
 
 import unittest
 
@@ -42,10 +42,10 @@ class TestStacks(unittest.TestCase):
             runtime.run(sequence, queries=queries)
 
 def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, sequence: str = None, ignore: list = None):
-    """Run a test for a tracker
+    """Run a test for a tracker.
 
-    Args:
-        config (argparse.Namespace): Configuration
+    :param config: Configuration
+    :type config: argparse.Namespace
     """
 
     logger = get_logger()
@@ -53,14 +53,16 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
     handle = None
 
     def visualize_state(axes, frame: Frame, reference, state):
-        """Visualize the frame and the state of the tracker. 
-        
-        Args:
-            axes (matplotlib.axes.Axes): The axes to draw on.
-            frame (Frame): The frame to draw.
-            reference (list): List of references.
-            state (ObjectStatus): The state of the tracker.
-            
+        """Visualize the frame and the state of the tracker.
+
+        :param axes: The axes to draw on.
+        :type axes: matplotlib.axes.Axes
+        :param frame: The frame to draw.
+        :type frame: Frame
+        :param reference: List of references.
+        :type reference: list
+        :param state: The state of the tracker.
+        :type state: ObjectStatus
         """
         axes.clear()
         handle.image(frame.channel())
@@ -86,9 +88,9 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
 
         def on_press(event):
             """Callback for key press event.
-            
-            Args:
-                event (matplotlib.backend_bases.Event): The event.
+
+            :param event: The event.
+            :type event: matplotlib.backend_bases.Event
             """
             if event.key == 'q':
                 context["continue"] = False

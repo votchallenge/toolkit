@@ -1,5 +1,4 @@
-
-""" This module implements the multistart experiment. """
+"""This module implements the multistart experiment."""
 
 from typing import Callable
 
@@ -12,15 +11,16 @@ from vot.experiment import Experiment
 from vot.tracker import ObjectQuery, Tracker, Trajectory
 
 def find_anchors(sequence: Sequence, anchor="anchor"):
-    """Find anchor frames in the sequence. Anchor frames are frames where the given object is visible and can be used for initialization.
-    
-    Args:
-        sequence (Sequence): The sequence to be scanned.
-        anchor (str, optional): The name of the object to be used as an anchor. Defaults to "anchor".
-        
-    Returns:
-        [tuple]: A tuple containing two lists of frames. The first list contains forward anchors, the second list contains backward anchors.
-    """
+    """Find anchor frames in the sequence. Anchor frames are frames where the given
+    object is visible and can be used for initialization.
+
+    :param sequence: The sequence to be scanned.
+    :type sequence: Sequence
+    :param anchor: The name of the object to be used as an anchor. Defaults to "anchor".
+    :type anchor: str, optional
+
+    :returns: A tuple containing two lists of frames. The first list contains forward anchors, the second list contains backward anchors.
+    :rtype: [tuple]"""
     forward = []
     backward = []
     for frame in range(len(sequence)):
@@ -33,27 +33,32 @@ def find_anchors(sequence: Sequence, anchor="anchor"):
     return forward, backward
 
 class MultiStartExperiment(Experiment):
-    """The multistart experiment. The experiment works by utilizing anchor frames in the sequence. 
-    Anchor frames are frames where the given object is visible and can be used for initialization. 
-    
-    The tracker is then initialized in each anchor frame and run until the end of the sequence either forward or backward. 
-    
-    This experiment assumes that anchor frames are labeled in the sequence with a specific value (default is "anchor") 
-    and that the value of the object is positive for forward anchors and negative for backward anchors. If no anchor
-    information is present in the sequence, the experiment will fail with an error. The experiment can be run with or without supervision.
+    """The multistart experiment. The experiment works by utilizing anchor frames in the
+    sequence. Anchor frames are frames where the given object is visible and can be used
+    for initialization.
+
+    The tracker is then initialized in each anchor frame and run until the end of the
+    sequence either forward or backward.
+
+    This experiment assumes that anchor frames are labeled in the sequence with a
+    specific value (default is "anchor") and that the value of the object is positive
+    for forward anchors and negative for backward anchors. If no anchor information is
+    present in the sequence, the experiment will fail with an error. The experiment can
+    be run with or without supervision.
     """
 
     anchor = String(default="anchor")
 
     def scan(self, tracker: Tracker, sequence: Sequence) -> tuple:
         """Scan the results of the experiment for the given tracker and sequence.
-        
-        Args:
-            tracker (Tracker): The tracker to be scanned.
-            sequence (Sequence): The sequence to be scanned.
-        
-        Returns:
-            [tuple]: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object."""
+
+        :param tracker: The tracker to be scanned.
+        :type tracker: Tracker
+        :param sequence: The sequence to be scanned.
+        :type sequence: Sequence
+
+        :returns: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
+        :rtype: [tuple]"""
     
         files = []
         complete = True
@@ -76,16 +81,17 @@ class MultiStartExperiment(Experiment):
 
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None) -> None:
         """Execute the experiment for the given tracker and sequence.
-        
-        Args:
-            tracker (Tracker): The tracker to be executed.
-            sequence (Sequence): The sequence to be executed.
-            force (bool, optional): Force re-execution of the experiment. Defaults to False.
-            callback (Callable, optional): A callback function that is called after each frame. Defaults to None.
-            
-        Raises:
-            RuntimeError: If the sequence does not contain any anchors.
-        """
+
+        :param tracker: The tracker to be executed.
+        :type tracker: Tracker
+        :param sequence: The sequence to be executed.
+        :type sequence: Sequence
+        :param force: Force re-execution of the experiment. Defaults to False.
+        :type force: bool, optional
+        :param callback: A callback function that is called after each frame. Defaults to None.
+        :type callback: Callable, optional
+
+        :raises RuntimeError: If the sequence does not contain any anchors."""
 
         results = self.results(tracker, sequence)
 

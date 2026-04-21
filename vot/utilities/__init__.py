@@ -1,4 +1,5 @@
-""" This module contains various utility functions and classes used throughout the toolkit. """
+"""This module contains various utility functions and classes used throughout the
+toolkit."""
 
 import os
 import sys
@@ -21,17 +22,14 @@ import colorama
 from class_registry import ClassRegistry
 
 def import_class(classpath: str) -> typing.Type:
-    """Import a class from a string by importing parent packages. 
+    """Import a class from a string by importing parent packages.
 
-    Args:
-        classpath (str): String representing a canonical class name with all parent packages.
+    :param classpath: String representing a canonical class name with all parent packages.
+    :type classpath: str
 
-    Raises:
-        ImportError: Raised when
-
-    Returns:
-        [type]: [description]
-    """
+    :raises ImportError: Raised when
+    :returns: [description]
+    :rtype: [type]"""
     delimiter = classpath.rfind(".")
     if delimiter == -1:
         raise ImportError("Class alias '{}' not found".format(classpath))
@@ -42,24 +40,18 @@ def import_class(classpath: str) -> typing.Type:
 
 def class_fullname(o):
     """Returns the full name of the class of the given object.
-    
-    Args:
-        o: The object to get the class name from.
-        
-    Returns:
-        The full name of the class of the given object.
-    """
+
+    :param o: The object to get the class name from.
+
+    :returns: The full name of the class of the given object."""
     return class_string(o.__class__)
 
 def class_string(kls):
     """Returns the full name of the given class.
 
-    Args:
-        kls: The class to get the name from.
+    :param kls: The class to get the name from.
 
-    Returns:
-        The full name of the given class.
-    """
+    :returns: The full name of the given class."""
     assert inspect.isclass(kls)
     module = kls.__module__
     if module is None or module == str.__class__.__module__:
@@ -70,37 +62,29 @@ def class_string(kls):
 def flip(size: Tuple[Number, Number]) -> Tuple[Number, Number]:
     """Flips the given size tuple.
 
-    Args:
-        size: The size tuple to flip.
-        
-    Returns:
-        The flipped size tuple.
-    """
+    :param size: The size tuple to flip.
+
+    :returns: The flipped size tuple."""
     return (size[1], size[0])
 
 def flatten(nested_list):
     """Flattens a nested list.
 
-    Args:
-        nested_list: The nested list to flatten.
+    :param nested_list: The nested list to flatten.
 
-    Returns:
-        The flattened list.
-    """
+    :returns: The flattened list."""
     return [item for sublist in nested_list for item in sublist]
 
 
 class Progress(object):
-    """Wrapper around tqdm progress bar, enables silecing the progress output and some more
-    costumizations.
-    """
+    """Wrapper around tqdm progress bar, enables silecing the progress output and some
+    more costumizations."""
 
     def __init__(self, description="Processing", total=100):
         """Creates a new progress bar.
 
-        Args:
-            description: The description of the progress bar.
-            total: The total number of steps.
+        :param description: The description of the progress bar.
+        :param total: The total number of steps.
         """
         
         from vot.utilities.notebook import is_notebook
@@ -130,19 +114,15 @@ class Progress(object):
     def _percent(self, n):
         """Returns the percentage of the given value.
 
-        Args:
-            n: The value to compute the percentage of.
+        :param n: The value to compute the percentage of.
 
-        Returns:
-            The percentage of the given value.
-        """
+        :returns: The percentage of the given value."""
         return int((n * 100) / self._total)
 
     def absolute(self, value):
         """Sets the progress to the given value.
 
-        Args:
-            value: The value to set the progress to.
+        :param value: The value to set the progress to.
         """
         if self._bar is None:
             if self._total == 0:
@@ -157,8 +137,7 @@ class Progress(object):
     def relative(self, n):
         """Increments the progress by the given value.
 
-        Args:
-            n: The value to increment the progress by.
+        :param n: The value to increment the progress by.
         """
         if self._bar is None:
             if self._total == 0:
@@ -173,8 +152,7 @@ class Progress(object):
     def total(self, t):
         """Sets the total number of steps.
 
-        Args:
-            t: The total number of steps.
+        :param t: The total number of steps.
         """
         if self._bar is None:
             if self._total == 0:
@@ -201,10 +179,9 @@ class Progress(object):
 def extract_files(archive, destination, callback = None):
     """Extracts all files from the given archive to the given destination.
 
-    Args:
-        archive: The archive to extract the files from.
-        destination: The destination to extract the files to.
-        callback: An optional callback function that is called after each file is extracted.
+    :param archive: The archive to extract the files from.
+    :param destination: The destination to extract the files to.
+    :param callback: An optional callback function that is called after each file is extracted.
     """
     from zipfile import ZipFile
 
@@ -220,15 +197,16 @@ def extract_files(archive, destination, callback = None):
                 callback(1, total)
 
 def read_properties(filename: str, delimiter: str = '=') -> typing.Dict[str, str]:
-    """Reads a given properties file with each line of the format key=value. Returns a dictionary containing the pairs.
+    """Reads a given properties file with each line of the format key=value. Returns a
+    dictionary containing the pairs.
 
-    Args:
-        filename (str): The name of the file to be read.
-        delimiter (str, optional): Key-value delimiter. Defaults to '='.
+    :param filename: The name of the file to be read.
+    :type filename: str
+    :param delimiter: Key-value delimiter. Defaults to '='.
+    :type delimiter: str, optional
 
-    Returns:
-        [typing.Dict[str, str]]: Resuting properties as a dictionary
-    """
+    :returns: Resuting properties as a dictionary
+    :rtype: [typing.Dict[str, str]]"""
     if not os.path.exists(filename):
         return {}
     open_kwargs = {'mode': 'r', 'newline': ''} if six.PY3 else {'mode': 'rb'}
@@ -246,10 +224,12 @@ def write_properties(filename: str, dictionary: Mapping[str, Any], delimiter: st
     """Writes the provided dictionary in key sorted order to a properties
         file with each line in the format: key<delimiter>value
 
-    Args:
-        filename (str): the name of the file to be written
-        dictionary (Mapping[str, str]): a dictionary containing the key/value pairs.
-        delimiter (str, optional): _description_. Defaults to '='.
+    :param filename: the name of the file to be written
+    :type filename: str
+    :param dictionary: a dictionary containing the key/value pairs.
+    :type dictionary: Mapping[str, str]
+    :param delimiter: _description_. Defaults to '='.
+    :type delimiter: str, optional
     """
 
     open_kwargs = {'mode': 'w', 'newline': ''} if six.PY3 else {'mode': 'wb'}
@@ -259,14 +239,13 @@ def write_properties(filename: str, dictionary: Mapping[str, Any], delimiter: st
         writer.writerows(sorted(dictionary.items()))
 
 def file_hash(filename: str) -> Tuple[str, str]:
-    """Calculates MD5 and SHA1 hashes based on file content
+    """Calculates MD5 and SHA1 hashes based on file content.
 
-    Args:
-        filename (str): Filename of the file to open and analyze
+    :param filename: Filename of the file to open and analyze
+    :type filename: str
 
-    Returns:
-        Tuple[str, str]: MD5 and SHA1 hashes as hexadecimal strings.
-    """
+    :returns: MD5 and SHA1 hashes as hexadecimal strings.
+    :rtype: Tuple[str, str]"""
     
     bufsize = 65536  # lets read stuff in 64kb chunks!
 
@@ -284,15 +263,14 @@ def file_hash(filename: str) -> Tuple[str, str]:
     return md5.hexdigest(), sha1.hexdigest()
 
 def arg_hash(*args, **kwargs) -> str:
-    """Computes hash based on input positional and keyword arguments. 
+    """Computes hash based on input positional and keyword arguments.
 
     The algorithm tries to convert all arguments to string, then enclose them with delimiters. The
-    positonal arguments are listed as is, keyword arguments are sorted and encoded with their keys as 
+    positonal arguments are listed as is, keyword arguments are sorted and encoded with their keys as
     well as values.
 
-    Returns:
-        str: SHA1 hash as hexadecimal string
-    """
+    :returns: SHA1 hash as hexadecimal string
+    :rtype: str"""
     sha1 = hashlib.sha1()
 
     for arg in args:
@@ -306,22 +284,20 @@ def arg_hash(*args, **kwargs) -> str:
 def which(program: str) -> str:
     """Locates an executable in system PATH list by its name.
 
-    Args:
-        program (str): Name of the executable
+    :param program: Name of the executable
+    :type program: str
 
-    Returns:
-        str: Full path or None if not found
-    """
+    :returns: Full path or None if not found
+    :rtype: str"""
 
     def is_exe(fpath):
         """Checks if the given path is an executable file.
-        
-        Args:
-            fpath (str): Path to check
-            
-        Returns:
-            bool: True if the path is an executable file
-        """
+
+        :param fpath: Path to check
+        :type fpath: str
+
+        :returns: True if the path is an executable file
+        :rtype: bool"""
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
     fpath, _ = os.path.split(program)
@@ -339,13 +315,13 @@ def which(program: str) -> str:
 def normalize_path(path, root=None):
     """Normalizes the given path by making it absolute and removing redundant parts.
 
-    Args:
-        path (str): Path to normalize
-        root (str, optional): Root path to use if the given path is relative. Defaults to None.
+    :param path: Path to normalize
+    :type path: str
+    :param root: Root path to use if the given path is relative. Defaults to None.
+    :type root: str, optional
 
-    Returns:
-        str: Normalized path
-    """
+    :returns: Normalized path
+    :rtype: str"""
     if os.path.isabs(path):
         return path
     if not root:
@@ -355,45 +331,45 @@ def normalize_path(path, root=None):
 def localize_path(path):
     """Converts path to local format (backslashes on Windows, slashes on Linux)
 
-    Args:
-        path (str): Path to convert
+    :param path: Path to convert
+    :type path: str
 
-    Returns:
-        str: Converted path
-    """
+    :returns: Converted path
+    :rtype: str"""
     if sys.platform.startswith("win"):
         return path.replace("/", "\\")
     else:
         return path.replace("\\", "/")
 
 def to_string(n: Any) -> str:
-    """Converts object to string, returs empty string if object is None (so a bit different behaviour than
-    the original string conversion).
+    """Converts object to string, returs empty string if object is None (so a bit
+    different behaviour than the original string conversion).
 
-    Args:
-        n (Any): Object of any kind
+    :param n: Object of any kind
+    :type n: Any
 
-    Returns:
-        str: String representation (using built-in conversion)
-    """
+    :returns: String representation (using built-in conversion)
+    :rtype: str"""
     if n is None:
         return ""
     else:
         return str(n)
 
 def to_number(val, max_n = None, min_n = None, conversion=int):
-    """Converts the given value to a number and checks if it is within the given range. If the value is not a number, 
-     a RuntimeError is raised.
-      
-    Args:
-        val (Any): Value to convert
-        max_n (int, optional): Maximum allowed value. Defaults to None.
-        min_n (int, optional): Minimum allowed value. Defaults to None.
-        conversion (function, optional): Conversion function. Defaults to int.
-    
-    Returns:
-        int: Converted value
-    """
+    """Converts the given value to a number and checks if it is within the given range.
+    If the value is not a number, a RuntimeError is raised.
+
+    :param val: Value to convert
+    :type val: Any
+    :param max_n: Maximum allowed value. Defaults to None.
+    :type max_n: int, optional
+    :param min_n: Minimum allowed value. Defaults to None.
+    :type min_n: int, optional
+    :param conversion: Conversion function. Defaults to int.
+    :type conversion: function, optional
+
+    :returns: Converted value
+    :rtype: int"""
     try:
         n = conversion(val)
 
@@ -409,15 +385,14 @@ def to_number(val, max_n = None, min_n = None, conversion=int):
         raise RuntimeError("Number conversion error") from ve
 
 def to_logical(val):
-    """Converts the given value to a logical value (True/False). If the value is not a logical value,
-    a RuntimeError is raised.
+    """Converts the given value to a logical value (True/False). If the value is not a
+    logical value, a RuntimeError is raised.
 
-    Args:
-        val (Any): Value to convert
+    :param val: Value to convert
+    :type val: Any
 
-    Returns:
-        bool: Converted value
-    """
+    :returns: Converted value
+    :rtype: bool"""
     try:
         if isinstance(val, str):
             return val.lower() in ['true', '1', 't', 'y', 'yes']
@@ -428,15 +403,15 @@ def to_logical(val):
         raise RuntimeError("Logical value conversion error") from ve
 
 def format_size(num, suffix="B"):
-    """Formats the given number as a human-readable size string. 
+    """Formats the given number as a human-readable size string.
 
-    Args:
-        num (int): Number to format
-        suffix (str, optional): Suffix to use. Defaults to "B".
+    :param num: Number to format
+    :type num: int
+    :param suffix: Suffix to use. Defaults to "B".
+    :type suffix: str, optional
 
-    Returns:
-        str: Formatted string
-    """
+    :returns: Formatted string
+    :rtype: str"""
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(num) < 1024.0:
             return f"{num:3.1f}{unit}{suffix}"
@@ -444,42 +419,42 @@ def format_size(num, suffix="B"):
     return f"{num:.1f}Yi{suffix}"
 
 def singleton(class_):
-    """Singleton decorator for classes. 
+    """Singleton decorator for classes.
 
-    Args:
-        class_ (class): Class to decorate
+    :param class_: Class to decorate
+    :type class_: class
 
-    Returns:
-        class: Decorated class
-
+    :returns: Decorated class
+    :rtype: class
     Example:
         @singleton
         class MyClass:
             pass
-            
+
         a = MyClass()
     """
     instances = {}
     def getinstance(*args, **kwargs):
-        """Returns the singleton instance of the class. If the instance does not exist, it is created."""
+        """Returns the singleton instance of the class.
+
+        If the instance does not exist, it is created.
+        """
         if class_ not in instances:
             instances[class_] = class_(*args, **kwargs)
         return instances[class_]
     return getinstance
 
 class ColoredFormatter(Formatter):
-    """Colored log formatter using colorama package.
-    """
+    """Colored log formatter using colorama package."""
 
     class Empty(object):
-        """An empty class used to copy :class:`~logging.LogRecord` objects without reinitializing them."""
+        """An empty class used to copy :class:`~logging.LogRecord` objects without
+        reinitializing them."""
 
     def __init__(self, **kwargs):
         """Initializes the formatter.
 
-        Args:
-            **kwargs: Keyword arguments passed to the base class
-
+        :param **kwargs: Keyword arguments passed to the base class
         """
         super().__init__(**kwargs)
         colorama.init()
@@ -497,12 +472,11 @@ class ColoredFormatter(Formatter):
     def format(self, record: LogRecord) -> str:
         """Formats message by injecting colorama terminal codes for text coloring.
 
-        Args:
-            record (LogRecord): Input log record
+        :param record: Input log record
+        :type record: LogRecord
 
-        Returns:
-            str: Formatted string
-        """
+        :returns: Formatted string
+        :rtype: str"""
         style = self._styles[record.levelname.lower()]
 
         copy = ColoredFormatter.Empty()
@@ -516,8 +490,8 @@ class ColoredFormatter(Formatter):
 
 
 class ThreadPoolExecutor(futures.ThreadPoolExecutor):
-    """Thread pool executor with a shutdown method that waits for all threads to finish. 
-    """
+    """Thread pool executor with a shutdown method that waits for all threads to
+    finish."""
 
     def __init__(self, *args, **kwargs):
         """Initializes the thread pool executor."""
@@ -525,10 +499,11 @@ class ThreadPoolExecutor(futures.ThreadPoolExecutor):
         #self._work_queue = Queue.Queue(maxsize=maxsize)
 
     def shutdown(self, wait=True):
-        """Shuts down the thread pool executor. If wait is True, waits for all threads to finish.
+        """Shuts down the thread pool executor. If wait is True, waits for all threads
+        to finish.
 
-        Args:
-            wait (bool, optional): Wait for all threads to finish. Defaults to True.
+        :param wait: Wait for all threads to finish. Defaults to True.
+        :type wait: bool, optional
         """
         import queue
         with self._shutdown_lock:
@@ -550,8 +525,8 @@ class Timer(object):
     def __init__(self, name=None):
         """Initializes the timer.
 
-        Args:
-            name (str, optional): Name of the timer. Defaults to None.
+        :param name: Name of the timer. Defaults to None.
+        :type name: str, optional
         """
         self.name = name
 
@@ -573,9 +548,10 @@ class Registry(ClassRegistry):
     def __init__(self, group: str, attr_name: typing.Optional[str] = None) -> None:
         """Initializes the registry.
 
-        Args:
-            group (str): The name of the entry point group that will be used to load new classes.
-            attr_name (typing.Optional[str], optional): If set, the registry will "brand" each class with its corresponding registry key. Defaults to None.
+        :param group: The name of the entry point group that will be used to load new classes.
+        :type group: str
+        :param attr_name: If set, the registry will "brand" each class with its corresponding registry key. Defaults to None.
+        :type attr_name: typing.Optional[str], optional
         """
         from class_registry.entry_points import EntryPointClassRegistry
         super(Registry, self).__init__(group, attr_name)
@@ -603,26 +579,25 @@ class Registry(ClassRegistry):
         self._entry_point = EntryPointClassRegistry(group="vot_" + group, attr_name=attr_name)
 
     def __missing__(self, key: str) -> object:
-        """Attempts to load a class from the entry point registry if it is not found in the local registry.
-        
-        Args:
-            key (str): Key of the class to load
+        """Attempts to load a class from the entry point registry if it is not found in
+        the local registry.
 
-        Returns:
-            object: Loaded class or None if not found
-        """
+        :param key: Key of the class to load
+        :type key: str
+
+        :returns: Loaded class or None if not found
+        :rtype: object"""
         return self._entry_point.get_class(key)
  
     def get_class(self, key: typing.Hashable):
-        """Returns the class associated with the specified key. If the class is not found in the local registry,
-        it is loaded from the entry point registry.
+        """Returns the class associated with the specified key. If the class is not
+        found in the local registry, it is loaded from the entry point registry.
 
-        Args:
-            key (typing.Hashable): Key of the class to load
+        :param key: Key of the class to load
+        :type key: typing.Hashable
 
-        Returns:
-            typing.Type[T]: Loaded class
-        """
+        :returns: Loaded class
+        :rtype: typing.Type[T]"""
         try:
             return super().get_class(key)
         except KeyError:
@@ -630,10 +605,9 @@ class Registry(ClassRegistry):
  
     def keys(self):
         """Returns an iterator over the registered classes.
-        
-        Returns:
-            Iterator: Iterator over the registered classes
-        """
+
+        :returns: Iterator over the registered classes
+        :rtype: Iterator"""
         items = {key for key in self._entry_point.keys()}
         items.update({key for key in super().keys()})
 
@@ -641,10 +615,9 @@ class Registry(ClassRegistry):
  
     def classes(self):
         """Returns an iterator over the registered classes.
-        
-        Returns:
-            Iterator: Iterator over the registered classes
-        """
+
+        :returns: Iterator over the registered classes
+        :rtype: Iterator"""
 
         items = {}
         for key in self._entry_point.keys():
@@ -665,13 +638,16 @@ class ObjectResolver(object):
     
     def __init__(self, registry: ClassRegistry, extra_arguments: typing.Optional[typing.Callable] = None,
                 class_check: typing.Optional[typing.Callable] = None, object_check: typing.Optional[typing.Callable] = None):
-        """Initializes the object resolver. 
-        
-        Args:
-            registry (ClassRegistry): Registry of classes
-            extra_arguments (typing.Optional[typing.Callable], optional): Extra arguments to pass to the class constructor
-            class_check (typing.Optional[typing.Callable], optional): Function to check if the class is compatible with the purpose
-            object_check (typing.Optional[typing.Callable], optional): Function to check if the object is compatible with the purpose
+        """Initializes the object resolver.
+
+        :param registry: Registry of classes
+        :type registry: ClassRegistry
+        :param extra_arguments: Extra arguments to pass to the class constructor
+        :type extra_arguments: typing.Optional[typing.Callable], optional
+        :param class_check: Function to check if the class is compatible with the purpose
+        :type class_check: typing.Optional[typing.Callable], optional
+        :param object_check: Function to check if the object is compatible with the purpose
+        :type object_check: typing.Optional[typing.Callable], optional
         """
         self._registry = registry
         self._extra_arguments = extra_arguments
@@ -681,16 +657,16 @@ class ObjectResolver(object):
     
     
     def __call__(self, typename, context, **kwargs):
-        """Resolve an object from a string. If the object is not registered, it is imported as a class and
-        instantiated with the provided arguments.
+        """Resolve an object from a string. If the object is not registered, it is
+        imported as a class and instantiated with the provided arguments.
 
-        Args:
-            typename (str): Name of the analysis
-            context (Attributee): Context of the resolver
+        :param typename: Name of the analysis
+        :type typename: str
+        :param context: Context of the resolver
+        :type context: Attributee
 
-        Returns:
-            Analysis: Resolved analysis
-        """
+        :returns: Resolved analysis
+        :rtype: Analysis"""
 
         if self._extra_arguments:
             kwargs.update(self._extra_arguments(context))

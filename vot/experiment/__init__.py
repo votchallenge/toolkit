@@ -1,5 +1,7 @@
-""" Experiments are the main building blocks of the toolkit. They are used to evaluate trackers on sequences in 
-various ways."""
+"""Experiments are the main building blocks of the toolkit.
+
+They are used to evaluate trackers on sequences in various ways.
+"""
 
 import typing
 from datetime import datetime
@@ -12,8 +14,7 @@ from vot.utilities import Progress, to_number, Registry
 from vot.dataset.proxy import IgnoreSpecialObjects
 
 class RealtimeConfig(Attributee):
-    """Config proxy for real-time experiment.
-    """
+    """Config proxy for real-time experiment."""
 
     grace = Integer(val_min=0, default=0)
     fps = Float(val_min=0, default=20)
@@ -29,16 +30,16 @@ class InjectConfig(Attributee):
     placeholder = Integer(default=1)
 
 def transformer_resolver(typename, context, **kwargs):
-    """Resolve a transformer from a string. If the transformer is not registered, it is imported as a class and
-    instantiated with the provided arguments.
-    
-    Args:
-        typename (str): Name of the transformer
-        context (Attributee): Context of the resolver
-        
-    Returns:
-        Transformer: Resolved transformer
-    """
+    """Resolve a transformer from a string. If the transformer is not registered, it is
+    imported as a class and instantiated with the provided arguments.
+
+    :param typename: Name of the transformer
+    :type typename: str
+    :param context: Context of the resolver
+    :type context: Attributee
+
+    :returns: Resolved transformer
+    :rtype: Transformer"""
     from vot.utilities import import_class
     from vot.experiment.transformer import Transformer
 
@@ -58,16 +59,16 @@ def transformer_resolver(typename, context, **kwargs):
         return transformer_class(cache=storage, **kwargs)
 
 def analysis_resolver(typename, context, **kwargs):
-    """Resolve an analysis from a string. If the analysis is not registered, it is imported as a class and
-    instantiated with the provided arguments.
+    """Resolve an analysis from a string. If the analysis is not registered, it is
+    imported as a class and instantiated with the provided arguments.
 
-    Args:
-        typename (str): Name of the analysis
-        context (Attributee): Context of the resolver
+    :param typename: Name of the analysis
+    :type typename: str
+    :param context: Context of the resolver
+    :type context: Attributee
 
-    Returns:
-        Analysis: Resolved analysis
-    """
+    :returns: Resolved analysis
+    :rtype: Analysis"""
     from vot.utilities import import_class
     from vot.analysis import Analysis, analysis_registry
 
@@ -84,8 +85,10 @@ def analysis_resolver(typename, context, **kwargs):
     return analysis
 
 class Experiment(Attributee):
-    """Experiment abstract base class. Each experiment is responsible for running a tracker on a sequence and
-    storing results into dedicated storage.
+    """Experiment abstract base class.
+
+    Each experiment is responsible for running a tracker on a sequence and storing
+    results into dedicated storage.
     """
 
     UNKNOWN = 0
@@ -100,17 +103,15 @@ class Experiment(Attributee):
 
     def __init__(self, _identifier: str, _storage: "Storage", **kwargs):
         """Initialize an experiment.
-        
-        Args:
-            _identifier (str): Identifier of the experiment
-            _storage (Storage): Storage to use for storing results
-        
-        Keyword Args:
-            **kwargs: Additional arguments
-        
-        Raises:
-            ValueError: If the identifier is not valid
-        """
+
+        :param _identifier: Identifier of the experiment
+        :type _identifier: str
+        :param _storage: Storage to use for storing results
+        :type _storage: Storage
+
+        :param **kwargs: Additional arguments
+
+        :raises ValueError: If the identifier is not valid"""
         self._identifier = _identifier
         self._storage = _storage
         super().__init__(**kwargs)
@@ -118,65 +119,62 @@ class Experiment(Attributee):
 
     @property
     def storage(self) -> "Storage":
-        """Storage to use for storing results. Can be None if the experiment is not supposed to store results.
+        """Storage to use for storing results. Can be None if the experiment is not
+        supposed to store results.
 
-        Returns:
-            Storage: Storage to use for storing results
-        """
+        :returns: Storage to use for storing results
+        :rtype: Storage"""
         return self._storage
 
     @property
     def identifier(self) -> str:
         """Identifier of the experiment.
 
-        Returns:
-            str: Identifier of the experiment
-        """
+        :returns: Identifier of the experiment
+        :rtype: str"""
         return self._identifier
 
     @property
     def _multiobject(self) -> bool:
         """Whether the experiment is multi-object or not.
 
-        Returns:
-            bool: Whether the experiment is multi-object or not
-        """
+        :returns: Whether the experiment is multi-object or not
+        :rtype: bool"""
         # TODO: at some point this may be a property for all experiments
         return False
 
     def _get_initialization(self, sequence: "Sequence", index: int, oid: str = None):
         """Get initialization for a given sequence, index and object id.
 
-        Args:
-            sequence (Sequence): Sequence to get initialization for
-            index (int): Index of the frame to get initialization for
-            id (str): Object id to get initialization for
+        :param sequence: Sequence to get initialization for
+        :type sequence: Sequence
+        :param index: Index of the frame to get initialization for
+        :type index: int
+        :param id: Object id to get initialization for
+        :type id: str
 
-        Returns:
-            Initialization: Initialization state for the given sequence, index and object id
-
-        Raises:
-            ValueError: If the sequence does not contain the given index or object id
-        """
+        :returns: Initialization state for the given sequence, index and object id
+        :rtype: Initialization
+        :raises ValueError: If the sequence does not contain the given index or object id"""
         if not self._multiobject and oid is None:
             return sequence.groundtruth(index)
         else:
             return sequence.frame(index).object(oid)
 
     def _get_runtime(self, tracker: "Tracker", sequence: "Sequence", multiobject=False):
-        """Get runtime for a given tracker and sequence. Can convert single-object runtimes to multi-object runtimes.
+        """Get runtime for a given tracker and sequence. Can convert single-object
+        runtimes to multi-object runtimes.
 
-        Args:
-            tracker (Tracker): Tracker to get runtime for
-            sequence (Sequence): Sequence to get runtime for
-            multiobject (bool): Whether the runtime should be multi-object or not
+        :param tracker: Tracker to get runtime for
+        :type tracker: Tracker
+        :param sequence: Sequence to get runtime for
+        :type sequence: Sequence
+        :param multiobject: Whether the runtime should be multi-object or not
+        :type multiobject: bool
 
-        Returns:
-            TrackerRuntime: Runtime for the given tracker and sequence
-
-        Raises:
-            TrackerException: If the tracker does not support multi-object experiments
-        """
+        :returns: Runtime for the given tracker and sequence
+        :rtype: TrackerRuntime
+        :raises TrackerException: If the tracker does not support multi-object experiments"""
         from vot.tracker import RealtimeTrackerRuntime
 
         runtime = tracker.runtime()
@@ -192,41 +190,43 @@ class Experiment(Attributee):
     @abstractmethod
     def execute(self, tracker: "Tracker", sequence: "Sequence", force: bool = False, callback: typing.Callable = None):
         """Execute the experiment for a given tracker and sequence.
-        
-        Args:
-            tracker (Tracker): Tracker to execute
-            sequence (Sequence): Sequence to execute
-            force (bool): Whether to force execution even if the results are already present
-            callback (typing.Callable): Callback to call after each frame
-            
-        Returns:
-            Results: Results for the tracker and sequence
-        """
+
+        :param tracker: Tracker to execute
+        :type tracker: Tracker
+        :param sequence: Sequence to execute
+        :type sequence: Sequence
+        :param force: Whether to force execution even if the results are already present
+        :type force: bool
+        :param callback: Callback to call after each frame
+        :type callback: typing.Callable
+
+        :returns: Results for the tracker and sequence
+        :rtype: Results"""
         raise NotImplementedError
 
     @abstractmethod
     def scan(self, tracker: "Tracker", sequence: "Sequence"):
-        """ Scan results for a given tracker and sequence.
-        
-        Args:
-            tracker (Tracker): Tracker to scan results for
-            sequence (Sequence): Sequence to scan results for
-            
-        Returns:
-            Results: Results for the tracker and sequence
-        """
+        """Scan results for a given tracker and sequence.
+
+        :param tracker: Tracker to scan results for
+        :type tracker: Tracker
+        :param sequence: Sequence to scan results for
+        :type sequence: Sequence
+
+        :returns: Results for the tracker and sequence
+        :rtype: Results"""
         raise NotImplementedError
 
     def results(self, tracker: "Tracker", sequence: "Sequence") -> "Results":
         """Get results for a given tracker and sequence.
 
-        Args:
-            tracker (Tracker): Tracker to get results for 
-            sequence (Sequence): Sequence to get results for
+        :param tracker: Tracker to get results for
+        :type tracker: Tracker
+        :param sequence: Sequence to get results for
+        :type sequence: Sequence
 
-        Returns:
-            Results: Results for the tracker and sequence
-        """
+        :returns: Results for the tracker and sequence
+        :rtype: Results"""
         if tracker.storage is not None:
             return tracker.storage.results(tracker, self, sequence)
         if not hasattr(self, "_storage"):
@@ -238,12 +238,11 @@ class Experiment(Attributee):
     def log(self, identifier: str):
         """Get a log file for the experiment.
 
-        Args:
-            identifier (str): Identifier of the log
+        :param identifier: Identifier of the log
+        :type identifier: str
 
-        Returns:
-            str: Path to the log file
-        """
+        :returns: Path to the log file
+        :rtype: str"""
         if not hasattr(self, "_storage"):
             import os
             # Return a devnull file if the experiment has no storage
@@ -254,12 +253,11 @@ class Experiment(Attributee):
     def transform(self, sequences):
         """Transform a list of sequences using the experiment transformers.
 
-        Args:
-            sequences (typing.List[Sequence]): List of sequences to transform
+        :param sequences: List of sequences to transform
+        :type sequences: typing.List[Sequence]
 
-        Returns:
-            typing.List[Sequence]: List of transformed sequences. The number of sequences may be larger than the input as some transformers may split sequences.
-        """
+        :returns: List of transformed sequences. The number of sequences may be larger than the input as some transformers may split sequences.
+        :rtype: typing.List[Sequence]"""
         from vot.dataset import Sequence
         from vot.experiment.transformer import SingleObject
         from vot import get_logger
@@ -290,44 +288,45 @@ from .multirun import UnsupervisedExperiment, SupervisedExperiment
 from .multistart import MultiStartExperiment
 
 def run_experiment(experiment: Experiment, tracker: "Tracker", sequences: typing.List["Sequence"], force: bool = False, persist: bool = False):
-    """A helper function that performs a given experiment with a given tracker on a list of sequences.
+    """A helper function that performs a given experiment with a given tracker on a list
+    of sequences.
 
-    Args:
-        experiment (Experiment): The experiment object
-        tracker (Tracker): The tracker object
-        sequences (typing.List[Sequence]): List of sequences.
-        force (bool, optional): Ignore the cached results, rerun all the experiments. Defaults to False.
-        persist (bool, optional): Continue runing even if exceptions were raised. Defaults to False.
+    :param experiment: The experiment object
+    :type experiment: Experiment
+    :param tracker: The tracker object
+    :type tracker: Tracker
+    :param sequences: List of sequences.
+    :type sequences: typing.List[Sequence]
+    :param force: Ignore the cached results, rerun all the experiments. Defaults to False.
+    :type force: bool, optional
+    :param persist: Continue runing even if exceptions were raised. Defaults to False.
+    :type persist: bool, optional
 
-    Raises:
-        TrackerException: If the experiment is interrupted
-    """
+    :raises TrackerException: If the experiment is interrupted"""
 
     class EvaluationProgress(object):
-        """A helper class that wraps a progress bar and updates it based on the number of finished sequences."""
+        """A helper class that wraps a progress bar and updates it based on the number
+        of finished sequences."""
 
         def __init__(self, description, total):
             """Initialize the progress bar.
-            
-            Args:
-                description (str): Description of the progress bar
-                total (int): Total number of sequences
-                
-            Raises:
-                ValueError: If the total number of sequences is not positive
-            """
+
+            :param description: Description of the progress bar
+            :type description: str
+            :param total: Total number of sequences
+            :type total: int
+
+            :raises ValueError: If the total number of sequences is not positive"""
             self.bar = Progress(description, total)
             self._finished = 0
 
         def __call__(self, progress):
             """Update the progress bar. The progress is a number between 0 and 1.
 
-            Args:
-                progress (float): Progress of the current sequence
+            :param progress: Progress of the current sequence
+            :type progress: float
 
-            Raises:
-                ValueError: If the progress is not between 0 and 1
-            """
+            :raises ValueError: If the progress is not between 0 and 1"""
             self.bar.absolute(self._finished + min(1, max(0, progress)))
 
         def push(self):

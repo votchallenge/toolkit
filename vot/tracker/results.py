@@ -1,4 +1,3 @@
-
 """Results module for storing and retrieving tracker results."""
 
 import os
@@ -14,32 +13,30 @@ class Results(object):
 
     def __init__(self, storage: "vot.workspace.Storage"):
         """Creates a new results interface.
-        
-        Args:
-            storage (Storage): Storage interface
+
+        :param storage: Storage interface
+        :type storage: Storage
         """
         self._storage = storage
 
     def exists(self, name):
         """Returns true if the given file exists in the results storage.
 
-        Args:
-            name (str): File name
+        :param name: File name
+        :type name: str
 
-        Returns:
-            bool: True if the file exists
-        """
+        :returns: True if the file exists
+        :rtype: bool"""
         return self._storage.isdocument(name)
 
     def read(self, name):
         """Returns a file handle for reading the given file from the results storage.
 
-        Args:
-            name (str): File name
+        :param name: File name
+        :type name: str
 
-        Returns:
-            file: File handle
-        """
+        :returns: File handle
+        :rtype: file"""
         if name.endswith(".bin"):
             return self._storage.read(name, binary=True)
         return self._storage.read(name)
@@ -47,12 +44,11 @@ class Results(object):
     def write(self, name: str):
         """Returns a file handle for writing the given file to the results storage.
 
-        Args:
-            name (str): File name
-        
-        Returns:
-            file: File handle
-        """
+        :param name: File name
+        :type name: str
+
+        :returns: File handle
+        :rtype: file"""
         if name.endswith(".bin"):
             return self._storage.write(name, binary=True)
         return self._storage.write(name)
@@ -60,12 +56,11 @@ class Results(object):
     def find(self, pattern):
         """Returns a list of files matching the given pattern in the results storage.
 
-        Args:
-            pattern (str): Pattern
+        :param pattern: Pattern
+        :type pattern: str
 
-        Returns:
-            list: List of files
-        """
+        :returns: List of files
+        :rtype: list"""
 
         return fnmatch.filter(self._storage.documents(), pattern)
     
@@ -79,27 +74,27 @@ class Trajectory(object):
     @classmethod
     def exists(cls, results: Results, name: str) -> bool:
         """Returns true if the trajectory exists in the results storage.
-        
-        Args:
-            results (Results): Results storage
-            name (str): Trajectory name (without extension)
-            
-        Returns:
-            bool: True if the trajectory exists
-        """
+
+        :param results: Results storage
+        :type results: Results
+        :param name: Trajectory name (without extension)
+        :type name: str
+
+        :returns: True if the trajectory exists
+        :rtype: bool"""
         return results.exists(name + ".bin") or results.exists(name + ".txt")
 
     @classmethod
     def gather(cls, results: Results, name: str) -> list:
         """Returns a list of files that are part of the trajectory.
-        
-        Args:
-            results (Results): Results storage
-            name (str): Trajectory name (without extension)
-            
-        Returns:
-            list: List of files
-        """
+
+        :param results: Results storage
+        :type results: Results
+        :param name: Trajectory name (without extension)
+        :type name: str
+
+        :returns: List of files
+        :rtype: list"""
 
         if results.exists(name + ".bin"):
             files = [name + ".bin"]
@@ -116,24 +111,23 @@ class Trajectory(object):
     @classmethod
     def read(cls, results: Results, name: str) -> 'Trajectory':
         """Reads a trajectory from the results storage.
-        
-        Args:
-            results (Results): Results storage
-            name (str): Trajectory name (without extension)
-            
-        Returns:
-            Trajectory: Trajectory
-        """
+
+        :param results: Results storage
+        :type results: Results
+        :param name: Trajectory name (without extension)
+        :type name: str
+
+        :returns: Trajectory
+        :rtype: Trajectory"""
 
         def parse_float(line):
             """Parses a float from a line.
-            
-            Args:
-                line (str): Line
-                
-            Returns:
-                float: Float value
-            """
+
+            :param line: Line
+            :type line: str
+
+            :returns: Float value
+            :rtype: float"""
             if not line.strip():
                 return None
             return float(line.strip())
@@ -164,8 +158,8 @@ class Trajectory(object):
     def __init__(self, length: int):
         """Creates a new trajectory of the given length.
 
-        Args:
-            length (int): Trajectory length
+        :param length: Trajectory length
+        :type length: int
         """
         self._regions = [Special(Trajectory.UNKNOWN)] * length
         self._properties = dict()
@@ -173,14 +167,14 @@ class Trajectory(object):
     def set(self, frame: int, region: Region, properties: dict = None):
         """Sets the region for the given frame.
 
-        Args:
-            frame (int): Frame index
-            region (Region): Region
-            properties (dict, optional): Frame properties. Defaults to None.
+        :param frame: Frame index
+        :type frame: int
+        :param region: Region
+        :type region: Region
+        :param properties: Frame properties. Defaults to None.
+        :type properties: dict, optional
 
-        Raises:
-            IndexError: Frame index out of bounds
-        """
+        :raises IndexError: Frame index out of bounds"""
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
 
@@ -197,39 +191,33 @@ class Trajectory(object):
     def region(self, frame: int) -> Region:
         """Returns the region for the given frame.
 
-        Args:
-            frame (int): Frame index
+        :param frame: Frame index
+        :type frame: int
 
-        Raises:
-            IndexError: Frame index out of bounds
-
-        Returns:
-            Region: Region
-        """
+        :raises IndexError: Frame index out of bounds
+        :returns: Region
+        :rtype: Region"""
         if frame < 0 or frame >= len(self._regions):
             raise IndexError("Frame index out of bounds")
         return self._regions[frame]
 
     def regions(self) -> List[Region]:
-        """ Returns the list of regions. 
-        
-        Returns:
-            List[Region]: List of regions
-        """
+        """Returns the list of regions.
+
+        :returns: List of regions
+        :rtype: List[Region]"""
         return copy(self._regions)
 
     def properties(self, frame: int = None) -> dict:
-        """Returns the properties for the given frame or all properties if frame is None.
+        """Returns the properties for the given frame or all properties if frame is
+        None.
 
-        Args:
-            frame (int, optional): Frame index. Defaults to None.
+        :param frame: Frame index. Defaults to None.
+        :type frame: int, optional
 
-        Raises:
-            IndexError: Frame index out of bounds
-
-        Returns:
-            dict: Properties
-        """
+        :raises IndexError: Frame index out of bounds
+        :returns: Properties
+        :rtype: dict"""
 
         if frame is None:
             return tuple(self._properties.keys())
@@ -242,25 +230,24 @@ class Trajectory(object):
     def __len__(self):
         """Returns the length of the trajectory.
 
-        Returns:
-            int: Length
-        """
+        :returns: Length
+        :rtype: int"""
         return len(self._regions)
     
     def __iter__(self):
         """Returns an iterator over the regions.
 
-        Returns:
-            Iterator: Iterator
-        """
+        :returns: Iterator
+        :rtype: Iterator"""
         return iter(self._regions)
 
     def write(self, results: Results, name: str):
-        """Writes the trajectory to the results storage. 
+        """Writes the trajectory to the results storage.
 
-        Args:
-            results (Results): Results storage
-            name (str): Trajectory name (without extension)
+        :param results: Results storage
+        :type results: Results
+        :param name: Trajectory name (without extension)
+        :type name: str
         """
         from vot import config
 
@@ -280,14 +267,15 @@ class Trajectory(object):
     def equals(self, trajectory: 'Trajectory', check_properties: bool = False, overlap_threshold: float = 0.99999):
         """Returns true if the trajectories are equal.
 
-        Args:
-            trajectory (Trajectory): _description_
-            check_properties (bool, optional): _description_. Defaults to False.
-            overlap_threshold (float, optional): _description_. Defaults to 0.99999.
+        :param trajectory: _description_
+        :type trajectory: Trajectory
+        :param check_properties: _description_. Defaults to False.
+        :type check_properties: bool, optional
+        :param overlap_threshold: _description_. Defaults to 0.99999.
+        :type overlap_threshold: float, optional
 
-        Returns:
-            _type_: _description_
-        """
+        :returns: _description_
+        :rtype: _type_"""
         if not len(self) == len(trajectory):
             return False
 

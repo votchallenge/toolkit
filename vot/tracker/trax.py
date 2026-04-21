@@ -1,7 +1,9 @@
+"""TraX protocol implementation for the toolkit.
 
-""" TraX protocol implementation for the toolkit. TraX is a communication protocol for visual object tracking.
- It enables communication between a tracker and a client. The protocol was originally developed for the VOT challenge to address
- the need for a unified communication interface between trackers and benchmarking tools.
+TraX is a communication protocol for visual object tracking. It enables communication
+between a tracker and a client. The protocol was originally developed for the VOT
+challenge to address the need for a unified communication interface between trackers and
+benchmarking tools.
 """
 import sys
 import os
@@ -40,40 +42,39 @@ PORT_POOL_MAX = 65535
 logger = logging.getLogger("vot")
 
 class LogAggregator(object):
-    """ Aggregates log messages from the tracker. """
+    """Aggregates log messages from the tracker."""
 
     def __init__(self):
-        """ Initializes the aggregator."""
+        """Initializes the aggregator."""
         self._fragments = []
 
     def __call__(self, fragment):
-        """ Appends a new fragment to the log."""
+        """Appends a new fragment to the log."""
         self._fragments.append(fragment)
 
     def __str__(self):
-        """ Returns the aggregated log."""
+        """Returns the aggregated log."""
         return "".join(self._fragments)
 
 class ColorizedOutput(object):
-    """ Colorized output for the tracker."""
+    """Colorized output for the tracker."""
 
     def __init__(self):
-        """ Initializes the colorized output."""
+        """Initializes the colorized output."""
         colorama.init()
 
     def __call__(self, fragment):
-        """ Prints a new fragment to the output.
-        
-        Args:
-            fragment: The fragment to be printed.
+        """Prints a new fragment to the output.
+
+        :param fragment: The fragment to be printed.
         """
         print(colorama.Fore.CYAN + fragment + colorama.Fore.RESET, end="")
 
 class PythonCrashHelper(object):
-    """ Helper class for detecting Python crashes in the tracker."""
+    """Helper class for detecting Python crashes in the tracker."""
 
     def __init__(self):
-        """ Initializes the crash helper."""
+        """Initializes the crash helper."""
         self._matcher = re.compile(r'''
             ^Traceback
             [\s\S]+?
@@ -81,11 +82,10 @@ class PythonCrashHelper(object):
             ''', re.M | re.X)
 
     def __call__(self, log, directory):
-        """ Detects Python crashes in the log.
-        
-        Args:
-            log: The log to be checked.
-            directory: The directory where the log is stored.
+        """Detects Python crashes in the log.
+
+        :param log: The log to be checked.
+        :param directory: The directory where the log is stored.
         """
         matches = self._matcher.findall(log)
         if len(matches) > 0:
@@ -93,15 +93,12 @@ class PythonCrashHelper(object):
         return None
 
 def convert_frame(frame: Frame, channels: list) -> dict:
-    """ Converts a frame to a dictionary of Trax images.
+    """Converts a frame to a dictionary of Trax images.
 
-    Args:
-        frame: The frame to be converted.
-        channels: The list of channels to be converted.
+    :param frame: The frame to be converted.
+    :param channels: The list of channels to be converted.
 
-    Returns:
-        A dictionary of Trax images.
-    """
+    :returns: A dictionary of Trax images."""
     tlist = dict()
 
     for channel in channels:
@@ -114,14 +111,11 @@ def convert_frame(frame: Frame, channels: list) -> dict:
     return tlist
 
 def convert_region(region: Region) -> TraxRegion:
-    """ Converts a region to a Trax region.
-    
-    Args:
-        region: The region to be converted.
-        
-    Returns:
-        A Trax region.
-    """
+    """Converts a region to a Trax region.
+
+    :param region: The region to be converted.
+
+    :returns: A Trax region."""
     if isinstance(region, Rectangle):
         return TraxRectangle.create(region.x, region.y, region.width, region.height)
     elif isinstance(region, Polygon):
@@ -131,14 +125,11 @@ def convert_region(region: Region) -> TraxRegion:
     raise TraxException("Unknown region type {}".format(type(region))) 
 
 def convert_traxregion(region: TraxRegion) -> Region:
-    """ Converts a Trax region to a region.
+    """Converts a Trax region to a region.
 
-    Args:
-        region: The Trax region to be converted.
+    :param region: The Trax region to be converted.
 
-    Returns:
-        A region.
-    """
+    :returns: A region."""
     if region.type == TraxRegion.RECTANGLE:
         x, y, width, height = region.bounds()
         return Rectangle(x, y, width, height)
@@ -149,14 +140,11 @@ def convert_traxregion(region: TraxRegion) -> Region:
     raise TraxException("Unknown region type {}".format(region.type))
 
 def convert_objects(objects: FrameObjects) -> TraxRegion:
-    """ Converts a list of objects to a Trax region.
+    """Converts a list of objects to a Trax region.
 
-    Args:
-        objects: The list of objects to be converted.
+    :param objects: The list of objects to be converted.
 
-    Returns:    
-        A Trax region.
-    """
+    :returns: A Trax region."""
     if objects is None: return []
     if isinstance(objects, (list, )):
         return [(convert_region(o.region), dict(o.properties)) for o in objects]
@@ -166,15 +154,11 @@ def convert_objects(objects: FrameObjects) -> TraxRegion:
         return [(convert_region(objects), dict())]
 
 def convert_traxobjects(region: TraxRegion) -> Region:
-    """ Converts a Trax region to a region.
+    """Converts a Trax region to a region.
 
-    Args:
-        region: The Trax region to be converted.
+    :param region: The Trax region to be converted.
 
-    Returns:
-        A region.
-
-    """
+    :returns: A region."""
     if region.type == TraxRegion.RECTANGLE:
         x, y, width, height = region.bounds()
         return Rectangle(x, y, width, height)
@@ -185,22 +169,22 @@ def convert_traxobjects(region: TraxRegion) -> Region:
     return None
 
 class TestRasterMethods(unittest.TestCase):
-    """ Tests for the raster methods. """
+    """Tests for the raster methods."""
 
     def test_convert_traxregion(self):
-        """ Tests the conversion of Trax regions."""
+        """Tests the conversion of Trax regions."""
         convert_traxregion(TraxRectangle.create(0, 0, 10, 10))
         convert_traxregion(TraxPolygon.create([(0, 0), (10, 0), (10, 10), (0, 10)]))
         convert_traxregion(TraxMask.create(np.ones((100, 100), dtype=np.uint8)))
 
     def test_convert_region(self):
-        """ Tests the conversion of regions."""
+        """Tests the conversion of regions."""
         convert_region(Rectangle(0, 0, 10, 10))
         convert_region(Polygon([(0, 0), (10, 0), (10, 10), (0, 10)]))
         convert_region(Mask(np.ones((100, 100), dtype=np.uint8)))
 
 def open_local_port(port: int):
-    """ Opens a local port for listening."""
+    """Opens a local port for listening."""
     socket = socketio.socket(socketio.AF_INET, socketio.SOCK_STREAM)
     try:
         socket.setsockopt(socketio.SOL_SOCKET, socketio.SO_REUSEADDR, 1)
@@ -215,24 +199,25 @@ def open_local_port(port: int):
         return None
 
 def normalize_paths(paths, tracker):
-    """ Normalizes a list of paths relative to the tracker source."""
+    """Normalizes a list of paths relative to the tracker source."""
     root = os.path.dirname(tracker.source)
     return [normalize_path(path, root) for path in paths]
 
 class TrackerProcess(object):
-    """ A tracker process. This class is used to run trackers in a separate process and handles
-     starting, stopping and communication with the process. """
+    """A tracker process.
+
+    This class is used to run trackers in a separate process and handles starting,
+    stopping and communication with the process.
+    """
     
     def __init__(self, command: str, envvars=None, timeout=30, log=False, socket=False):
-        """ Initializes a new tracker process.
+        """Initializes a new tracker process.
 
-        Args:
-            command: The command to run the tracker.
-            envvars: A dictionary of environment variables to be set for the tracker process.
-            timeout: The timeout for the tracker process.
-            log: Whether to log the tracker output.
-            socket: Whether to use a socket for communication.
-
+        :param command: The command to run the tracker.
+        :param envvars: A dictionary of environment variables to be set for the tracker process.
+        :param timeout: The timeout for the tracker process.
+        :param log: Whether to log the tracker output.
+        :param socket: Whether to use a socket for communication.
         """
         
         environment = dict(os.environ)
@@ -300,11 +285,9 @@ class TrackerProcess(object):
         self._multiobject = self._client.get("multiobject")
 
     def _watchdog_reset(self, enable=True):
-        """ Resets the watchdog.
+        """Resets the watchdog.
 
-        Args:
-            enable: Whether to enable the watchdog.
-
+        :param enable: Whether to enable the watchdog.
         """
         if self._watchdog_counter == 0:
             return
@@ -315,7 +298,11 @@ class TrackerProcess(object):
             self._watchdog_counter = -1
 
     def _watchdog_loop(self):
-        """ The watchdog loop. This loop is used to monitor the tracker process and terminate it if it does not respond anymore."""
+        """The watchdog loop.
+
+        This loop is used to monitor the tracker process and terminate it if it does not
+        respond anymore.
+        """
 
         while self.alive:
             time.sleep(0.1)
@@ -329,46 +316,46 @@ class TrackerProcess(object):
 
     @property
     def has_vot_wrapper(self):
-        """ Whether the tracker has a VOT wrapper. VOT wrapper limits TraX functionality and injects a property at handshake to let the client know this."""
+        """Whether the tracker has a VOT wrapper.
+
+        VOT wrapper limits TraX functionality and injects a property at handshake to let
+        the client know this.
+        """
         return self._has_vot_wrapper
 
     @property
     def returncode(self):
-        """ The return code of the tracker process."""
+        """The return code of the tracker process."""
         return self._returncode
 
     @property
     def workdir(self):
-        """ The working directory of the tracker process."""
+        """The working directory of the tracker process."""
         return self._workdir
 
     @property
     def interrupted(self):
-        """ Whether the tracker process was interrupted."""
+        """Whether the tracker process was interrupted."""
         return self._watchdog_counter == 0
 
     @property
     def alive(self):
-        """ Whether the tracker process is alive."""
+        """Whether the tracker process is alive."""
         if self._process is None:
             return False
         self._returncode = self._process.returncode
         return self._returncode is None
 
     def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        """ Initializes the tracker. This method is used to initialize the tracker with the first frame. It returns the initial state of the tracker.
+        """Initializes the tracker. This method is used to initialize the tracker with
+        the first frame. It returns the initial state of the tracker.
 
-        Args:
-            frame: The first frame.
-            new: The initial state of the tracker.
-            properties: The properties to be set for the tracker.
+        :param frame: The first frame.
+        :param new: The initial state of the tracker.
+        :param properties: The properties to be set for the tracker.
 
-        Returns:
-            The initial state of the tracker.
-
-        Raises:
-            TraxException: If the tracker is not alive.
-        """
+        :returns: The initial state of the tracker.
+        :raises TraxException: If the tracker is not alive."""
 
         if not self.alive:
             raise TraxException("Tracker not alive")
@@ -391,20 +378,15 @@ class TrackerProcess(object):
 
 
     def update(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        """ Updates the tracker with a new frame. This method is used to update the tracker with a new frame. It returns the new state of the tracker.
+        """Updates the tracker with a new frame. This method is used to update the
+        tracker with a new frame. It returns the new state of the tracker.
 
-        Args:
-            frame: The new frame.
-            new: The new state of the tracker.
-            properties: The properties to be set for the tracker.
+        :param frame: The new frame.
+        :param new: The new state of the tracker.
+        :param properties: The properties to be set for the tracker.
 
-        Returns:
-            The new state of the tracker.
-
-        Raises:
-            TraxException: If the tracker is not alive.
-
-        """
+        :returns: The new state of the tracker.
+        :raises TraxException: If the tracker is not alive."""
 
         if not self.alive:
             raise TraxException("Tracker not alive")
@@ -424,7 +406,10 @@ class TrackerProcess(object):
         return status, elapsed
 
     def terminate(self):
-        """ Terminates the tracker. This method is used to terminate the tracker. It closes the connection to the tracker and terminates the tracker process.
+        """Terminates the tracker.
+
+        This method is used to terminate the tracker. It closes the connection to the
+        tracker and terminates the tracker process.
         """
         with self._watchdog_lock:
 
@@ -464,12 +449,19 @@ class TrackerProcess(object):
             self._process = None
 
     def __del__(self):
-        """ Destructor. This method is used to terminate the tracker process if it is still alive."""
+        """Destructor.
+
+        This method is used to terminate the tracker process if it is still alive.
+        """
         if hasattr(self, "_workdir"):
             shutil.rmtree(self._workdir, ignore_errors=True)
 
     def wait(self):
-        """ Waits for the tracker to terminate. This method is used to wait for the tracker to terminate. It waits until the tracker process terminates."""
+        """Waits for the tracker to terminate.
+
+        This method is used to wait for the tracker to terminate. It waits until the
+        tracker process terminates.
+        """
 
         self._watchdog_reset(True)
 
@@ -483,26 +475,28 @@ class TrackerProcess(object):
 
     @property
     def multiobject(self):
-        """ Whether the tracker supports multiple objects."""
+        """Whether the tracker supports multiple objects."""
         return self._multiobject
 
 class TraxTrackerRuntime(OnlineTrackerRuntime):
-    """ The TraX tracker runtime. This class is used to run a tracker using the TraX protocol."""
+    """The TraX tracker runtime.
+
+    This class is used to run a tracker using the TraX protocol.
+    """
 
     def __init__(self, tracker: Tracker, command: str, log: bool = False, timeout: int = 30, linkpaths=None, envvars=None, arguments=None, socket=False, restart=False, onerror=None):
-        """ Initializes the TraX tracker runtime.
+        """Initializes the TraX tracker runtime.
 
-        Args:
-            tracker: The tracker to be run.
-            command: The command to run the tracker.
-            log: Whether to log the output of the tracker.
-            timeout: The timeout in seconds for the tracker to respond.
-            linkpaths: The paths to be added to the PATH environment variable.
-            envvars: The environment variables to be set for the tracker.
-            arguments: The arguments to be passed to the tracker.
-            socket: Whether to use a socket to communicate with the tracker.
-            restart: Whether to restart the tracker if it crashes.
-            onerror: The error handler to be called if the tracker crashes.
+        :param tracker: The tracker to be run.
+        :param command: The command to run the tracker.
+        :param log: Whether to log the output of the tracker.
+        :param timeout: The timeout in seconds for the tracker to respond.
+        :param linkpaths: The paths to be added to the PATH environment variable.
+        :param envvars: The environment variables to be set for the tracker.
+        :param arguments: The arguments to be passed to the tracker.
+        :param socket: Whether to use a socket to communicate with the tracker.
+        :param restart: Whether to restart the tracker if it crashes.
+        :param onerror: The error handler to be called if the tracker crashes.
         """
         super().__init__(tracker)
         self._command = command
@@ -536,17 +530,21 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
 
     @property
     def tracker(self) -> Tracker:
-        """ The associated tracker object. """
+        """The associated tracker object."""
         return self._tracker
 
     @property
     def multiobject(self):
-        """ Whether the tracker supports multiple objects."""
+        """Whether the tracker supports multiple objects."""
         self._connect()
         return self._process.multiobject
 
     def _connect(self):
-        """ Connects to the tracker. This method is used to connect to the tracker. It starts the tracker process if it is not running yet."""
+        """Connects to the tracker.
+
+        This method is used to connect to the tracker. It starts the tracker process if
+        it is not running yet.
+        """
         if not self._process:
             if not self._output is None:
                 log = self._output
@@ -557,7 +555,10 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
                 self._restart = True
 
     def _error(self, exception):
-        """ Handles an error. This method is used to handle an error. It calls the error handler if it is set."""
+        """Handles an error.
+
+        This method is used to handle an error. It calls the error handler if it is set.
+        """
         workdir = None
         timeout = False
         if not self._output is None:
@@ -589,7 +590,11 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
             tracker_log=log if not self._output is None else None)
 
     def restart(self):
-        """ Restarts the tracker. This method is used to restart the tracker. It stops the tracker process and starts it again."""
+        """Restarts the tracker.
+
+        This method is used to restart the tracker. It stops the tracker process and
+        starts it again.
+        """
         try:
             self.stop()
             self._connect()
@@ -597,16 +602,14 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
             self._error(e)
 
     def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        """ Initializes the tracker. This method is used to initialize the tracker. It starts the tracker process if it is not running yet.
-        
-        Args:
-            frame: The initial frame.
-            new: The initial objects.
-            properties: The initial properties.
-            
-        Returns:
-            A tuple containing the initial objects and the initial score.
-        """
+        """Initializes the tracker. This method is used to initialize the tracker. It
+        starts the tracker process if it is not running yet.
+
+        :param frame: The initial frame.
+        :param new: The initial objects.
+        :param properties: The initial properties.
+
+        :returns: A tuple containing the initial objects and the initial score."""
         try:
             if not self.multiobject:
                 if len(new) != 1:
@@ -628,16 +631,14 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
             self._error(e)
 
     def update(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        """ Updates the tracker. This method is used to update the tracker state with a new frame.
-        
-        Args:
-            frame: The current frame.
-            new: The current objects.
-            properties: The current properties.
-            
-        Returns:
-            A tuple containing the updated objects and the updated score.
-        """
+        """Updates the tracker. This method is used to update the tracker state with a
+        new frame.
+
+        :param frame: The current frame.
+        :param new: The current objects.
+        :param properties: The current properties.
+
+        :returns: A tuple containing the updated objects and the updated score."""
         try:
             if not self.multiobject and (new is None or len(new) != 0):
                 raise TrackerException("Tracker does not support multiple objects, but multiple objects were provided for update", tracker=self._tracker)
@@ -649,22 +650,30 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
             self._error(e)
 
     def stop(self):
-        """ Stops the tracker. This method is used to stop the tracker. It stops the tracker process."""
+        """Stops the tracker.
+
+        This method is used to stop the tracker. It stops the tracker process.
+        """
         if not self._process is None:
             self._process.terminate()
             self._process = None
 
     def __del__(self):
-        """ Destructor. This method is used to stop the tracker process when the object is deleted."""
+        """Destructor.
+
+        This method is used to stop the tracker process when the object is deleted.
+        """
         self.stop()
 
 from vot.tracker import register_runtime_protocol
 from vot.tracker.adapters import PythonAdapter, MatlabAdapter, OctaveAdapter
 
 class TraxMatlabAdapter(MatlabAdapter):
-    """ Adapter for running a tracker using the TraX protocol in Matlab. 
-    It only adds the bypass to use socket communication on Windows, 
-    which is required for Matlab to work properly. """
+    """Adapter for running a tracker using the TraX protocol in Matlab.
+
+    It only adds the bypass to use socket communication on Windows, which is required
+    for Matlab to work properly.
+    """
 
     def __init__(self):
         super().__init__(TraxTrackerRuntime)

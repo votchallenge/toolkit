@@ -43,7 +43,10 @@ def insert_mplfigure(figure, wrapper=True):
 
 
 def generate_symbols(container, trackers):
-    """Generates a LaTeX command for each tracker. The command is named after the tracker reference and contains the tracker symbol."""
+    """Generates a LaTeX command for each tracker.
+
+    The command is named after the tracker reference and contains the tracker symbol.
+    """
 
     legend = StyleManager.default().legend(Tracker)
 
@@ -55,16 +58,21 @@ def generate_symbols(container, trackers):
     container.append(Command("makeatother"))
 
 def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], reports, storage: Storage, multipart=True, metadata: dict = None) -> str:
-    """Generates a LaTeX document with the results. The document is returned as a string. If build is True, the document is compiled and the PDF is returned.
-    
-    Args:
-        
-        trackers (list): List of trackers.
-        sequences (list): List of sequences.
-        reports (list): List of results tuples.
-        storage (Storage): Storage object.
-        multipart (bool): If True, the document is split into multiple files.
-        metadata (dict): Metadata dictionary.
+    """Generates a LaTeX document with the results. The document is returned as a
+    string. If build is True, the document is compiled and the PDF is returned.
+
+    :param trackers: List of trackers.
+    :type trackers: list
+    :param sequences: List of sequences.
+    :type sequences: list
+    :param reports: List of results tuples.
+    :type reports: list
+    :param storage: Storage object.
+    :type storage: Storage
+    :param multipart: If True, the document is split into multiple files.
+    :type multipart: bool
+    :param metadata: Metadata dictionary.
+    :type metadata: dict
     """
 
     order_marks = {1: "first", 2: "second", 3: "third"}

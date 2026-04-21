@@ -1,4 +1,7 @@
-"""HTML report generation. This module is used to generate HTML reports from the results of the experiments."""
+"""HTML report generation.
+
+This module is used to generate HTML reports from the results of the experiments.
+"""
 import os
 import io
 import datetime
@@ -60,13 +63,17 @@ def grid_table(data: Grid, rows: List[str], columns: List[str]):
 
 def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], reports, storage: Storage, metadata: dict = None):
     """Generates an HTML document from the results of the experiments.
-    
-    Args:
-        trackers (list): List of trackers.
-        sequences (list): List of sequences.
-        reports (dict): List of reports as tuples of (name, data).
-        storage (Storage): Storage object.
-        metadata (dict): Metadata dictionary.
+
+    :param trackers: List of trackers.
+    :type trackers: list
+    :param sequences: List of sequences.
+    :type sequences: list
+    :param reports: List of reports as tuples of (name, data).
+    :type reports: dict
+    :param storage: Storage object.
+    :type storage: Storage
+    :param metadata: Metadata dictionary.
+    :type metadata: dict
     """
 
     def insert_video(data: Video):

@@ -1,10 +1,10 @@
-""" Unit tests for analysis module. """
+"""Unit tests for analysis module."""
 
 
 import unittest
 
 class Tests(unittest.TestCase):
-    """ Unit tests for analysis module. """
+    """Unit tests for analysis module."""
 
     def test_perfect_accuracy(self):
         import numpy as np
