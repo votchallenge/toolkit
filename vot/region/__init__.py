@@ -163,6 +163,14 @@ class Point(Region):
         """
         handle.points([(self._x, self._y)])
 
+    def resize(self, scale):
+        """Resize region by the provided scale factor.
+
+        :param scale: Scale factor
+        :type scale: float
+        """
+        return Point(self._x * scale, self._y * scale)
+
     def is_empty(self):
         """Check if region is empty.
 
