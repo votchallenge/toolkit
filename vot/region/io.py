@@ -151,18 +151,23 @@ def parse_region(string: str, separator: str = ",") -> "Region":
     """
     from vot import config
     from vot.region import Special
-    from vot.region.shapes import Rectangle, Polygon, Mask
+    from vot.region.shapes import Rectangle, Polygon, Mask, Point
 
     if string[0] == 'm':
         # input is a mask - decode it
         m_, offset_ = create_mask_from_string(string[1:].split(separator))
         return Mask(m_, offset=offset_, optimize=config.mask_optimize_read)
     else:
-        # input is not a mask - check if special, rectangle or polygon
+        # input is not a mask - check if special, rectangle, polygon or point
         tokens = [float(t) for t in string.split(separator)]
         if len(tokens) == 1:
             return Special(tokens[0])
-        if len(tokens) == 4:
+        elif len(tokens) == 2:
+            if any([math.isnan(el) for el in tokens]):
+                return Special(0)
+            else:
+                return Point(tokens[0], tokens[1])
+        elif len(tokens) == 4:
             if any([math.isnan(el) for el in tokens]):
                 return Special(0)
             else:
@@ -186,7 +191,7 @@ def read_trajectory_binary(fp: io.RawIOBase):
     import struct
     from cachetools import LRUCache, cached
     from vot.region import Special
-    from vot.region.shapes import Rectangle, Polygon, Mask
+    from vot.region.shapes import Rectangle, Polygon, Mask, Point
 
     buffer = dict(data=fp.read(), offset = 0)
 
@@ -217,6 +222,7 @@ def read_trajectory_binary(fp: io.RawIOBase):
             tl_x, tl_y, region_w, region_h, n = read("<hhHHH")
             rle = np.array(read("<%dH" % (n)), dtype=np.int32)
             r = Mask(rle_to_mask(rle, region_w, region_h), (tl_x, tl_y))
+        elif type == 4: r = Point(*read("<ff"))
         else:
             raise IOError("Wrong region type")
         trajectory.append(r)
@@ -231,7 +237,7 @@ def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
     """
     import struct
     from vot.region import Special
-    from vot.region.shapes import Rectangle, Polygon, Mask
+    from vot.region.shapes import Rectangle, Polygon, Mask, Point
 
     fp.write(struct.pack("<hI", 1, len(data)))
 
@@ -239,9 +245,10 @@ def write_trajectory_binary(fp: io.RawIOBase, data: List["Region"]):
         if isinstance(r, Special): fp.write(struct.pack("<BI", 0, r.code))
         elif isinstance(r, Rectangle): fp.write(struct.pack("<Bffff", 1, r.x, r.y, r.width, r.height))
         elif isinstance(r, Polygon): fp.write(struct.pack("<BH%df" % (2 * r.size), 2, r.size, *[item for sublist in r.points() for item in sublist]))
-        elif isinstance(r, Mask): 
+        elif isinstance(r, Mask):
             rle = mask_to_rle(r.mask, maxstride=255*255)
             fp.write(struct.pack("<BhhHHH%dH" % len(rle), 3, r.offset[0], r.offset[1], r.mask.shape[1], r.mask.shape[0], len(rle), *rle))
+        elif isinstance(r, Point): fp.write(struct.pack("<Bff", 4, r.x, r.y))
         else:
             raise IOError("Wrong region type")
 

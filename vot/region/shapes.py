@@ -505,3 +505,121 @@ class Mask(Shape):
         """
         bounds = mask_bounds(self.mask)
         return bounds[0] + self.offset[0], bounds[1] + self.offset[1], bounds[2] + self.offset[0], bounds[3] + self.offset[1]
+
+class Point(Shape):
+    """
+    Point region defined by a single (x, y) coordinate.
+    """
+
+    def __init__(self, x=0, y=0):
+        """ Constructor
+
+        Args:
+            x (float): X coordinate of the point.
+            y (float): Y coordinate of the point.
+        """
+        super().__init__()
+        self._data = np.array([[x], [y]], dtype=np.float32)
+
+    def __str__(self):
+        """ Create string from class """
+        return '{},{}'.format(self.x, self.y)
+
+    @property
+    def x(self):
+        """ X coordinate of the point. """
+        return float(self._data[0, 0])
+
+    @property
+    def y(self):
+        """ Y coordinate of the point. """
+        return float(self._data[1, 0])
+
+    @property
+    def type(self):
+        """ Type of the region. """
+        return RegionType.POINT
+
+    def copy(self):
+        """ Create a copy of the point. """
+        return copy(self)
+
+    def convert(self, rtype: RegionType):
+        """ Convert the point to another region type.
+
+        Args:
+            rtype (RegionType): Target region type.
+
+        Returns:
+            Region: Converted region.
+
+        Raises:
+            ConversionException: If the conversion is not supported.
+        """
+        if rtype == RegionType.POINT:
+            return self.copy()
+        else:
+            raise ConversionException("Unable to convert point region to {}".format(rtype), source=self)
+
+    def is_empty(self):
+        """ Check if the point is empty.
+
+        Returns:
+            bool: Always False; a point always has a defined location.
+        """
+        return False
+
+    def draw(self, handle: DrawHandle):
+        """ Draw the point to the given handle.
+
+        Args:
+            handle (DrawHandle): Handle to draw to.
+        """
+        handle.points([(self.x, self.y)])
+
+    def resize(self, factor=1):
+        """ Resize the point by the given factor.
+
+        Args:
+            factor (float): Resize factor.
+
+        Returns:
+            Point: Resized point.
+        """
+        return Point(self.x * factor, self.y * factor)
+
+    def move(self, dx=0, dy=0):
+        """ Move the point by the given offset.
+
+        Args:
+            dx (float): X offset.
+            dy (float): Y offset.
+
+        Returns:
+            Point: Moved point.
+        """
+        return Point(self.x + dx, self.y + dy)
+
+    def rasterize(self, bounds: Tuple[int, int, int, int]):
+        """ Rasterize the point into a binary mask.
+
+        Args:
+            bounds (tuple): Bounding box of the mask as (left, top, right, bottom).
+
+        Returns:
+            numpy.ndarray: Binary mask with a single pixel set at the point location.
+        """
+        mask = np.zeros((bounds[3] - bounds[1] + 1, bounds[2] - bounds[0] + 1), dtype=np.uint8)
+        px = int(round(self.x)) - bounds[0]
+        py = int(round(self.y)) - bounds[1]
+        if 0 <= px < mask.shape[1] and 0 <= py < mask.shape[0]:
+            mask[py, px] = 1
+        return mask
+
+    def bounds(self):
+        """ Get the bounding box of the point.
+
+        Returns:
+            tuple: Bounding box as (left, top, right, bottom). For a point this is a degenerate box.
+        """
+        return int(round(self.x)), int(round(self.y)), int(round(self.x)), int(round(self.y))

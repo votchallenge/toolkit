@@ -34,6 +34,7 @@ class RegionType(Enum):
     RECTANGLE = 1
     POLYGON = 2
     MASK = 3
+    POINT = 4
 
 class Region(ABC):
     """
@@ -143,4 +144,4 @@ class Special(Region):
         return True
 
 from .raster import calculate_overlap, calculate_overlaps
-from .shapes import Rectangle, Polygon, Mask
+from .shapes import Rectangle, Polygon, Mask, Point
