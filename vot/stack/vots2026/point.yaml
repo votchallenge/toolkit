@@ -1,0 +1,9 @@
+title: VOTS2026 Point Tracking Challenge
+dataset: https://data.votchallenge.net/vots2026/point/description.json
+experiments:
+  baseline:
+    type: unsupervised
+    repetitions: 1
+    multiobject: True
+    analyses:
+      - type: vot.analysis.point.AveragePointAccuracy
