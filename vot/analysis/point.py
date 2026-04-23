@@ -9,9 +9,9 @@ from vot.tracker import Tracker
 from vot.dataset import Sequence
 from vot.experiment import Experiment
 from vot.experiment.multirun import UnsupervisedExperiment
-from vot.region import RegionType
 from vot.analysis import SeparableAnalysis, SequenceAggregator, \
-    MissingResultsException, Measure, Sorting, is_special
+    MissingResultsException, Measure, Sorting
+from vot.region import Point
 from vot.utilities.data import Grid
 
 THRESHOLDS = [1, 2, 4, 8, 16]
@@ -23,16 +23,19 @@ def compute_point_accuracy(predicted: list, groundtruth: list, width: int, heigh
     the L2 distance is computed in a normalized coordinate space equivalent
     to 256x256 pixels, making the thresholds resolution-independent.
 
-    Args:
-        predicted (list): Predicted trajectory as a list of regions.
-        groundtruth (list): Groundtruth trajectory as a list of regions.
-        width (int): Frame width in pixels.
-        height (int): Frame height in pixels.
+    :param predicted: Predicted trajectory as a list of regions.
+    :type predicted: list
+    :param groundtruth: Groundtruth trajectory as a list of regions.
+    :type groundtruth: list
+    :param width: Frame width in pixels.
+    :type width: int
+    :param height: Frame height in pixels.
+    :type height: int
 
-    Returns:
-        Tuple of (d_avg, d_1, d_2, d_4, d_8, d_16, n_evaluated) where each d_t
+    :returns: Tuple of (d_avg, d_1, d_2, d_4, d_8, d_16, n_evaluated) where each d_t
         is the fraction of frames where normalized L2 error < t, and n_evaluated
         is the number of frames included in the computation.
+    :rtype: Tuple[float, ...]
     """
     sx = (width - 1) / 255.0
     sy = (height - 1) / 255.0
@@ -41,7 +44,7 @@ def compute_point_accuracy(predicted: list, groundtruth: list, width: int, heigh
     n = 0
 
     for pred, gt in zip(predicted, groundtruth):
-        if pred.type != RegionType.POINT or gt.type != RegionType.POINT:
+        if not isinstance(pred, Point) or not isinstance(gt, Point):
             continue
         dx = (pred.x - gt.x) / sx
         dy = (pred.y - gt.y) / sy
@@ -87,14 +90,17 @@ class PointAccuracy(SeparableAnalysis):
     def subcompute(self, experiment: Experiment, tracker: Tracker, sequence: Sequence, dependencies: List[Grid]) -> Tuple[Any]:
         """Compute point accuracy for a single tracker on a single sequence.
 
-        Args:
-            experiment (Experiment): The experiment.
-            tracker (Tracker): The tracker.
-            sequence (Sequence): The sequence.
-            dependencies (List[Grid]): Unused.
+        :param experiment: The experiment.
+        :type experiment: Experiment
+        :param tracker: The tracker.
+        :type tracker: Tracker
+        :param sequence: The sequence.
+        :type sequence: Sequence
+        :param dependencies: Unused.
+        :type dependencies: List[Grid]
 
-        Returns:
-            Tuple of (d_avg, d_1, d_2, d_4, d_8, d_16, n_frames).
+        :returns: Tuple of (d_avg, d_1, d_2, d_4, d_8, d_16, n_frames).
+        :rtype: Tuple[Any]
         """
         trajectories = experiment.gather(tracker, sequence)
 
@@ -160,13 +166,15 @@ class AveragePointAccuracy(SequenceAggregator):
     def aggregate(self, tracker: Tracker, sequences: List[Sequence], results: Grid) -> Tuple[Any]:
         """Aggregate per-sequence results into dataset-level scores.
 
-        Args:
-            tracker (Tracker): The tracker.
-            sequences (List[Sequence]): All sequences.
-            results (Grid): Per-sequence results from PointAccuracy.
+        :param tracker: The tracker.
+        :type tracker: Tracker
+        :param sequences: All sequences.
+        :type sequences: List[Sequence]
+        :param results: Per-sequence results from PointAccuracy.
+        :type results: Grid
 
-        Returns:
-            Tuple of (d_avg, d_1, d_2, d_4, d_8, d_16, total_frames).
+        :returns: Tuple of (d_avg, d_1, d_2, d_4, d_8, d_16, total_frames).
+        :rtype: Tuple[Any]
         """
         n_measures = len(THRESHOLDS) + 1
         weighted_sum = np.zeros(n_measures, dtype=np.float64)

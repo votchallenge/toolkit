@@ -25,5 +25,8 @@
     "supervised_ar": "vot.analysis.supervised.AccuracyRobustness",
     "supervised_average_ar": "vot.analysis.supervised.AverageAccuracyRobustness",
     "supervised_eao_curve": "vot.analysis.supervised.EAOCurve",
-    "supervised_eao_score": "vot.analysis.supervised.EAOScore"
+    "supervised_eao_score": "vot.analysis.supervised.EAOScore",
+
+    "point_accuracy": "vot.analysis.point.PointAccuracy",
+    "point_average_accuracy": "vot.analysis.point.AveragePointAccuracy"
 }

@@ -39,3 +39,8 @@ Supervision analysis
 
 .. automodule:: vot.analysis.supervised
    :members:
+
+Point tracking measures
+-----------------------
+.. automodule:: vot.analysis.point
+   :members:
