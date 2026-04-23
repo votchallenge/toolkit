@@ -745,10 +745,10 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
 
         if format == "html":
             from .html import generate_html_document
-            generate_html_document(trackers, workspace.dataset, reports, report_storage, metadata=metadata)
+            generate_html_document(trackers, sequences, reports, report_storage, metadata=metadata)
         elif format == "latex":
             from .latex import generate_latex_document
-            generate_latex_document(trackers, workspace.dataset, reports, report_storage, metadata=metadata)
+            generate_latex_document(trackers, sequences, reports, report_storage, metadata=metadata)
         elif format == "plots":
             only_plots(reports, report_storage)
         else:

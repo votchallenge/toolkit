@@ -244,10 +244,12 @@ def do_analysis(args: argparse.Namespace):
 
             storage = workspace.storage.substorage("analysis")
 
+            sequences = workspace.dataset if args.sequences is None else [s for s in workspace.dataset if s.name in args.sequences.split(",")]
+
             if args.format == "json":
-                generate_serialized(trackers, workspace.dataset, results, storage, "json", name)
+                generate_serialized(trackers, sequences, results, storage, "json", name)
             elif args.format == "yaml":
-                generate_serialized(trackers, workspace.dataset, results, storage, "yaml", name)
+                generate_serialized(trackers, sequences, results, storage, "yaml", name)
             else:
                 raise ValueError("Unknown format '{}'".format(args.format))
 
