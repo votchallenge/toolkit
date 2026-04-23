@@ -9,7 +9,6 @@ import sys
 import threading
 from collections import OrderedDict, namedtuple
 
-from cv2 import typing
 if sys.version_info >= (3, 3):
     from collections.abc import Iterable
 else:
@@ -861,7 +860,7 @@ class AnalysisProcessor(object):
         return processor.run(analysis, experiment, trackers, sequences)
 
 
-def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], sequences: Optional[typing.List[str]] = None, experiments: Optional[typing.List[str]] = None):
+def process_stack_analyses(workspace: "Workspace", trackers: List[Tracker], sequences: Optional[List[str]] = None, experiments: Optional[List[str]] = None):
     """Process all analyses in the workspace stack. This function is used by the command
     line interface to run all the analyses provided in a stack.
 
