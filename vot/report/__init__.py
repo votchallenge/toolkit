@@ -606,7 +606,7 @@ class ReportConfiguration(Attributee):
     sort = Nested(TrackerSorter)
     index = List(Object(ObjectResolver(report_registry), subclass=Report), default=[], description="The reports to include.")
 
-def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[List[str]] = None, select_experiments: typing.Optional[List[str]] = None):
+def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[typing.List[str]] = None, select_experiments: typing.Optional[typing.List[str]] = None):
     """Generate a report for a one or multiple trackers on an experiment stack and a set
     of sequences.
 
