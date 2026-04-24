@@ -1,5 +1,5 @@
 
-The VOT evaluation toolkit
+The VOT Evaluation Toolkit
 ==========================
 
 [![Documentation Status](https://readthedocs.org/projects/vot-toolkit/badge/?version=latest)](https://vot-toolkit.readthedocs.io/en/latest/?badge=latest)
@@ -12,13 +12,14 @@ For more detailed informations consult the documentation available [here](http:/
 Developers
 ----------
 
-The VOT toolkit is developed and maintained by  [Luka Čehovin Zajc](https://vicos.si/lukacu) with the help of the VOT innitiative members and the VOT community.
+The VOT toolkit is developed and maintained by [Luka Čehovin Zajc](https://vicos.si/lukacu) with the help of the VOT innitiative members and the VOT community.
 
-Contributors:
+Community contributors:
 
-* [Luka Čehovin Zajc](https://vicos.si/lukacu), University of Ljubljana
 * [Alan Lukežič](https://vicos.si/people/alan_lukezic/), University of Ljubljana
 * Yan Song, Tampere University
+* Adam Harley, Meta
+* Anurag Bagchi, CMU
 
 Acknowledgements
 ----------------
@@ -28,7 +29,7 @@ The development of this package was supported by Slovenian research agency (ARRS
 License
 -------
 
-Copyright (C) 2024 Luka Čehovin Zajc and the [VOT Challenge innitiative](http://votchallenge.net/).
+Copyright (C) 2026 Luka Čehovin Zajc and the [VOT Challenge innitiative](http://votchallenge.net/).
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
