@@ -1,0 +1,5 @@
+title: VOTS2026 Referral Challenge
+dataset: https://data.votchallenge.net/vots2026/referral/description.json
+experiments:
+  baseline:
+    type: referral
