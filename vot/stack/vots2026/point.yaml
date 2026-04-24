@@ -1,4 +1,4 @@
-title: VOTS2026 Point Tracking Challenge
+title: VOTS2026 Point Tracking Challenge Stack
 dataset: https://data.votchallenge.net/vots2026/point/description.json
 experiments:
   baseline:

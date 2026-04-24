@@ -1,4 +1,4 @@
-title: VOTS2026 Referral Challenge Validation
+title: VOTS2026 Referral Challenge Validation Stack
 dataset: https://data.votchallenge.net/vots2026/referral/validation.json
 experiments:
   baseline:
