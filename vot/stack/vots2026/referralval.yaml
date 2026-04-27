@@ -6,9 +6,4 @@ experiments:
     analyses:
       - type: referral_average_accuracy
         name: Quality
-        bounded: true
-        ignore_unknown: false
-        weighted: false
-      - type: referral_average_success_plot
-        name: Quality plot
-        ignore_unknown: false
+        weighted: true
