@@ -30,7 +30,5 @@
     "point_accuracy": "vot.analysis.point.PointAccuracy",
     "point_average_accuracy": "vot.analysis.point.AveragePointAccuracy",
     "referral_accuracy": "vot.analysis.referral.ReferralSequenceAccuracy",
-    "referral_average_accuracy": "vot.analysis.referral.ReferralAverageAccuracy",
-    "referral_success_plot": "vot.analysis.referral.ReferralSuccessPlot",
-    "referral_average_success_plot": "vot.analysis.referral.ReferralAverageSuccessPlot"
+    "referral_average_accuracy": "vot.analysis.referral.ReferralAverageAccuracy"
 }
