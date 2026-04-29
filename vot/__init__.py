@@ -69,7 +69,7 @@ class GlobalConfiguration(Attributee):
     """
 
     debug_mode = Boolean(default=False, description="Enables debug mode for the toolkit.")
-    sequence_cache_size = Integer(default=100, description="Maximum number of sequences to keep in cache.")
+    sequence_cache_size = Integer(default=50, description="Maximum number of sequences to keep in cache.")
     results_binary = Boolean(default=True, description="Enables binary results format.")
     mask_optimize_read = Boolean(default=True, description="Enables mask optimization when reading masks.")
     worker_pool_size = Integer(default=1, description="Number of workers to use for parallel processing.")
@@ -115,6 +115,24 @@ def get_logger() -> logging.Logger:
         return logger
 
     return Proxy(init)
+
+def log_debug(message: str, *args, **kwargs):
+    """Prints a debug message to the logger if debug mode is enabled.
+
+    :param message: The message to be printed.
+    :type message: str
+    :param args: Additional arguments to be formatted into the message.
+    :param kwargs: Additional keyword arguments to be formatted into the message."""
+    get_logger().debug(message, *args, **kwargs)
+
+def log_info(message: str, *args, **kwargs):
+    """Prints an info message to the logger.
+
+    :param message: The message to be printed.
+    :type message: str
+    :param args: Additional arguments to be formatted into the message.
+    :param kwargs: Additional keyword arguments to be formatted into the message."""
+    get_logger().info(message, *args, **kwargs)
 
 config = Proxy(lambda: GlobalConfiguration())
 

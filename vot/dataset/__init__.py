@@ -478,7 +478,7 @@ class FrameList(object):
 
         :returns: Number of frames
         :rtype: int"""
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def frame(self, index: int) -> Frame:
         """Returns the frame at the specified index.
@@ -486,7 +486,7 @@ class FrameList(object):
         :param index: Frame index
         :type index: int
         """
-        return NotImplementedError()
+        raise NotImplementedError()
     
     def __getitem__(self, index: int) -> Frame:
         return self.frame(index)
@@ -525,18 +525,18 @@ class Sequence(FrameList):
         return self._name
 
     @abstractmethod
-    def metadata(self, name, default=None):
+    def metadata(self, name=None, default=None):
         """Returns the value of the specified metadata field. If the field does not
         exist, the default value is returned.
 
-        :param name: Name of the metadata field
+        :param name: Name of the metadata field, if None, returns the entire metadata dictionary
         :type name: str
         :param default: Default value
         :type default: object, optional
 
         :returns: Value of the metadata field
         :rtype: object"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def channel(self, channel=None) -> Channel:
@@ -548,7 +548,7 @@ class Sequence(FrameList):
 
         :returns: Channel
         :rtype: Channel"""
-        pass
+        raise NotImplementedError()    
 
     @abstractmethod
     def channels(self) -> Set[str]:
@@ -556,7 +556,7 @@ class Sequence(FrameList):
 
         :returns: Names of all channels
         :rtype: set"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def objects(self) -> Set[str]:
@@ -564,10 +564,10 @@ class Sequence(FrameList):
 
         :returns: Names of all objects
         :rtype: set"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
-    def object(self, id, index=None):
+    def object(self, oid, index=None):
         """Returns the object with the specified name or identifier. If the index is
         specified, the object is returned only if it is visible in the frame at the
         specified index.
@@ -579,7 +579,7 @@ class Sequence(FrameList):
 
         :returns: Object
         :rtype: Region"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def groundtruth(self, index: int) -> Region:
@@ -593,7 +593,7 @@ class Sequence(FrameList):
 
         :returns: Ground truth region
         :rtype: Region"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def tags(self, index=None) -> List[str]:
@@ -605,7 +605,7 @@ class Sequence(FrameList):
 
         :returns: List of tags
         :rtype: list"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def values(self, index=None) -> Mapping[str, Number]:
@@ -617,7 +617,7 @@ class Sequence(FrameList):
 
         :returns: Dictionary of values
         :rtype: dict"""
-        pass
+        raise NotImplementedError()
 
     @property
     @abstractmethod
@@ -626,7 +626,7 @@ class Sequence(FrameList):
 
         :returns: Width of the frames
         :rtype: int"""
-        pass
+        raise NotImplementedError()
 
     @property
     @abstractmethod
@@ -635,7 +635,7 @@ class Sequence(FrameList):
 
         :returns: Height of the frames
         :rtype: int"""
-        pass
+        raise NotImplementedError()
 
     @property
     def size(self) -> Tuple[int, int]:
@@ -757,16 +757,18 @@ class BasedSequence(Sequence):
         """
         return _cached_loader(self)
 
-    def metadata(self, name: str, default: object=None) -> object:
+    def metadata(self, name: str=None, default=None):
         """Returns the metadata value with the specified name.
 
         :param name: Metadata name
-        :type name: str
+        :type name: str, optional, if None, returns the entire metadata dictionary
         :param default: Default value. Defaults to None.
         :type default: object, optional
 
         :returns: Metadata value
         :rtype: object"""
+        if name is None:
+            return self._metadata.copy()
         return self._metadata.get(name, default)
 
     def channels(self) -> List[str]:
@@ -809,19 +811,19 @@ class BasedSequence(Sequence):
         data = self.__preload()
         return data.objects.keys()
 
-    def object(self, id, index=None) -> Region:
+    def object(self, oid, index=None) -> Region:
         """Returns the object with the specified id. If the index is specified, the
         object is returned as a Region object.
 
-        :param id: Object id
-        :type id: str
+        :param oid: Object id
+        :type oid: str
         :param index: Frame index. Defaults to None.
         :type index: int, optional
 
         :returns: Object region
         :rtype: Region"""
         data = self.__preload()
-        obj = data.objects.get(id, None)
+        obj = data.objects.get(oid, None)
         if index is None:
             return obj
         if obj is None:
@@ -847,8 +849,8 @@ class BasedSequence(Sequence):
             if len(objids) != 1:
                 raise DatasetException("More than one object in sequence")
 
-        id = next(iter(objids))
-        return self.object(id, index)
+        oid = next(iter(objids))
+        return self.object(oid, index)
 
     def tags(self, index: int = None) -> List[str]:
         """Returns a list of tags in the sequence. If the index is specified, only the
@@ -962,11 +964,26 @@ class InMemorySequence(Sequence):
         for name, value in values.items():
             if not name in self._values:
                 self._values[name] = [0] * len(self)
-            self._values[tag].append(value)
+            self._values[name].append(value)
         for name in set(self._values.keys()).difference(values.keys()):
                 self._values[name].append(0)
 
         self._groundtruth.append(region)
+
+    def metadata(self, name=None, default=None):
+        """Returns the value of the specified metadata field. If the field does not
+        exist, the default value is returned.
+
+        :param name: Name of the metadata field, if None, returns the entire metadata dictionary
+        :type name: str
+        :param default: Default value
+        :type default: object, optional
+
+        :returns: Value of the metadata field
+        :rtype: object"""
+        if name is None:
+            return dict(width=self.width, height=self.height)
+        return default
 
     def channel(self, channel : str) -> "Channel":
         """Returns the specified channel object.
@@ -977,13 +994,7 @@ class InMemorySequence(Sequence):
         :returns: Channel object
         :rtype: Channel"""
         return self._channels.get(channel, None)
-    
-    def channels(self) -> List[str]:
-        """Returns a list of channel names.
 
-        :returns: List of channel names
-        :rtype: List[str]"""
-        return set(self._channels.keys())
     
     def frame(self, index : int) -> "Frame":
         """Returns the specified frame. The frame is returned as a Frame object.
@@ -1011,21 +1022,21 @@ class InMemorySequence(Sequence):
             return self._groundtruth
         return self._groundtruth[index]
 
-    def object(self, id: str, index: int = None) -> "Region":
+    def object(self, oid: str, index: int = None) -> "Region":
         """Returns the specified object. If the index is specified, the object is
         returned as a Region object. If the sequence contains more than one object, an
         exception is raised. If the index is not specified, the groundtruth object is
         returned as a Region object. If the sequence contains more than one object, an
         exception is raised.
 
-        :param id: Object id
-        :type id: str
+        :param oid: Object id
+        :type oid: str
         :param index: Frame index. Defaults to None.
         :type index: int, optional
 
         :returns: Object
         :rtype: Region"""
-        if id != "object":
+        if oid != "object":
             return None
 
         if index is None:
@@ -1100,11 +1111,11 @@ class InMemorySequence(Sequence):
         :rtype: tuple"""
         return self.channel().size
 
-    def channels(self) -> list:
+    def channels(self) -> List[str]:
         """Returns a list of channel names.
 
         :returns: List of channel names
-        :rtype: list"""
+        :rtype: List[str]"""
         return set(self._channels.keys())
 
 def download_bundle(url: str, path: str = "."):

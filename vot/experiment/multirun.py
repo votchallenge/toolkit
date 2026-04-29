@@ -133,26 +133,6 @@ class UnsupervisedExperiment(MultiRunExperiment):
         :rtype: bool"""
         return self.multiobject
 
-    def scan(self, tracker: Tracker, sequence: Sequence) -> tuple:
-        """Scan the results of the experiment for the given tracker and sequence.
-
-        :param tracker: The tracker to be scanned.
-        :type tracker: Tracker
-        :param sequence: The sequence to be scanned.
-        :type sequence: Sequence
-
-        :returns: A tuple containing three elements. The first element is a boolean indicating whether the experiment is complete. The second element is a list of files that are present. The third element is the results object.
-        :rtype: [tuple]"""
-        
-        complete, files, results = super().scan(tracker, sequence)
-        
-        if results.exists(f"{sequence.name}_time.txt"):
-            files.append(f"{sequence.name}_time.txt")
-        elif complete:
-            complete = False
-        
-        return complete, files, results
-
     def execute(self, tracker: Tracker, sequence: Sequence, force: bool = False, callback: Callable = None):
         """Execute the experiment for the given tracker and sequence.
 
@@ -184,7 +164,8 @@ class UnsupervisedExperiment(MultiRunExperiment):
         queries_keys = []
         for i in range(len(sequence)):
             for o in helper.new(i):
-                queries.append(ObjectQuery(self._get_initialization(sequence, i, o), {}, i))
+                state = self._get_initialization(sequence, i, o)
+                queries.append(ObjectQuery(state.region, state.properties, i))
                 queries_keys.append(o)
 
         with self._get_runtime(tracker, sequence, self._multiobject) as runtime:
@@ -238,11 +219,12 @@ class UnsupervisedExperiment(MultiRunExperiment):
                         if callback:
                             callback((float(i-1) / self.repetitions) + \
                                     (float(q) / (self.repetitions * len(trajectories))))
-                    
-                with results.write(f"{sequence.name}_time.txt") as filehandle:
-                    filehandle.writelines([f"{t}\n" for t in times])
                         
                 for o, trajectory in trajectories.items():
+                    # Override time property with the total time of the trajectory
+                    for frame in range(len(sequence)):
+                        trajectory.set(frame, trajectory.region(frame), {"time": times[frame]})
+                    
                     trajectory.write(results, result_name(sequence, o, i))
 
 

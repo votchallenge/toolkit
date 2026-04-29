@@ -9,7 +9,7 @@ import os
 import time
 import tempfile
 
-from vot import get_logger
+from vot import log_debug
 from vot.region import Region, Mask, Rectangle, Point, Polygon
 from vot.region.io import parse_region
 from vot.tracker import Tracker, TrackerRuntime, ObjectQuery, ObjectStatus, RunQueries, RunResult
@@ -186,7 +186,7 @@ class TrackerFolderRuntime(TrackerRuntime):
         
         start_time = time.time()
         
-        get_logger().info(f"Running tracker with command: {self._command} in folder: {self.folder}")
+        log_debug(f"Running tracker with command: {self._command} in folder: {self.folder}")
         
         if sys.platform.startswith("win"):
             process = subprocess.Popen(
@@ -221,7 +221,7 @@ class TrackerFolderRuntime(TrackerRuntime):
         if process.returncode != 0:
             output_data = output_data.decode("utf-8") if output_data is not None else ""
 
-            print(f"Tracker process output:\n{output_data}")
+            log_debug(f"Tracker process output:\n{output_data}")
             self.stop()
             
             raise RuntimeError(f"Tracker process exited with code {process.returncode}")

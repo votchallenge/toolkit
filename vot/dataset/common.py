@@ -252,7 +252,10 @@ def download_dataset_meta(url: str, path: str) -> None:
             data = {'name': sequence["name"], 'fps': sequence["fps"], 'format': 'default'}
 
             if "metadata" in sequence and isinstance(sequence["metadata"], dict):
-                data.update(sequence["metadata"])
+                # Only update metadata fields that are not already included in the metadata dictionary
+                for key, value in sequence["metadata"].items():
+                    if not key.startswith("channels.") and not key in data:
+                        data[key] = value
 
             annotations_url = join_url(base_url, sequence["annotations"]["url"])
 
@@ -304,7 +307,7 @@ def download_dataset_meta(url: str, path: str) -> None:
         logger.error('Failed sequences: %s', ', '.join(failed))
     else:
         logger.info('Successfully downloaded all sequences.')
-        with open(os.path.join(path, "list.txt"), "w") as fp:
+        with open(os.path.join(path, "list.txt"), "w", encoding="utf-8") as fp:
             for sequence in meta["sequences"]:
                 fp.write('{}\n'.format(sequence["name"]))
 
@@ -333,16 +336,16 @@ def write_sequence(directory: str, sequence: Sequence):
 
         for i in range(len(sequence)):
             frame = sequence.frame(i).channel(channel)
-            cv2.imwrite(os.path.join(cdir, "%08d.jpg" % (i + 1)), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(os.path.join(cdir, f"{i + 1:08d}.jpg"), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
     for tag in sequence.tags():
         data = "\n".join(["1" if tag in sequence.tags(i) else "0" for i in range(len(sequence))])
-        with open(os.path.join(directory, "%s.tag" % tag), "w") as fp:
+        with open(os.path.join(directory, f"{tag}.tag"), "w", encoding="utf-8") as fp:
             fp.write(data)
 
     for value in sequence.values():
         data = "\n".join([ str(sequence.values(i).get(value, "")) for i in range(len(sequence))])
-        with open(os.path.join(directory, "%s.value" % value), "w") as fp:
+        with open(os.path.join(directory, f"{value}.value"), "w", encoding="utf-8") as fp:
             fp.write(data)
 
     # Write groundtruth in case of single object
