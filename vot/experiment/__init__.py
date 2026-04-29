@@ -9,7 +9,7 @@ from abc import abstractmethod
 
 from attributee import Attributee, Object, Integer, Float, Nested, List, Boolean
 
-from vot.tracker import TrackerException
+from vot.tracker import TrackerException, ObjectStatus
 from vot.utilities import Progress, to_number, Registry
 from vot.dataset.proxy import IgnoreSpecialObjects
 
@@ -143,7 +143,7 @@ class Experiment(Attributee):
         # TODO: at some point this may be a property for all experiments
         return False
 
-    def _get_initialization(self, sequence: "Sequence", index: int, oid: str = None):
+    def _get_initialization(self, sequence: "Sequence", index: int, oid: str = None) -> ObjectStatus:
         """Get initialization for a given sequence, index and object id.
 
         :param sequence: Sequence to get initialization for
@@ -157,9 +157,9 @@ class Experiment(Attributee):
         :rtype: Initialization
         :raises ValueError: If the sequence does not contain the given index or object id"""
         if not self._multiobject and oid is None:
-            return sequence.groundtruth(index)
+            return ObjectStatus(sequence.groundtruth(index), {})
         else:
-            return sequence.frame(index).object(oid)
+            return ObjectStatus(sequence.frame(index).object(oid), {})
 
     def _get_runtime(self, tracker: "Tracker", sequence: "Sequence", multiobject=False):
         """Get runtime for a given tracker and sequence. Can convert single-object

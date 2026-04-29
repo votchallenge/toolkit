@@ -71,6 +71,13 @@ All files follow the naming pattern ``query_<ID>.txt``, where ``<ID>`` denotes t
     * Mask - using the same format as the toolkit is using (code from the toolkit can be used)
 * Additional lines contain optional arguments in the form of ``key=value``
 
+An example query file for a rectangle object starting at frame 10 with a description property:
+.. code-block:: text
+
+    10
+    120,80,64,92
+    description=Example query
+
 Output trajectories
 ~~~~~~~~~~~~~~~~~~~
 
@@ -117,7 +124,7 @@ The Python protocol is a lightweight runtime for Python-native trackers. The too
 Compared to TraX, this protocol is intentionally minimal and Python-only:
 
 * no transport layer setup,
-* no region format conversion,
+* optional initialization/state conversion through metadata,
 * direct method calls on a Python tracker object in an isolated process.
 
 Tracker object interface
@@ -129,6 +136,7 @@ The instantiated tracker object should expose:
 * update method: ``update(...)``.
 
 Method names can be overridden in tracker metadata using ``initialize_method`` and ``update_method``.
+Region conversion can be requested with ``convert`` (same options as folder protocol: ``rectangle``, ``polygon``, ``mask``, ``point``).
 
 Command resolution
 ~~~~~~~~~~~~~~~~~~
@@ -153,6 +161,7 @@ Example registry entry
     timeout = 60
     initialize_method = init
     update_method = update
+    convert = rectangle
     arg_model = /models/model.onnx
 
 Execution model

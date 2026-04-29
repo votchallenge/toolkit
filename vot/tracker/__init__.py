@@ -5,8 +5,9 @@ import os
 import re
 import configparser
 import copy
+from numbers import Real
 from typing import Tuple, List, Union, Dict
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 from abc import abstractmethod, ABC
 
 import yaml
@@ -14,6 +15,7 @@ import yaml
 from vot import ToolkitException
 from vot.dataset import Frame
 from vot.utilities import to_string
+from vot.region import Region, Special
 
 class TrackerException(ToolkitException):
     """Base class for all tracker related exceptions."""
@@ -522,17 +524,161 @@ class Tracker(object):
                 return True
         return False
 
-ObjectStatus = namedtuple("ObjectStatus", ["region", "properties"])
+class ObjectStatus(tuple):
+    """Tuple-like immutable container for an object state."""
 
-ObjectQuery = namedtuple("ObjectQuery", ["state", "properties", "offset"])
+    __slots__ = ()
+    _fields = ("region", "properties")
 
-Queries = List[ObjectQuery]
+    def __new__(cls, region, properties):
+        if not isinstance(region, Region):
+            raise TypeError("ObjectStatus.region must be a Region")
+        if not isinstance(properties, dict):
+            raise TypeError("ObjectStatus.properties must be a dict")
+        return tuple.__new__(cls, (region, properties))
 
-FrameObjects = List[ObjectStatus]
+    @property
+    def region(self):
+        return self[0]
 
-FrameStatus = namedtuple("FrameStatus", ["objects", "time"])
+    @property
+    def properties(self):
+        return self[1]
 
-RunStatus = namedtuple("RunStatus", ["objects", "times"])
+    @classmethod
+    def _make(cls, iterable):
+        region, properties = iterable
+        return cls(region, properties)
+
+    def _asdict(self):
+        return OrderedDict(zip(self._fields, self))
+
+    def _replace(self, **kwargs):
+        return self.__class__(
+            kwargs.get("region", self.region),
+            kwargs.get("properties", self.properties)
+        )
+
+
+class ObjectQuery(tuple):
+    """Tuple-like immutable container for an object query."""
+
+    __slots__ = ()
+    _fields = ("state", "properties", "offset")
+
+    def __new__(cls, state, properties, offset):
+        if not isinstance(state, Region):
+            raise TypeError("ObjectQuery.state must be a Region")
+        if not isinstance(properties, dict):
+            raise TypeError("ObjectQuery.properties must be a dict")
+        if not isinstance(offset, int):
+            raise TypeError("ObjectQuery.offset must be an int")
+        return tuple.__new__(cls, (state, properties, offset))
+
+    @property
+    def state(self):
+        return self[0]
+
+    @property
+    def properties(self):
+        return self[1]
+
+    @property
+    def offset(self):
+        return self[2]
+
+    @classmethod
+    def _make(cls, iterable):
+        state, properties, offset = iterable
+        return cls(state, properties, offset)
+
+    def _asdict(self):
+        return OrderedDict(zip(self._fields, self))
+
+    def _replace(self, **kwargs):
+        return self.__class__(
+            kwargs.get("state", self.state),
+            kwargs.get("properties", self.properties),
+            kwargs.get("offset", self.offset)
+        )
+
+
+class FrameResult(tuple):
+    """Tuple-like immutable container for per-frame tracker output."""
+
+    __slots__ = ()
+    _fields = ("objects", "time")
+
+    def __new__(cls, objects, time):
+        if not isinstance(time, Real):
+            raise TypeError("FrameResult.time must be a real number")
+        return tuple.__new__(cls, (objects, float(time)))
+
+    @property
+    def objects(self):
+        return self[0]
+
+    @property
+    def time(self):
+        return self[1]
+
+    @classmethod
+    def _make(cls, iterable):
+        objects, time = iterable
+        return cls(objects, time)
+
+    def _asdict(self):
+        return OrderedDict(zip(self._fields, self))
+
+    def _replace(self, **kwargs):
+        return self.__class__(
+            kwargs.get("objects", self.objects),
+            kwargs.get("time", self.time)
+        )
+
+
+class RunResult(tuple):
+    """Tuple-like immutable container for full-run tracker output."""
+
+    __slots__ = ()
+    _fields = ("objects", "times")
+
+    def __new__(cls, objects, times):
+        if not isinstance(objects, list):
+            raise TypeError("RunResult.objects must be a list")
+        if not isinstance(times, list):
+            raise TypeError("RunResult.times must be a list")
+        if not all(isinstance(t, Real) for t in times):
+            raise TypeError("RunResult.times must contain only real numbers")
+        return tuple.__new__(cls, (objects, [float(t) for t in times]))
+
+    @property
+    def objects(self):
+        return self[0]
+
+    @property
+    def times(self):
+        return self[1]
+
+    @classmethod
+    def _make(cls, iterable):
+        objects, times = iterable
+        return cls(objects, times)
+
+    def _asdict(self):
+        return OrderedDict(zip(self._fields, self))
+
+    def _replace(self, **kwargs):
+        return self.__class__(
+            kwargs.get("objects", self.objects),
+            kwargs.get("times", self.times)
+        )
+
+
+RunQueries = List[ObjectQuery]
+
+FrameObjects = Union[List[ObjectStatus], ObjectStatus, None]
+
 
 class TrackerRuntime(ABC):
     """Base class for tracker runtime implementations.
@@ -549,17 +695,18 @@ class TrackerRuntime(ABC):
         """
         self._tracker = tracker
 
-    def run(self, frames: List[Frame], queries: Queries) -> RunStatus: 
-        """Runs the tracker on the specified frames and queries. Returns a dictionary
-        containing the objects for each query.
+    def run(self, frames: List[Frame], queries: RunQueries) -> RunResult: 
+        """
+        Runs the tracker on the specified frames and queries. 
+        Returns a dictionary containing the objects for each query.
+        
+        Args:
+            frames (List[Frame]): The frames to run the tracker on.
+            queries (Dict[str, ObjectQuery]): The queries to run the tracker on.
 
-        :param frames: The frames to run the tracker on.
-        :type frames: List[Frame]
-        :param queries: The queries to run the tracker on.
-        :type queries: Dict[str, ObjectQuery]
-
-        :returns: A dictionary containing the objects for each query.
-        :rtype: Dict[str, Objects]"""
+        Returns:
+            RunResult: A run result containing the objects and times for each query.
+        """
         
         raise NotImplementedError("TrackerRuntime.run() is not implemented. Please implement the run() method in the tracker runtime implementation.")
 
@@ -632,37 +779,36 @@ class OnlineTrackerRuntime(TrackerRuntime):
         raise NotImplementedError
 
     @abstractmethod
-    def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        """Initializes the tracker runtime with specified frame and objects. Returns the
-        initial objects and the time it took to initialize the tracker.
-
-            frame (Frame) -- The frame to initialize the tracker with.
-            new (Objects) -- The objects to initialize the tracker with.
-            properties (dict) -- The properties to initialize the tracker with.
+    def initialize(self, frame: Frame, new: FrameObjects = None) -> Tuple[FrameObjects, float]:
+        """Initializes the tracker runtime with specified frame and objects. Returns the initial objects and the time it took to initialize the tracker.
+        
+        :param frame: The frame to initialize the tracker with.
+        :param new: The objects to initialize the tracker with. 
 
         :returns: Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker."""
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
+    def update(self, frame: Frame, new: FrameObjects = None) -> Tuple[FrameObjects, float]:
         """Updates the tracker runtime with specified frame and objects. Returns the
         updated objects and the time it took to update the tracker.
 
-            frame (Frame) -- The frame to update the tracker with.
-            new (Objects) -- The objects to update the tracker with.
-            properties (dict) -- The properties to update the tracker with.
-
-        :returns: Tuple[Objects, float] -- The updated objects and the time it took to update the tracker."""
+        :param frame: The frame to update the tracker with.
+        :param new: The objects to update the tracker with.
+        
+        :returns: Tuple[Objects, float] -- The updated objects and the time it took to update the tracker.
+        """
         raise NotImplementedError
 
-    def run(self, frames: List[Frame], queries: Queries) -> RunStatus:
-        """Runs the tracker on the given frames and queries. Returns the tracker output
-        as a RunStatus namedtuple. The online tracker runtime uses the interface defined
-        by the initialize and update methods to run the tracker on the given frames and
-        queries.
+    def run(self, frames: List[Frame], queries: RunQueries) -> RunResult:
+        """Runs the tracker on the given frames and queries. 
+        Returns the tracker output as a RunStatus namedtuple.
+        The online tracker runtime uses the interface defined by 
+        the initialize and update methods to run the tracker 
+        on the given frames and queries.
 
-            frames (List[Frame]) -- The list of frames to run the tracker on.
-            queries (List[ObjectQuery]) -- The list of object queries to run the tracker on.
+        :param frames: The frames to run the tracker on.
+        :param queries: The queries to run the tracker on.
         """
         
         # Order the queries by offset and id
@@ -691,7 +837,7 @@ class OnlineTrackerRuntime(TrackerRuntime):
                 else:
                     statuses[j].append(ObjectStatus(Special(Trajectory.UNKNOWN), {})) 
                    
-        return RunStatus(statuses, times)
+        return RunResult(statuses, times)
 
 class RealtimeTrackerRuntime(TrackerRuntime):
     """Base class for realtime tracker runtime implementations.
@@ -736,19 +882,18 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         self._time = 0
         self._status = None
 
-    def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
+    def initialize(self, frame: Frame, new: FrameObjects = None) -> Tuple[FrameObjects, float]:
         """Initializes the tracker runtime with specified frame and objects. Returns the
         initial objects and the time it took to initialize the tracker.
 
-            frame {Frame} -- The frame to initialize the tracker with.
-            new {Objects} -- The objects to initialize the tracker with.
-            properties {dict} -- The properties to initialize the tracker with.
-
+        :param frame: The frame to initialize the tracker with.
+        :param new: The objects to initialize the tracker with.
+        
         :returns: Tuple[Objects, float] -- The initial objects and the time it took to initialize the tracker."""
         self._countdown = self._grace
         self._status = None
 
-        status, time = self._runtime.initialize(frame, new, properties)
+        status, time = self._runtime.initialize(frame, new)
 
         if time > self._interval:
             if self._countdown > 0:
@@ -763,15 +908,19 @@ class RealtimeTrackerRuntime(TrackerRuntime):
         return status, time
 
 
-    def update(self, frame: Frame, _: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
+    def update(self, frame: Frame, new: FrameObjects = None) -> Tuple[FrameObjects, float]:
         """Updates the tracker runtime with specified frame and objects. Returns the
         updated objects and the time it took to update the tracker.
 
-            frame {Frame} -- The frame to update the tracker with.
-            new {Objects} -- The objects to update the tracker with.
-            properties {dict} -- The properties to update the tracker with.
+        Note that adding new objects is not supported in realtime tracker runtime, as a frame may be skipped
+        if the tracker fails to update within the specified interval.
+
+        :param frame: The frame to update the tracker with.
+        :param new: The objects to update the tracker with. Setting new objects is not supported in realtime tracker and will raise an assertion error.
 
         :returns: Tuple[Objects, float] -- The updated objects and the time it took to update the tracker."""
+
+        assert new is None or len(new) == 0, "Adding new objects is not supported in realtime tracker runtime"
 
         if self._time > self._interval:
             self._time = self._time - self._interval
@@ -780,7 +929,7 @@ class RealtimeTrackerRuntime(TrackerRuntime):
             self._status = None
             self._time = 0
 
-        status, time = self._runtime.update(frame, properties)
+        status, time = self._runtime.update(frame, None)
 
         if time > self._interval:
             if self._countdown > 0:
@@ -800,6 +949,7 @@ except ImportError:
     from vot import get_logger
     get_logger().warning("Unable to import support for TraX protocol")
 
-import vot.tracker.folder
+from vot.tracker.folder import TrackerFolderRuntime
+from vot.tracker.python import PythonRuntime
 
 from vot.tracker.results import Trajectory, Results

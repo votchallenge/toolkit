@@ -16,7 +16,7 @@ import socket as socketio
 import tempfile
 import logging
 import unittest
-from typing import Tuple
+from typing import Tuple, Callable
 from threading import Thread, Lock
 
 import numpy as np
@@ -346,13 +346,11 @@ class TrackerProcess(object):
         self._returncode = self._process.returncode
         return self._returncode is None
 
-    def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        """Initializes the tracker. This method is used to initialize the tracker with
-        the first frame. It returns the initial state of the tracker.
+    def initialize(self, frame: Frame, new: FrameObjects = None) -> Tuple[FrameObjects, float]:
+        """ Initializes the tracker. This method is used to initialize the tracker with the first frame. It returns the initial state of the tracker.
 
         :param frame: The first frame.
         :param new: The initial state of the tracker.
-        :param properties: The properties to be set for the tracker.
 
         :returns: The initial state of the tracker.
         :raises TraxException: If the tracker is not alive."""
@@ -360,15 +358,12 @@ class TrackerProcess(object):
         if not self.alive:
             raise TraxException("Tracker not alive")
 
-        if properties is None:
-            properties = dict()
-
         tlist = convert_frame(frame, self._client.channels)
         tobjects = convert_objects(new)
 
         self._watchdog_reset(True)
 
-        status, elapsed = self._client.initialize(tlist, tobjects, properties)
+        status, elapsed = self._client.initialize(tlist, tobjects, dict())
 
         self._watchdog_reset(False)
 
@@ -377,13 +372,11 @@ class TrackerProcess(object):
         return status, elapsed
 
 
-    def update(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        """Updates the tracker with a new frame. This method is used to update the
-        tracker with a new frame. It returns the new state of the tracker.
+    def update(self, frame: Frame, new: FrameObjects = None) -> Tuple[FrameObjects, float]:
+        """ Updates the tracker with a new frame. This method is used to update the tracker with a new frame. It returns the new state of the tracker.
 
         :param frame: The new frame.
         :param new: The new state of the tracker.
-        :param properties: The properties to be set for the tracker.
 
         :returns: The new state of the tracker.
         :raises TraxException: If the tracker is not alive."""
@@ -397,7 +390,7 @@ class TrackerProcess(object):
 
         self._watchdog_reset(True)
 
-        status, elapsed = self._client.frame(tlist, properties, tobjects)
+        status, elapsed = self._client.frame(tlist, dict(), tobjects)
 
         self._watchdog_reset(False)
 
@@ -468,7 +461,9 @@ class TrackerProcess(object):
         # Flush remaining output
         while True: #self._process.returncode is None:
             line = self._process.stdout.readline()
-            if not line is None and not self._client._logger is None:
+            if line is None:
+                break
+            if not self._client._logger is None:
                 self._client._logger.handle(line.decode("utf-8"))
 
         self._watchdog_reset(False)
@@ -566,7 +561,7 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
                 if self._process.alive:
                     self._process.terminate()
                 
-                self._output("Process exited with code ({})\n".format(self._process.returncode))
+                self._output(f"Process exited with code ({self._process.returncode})\n")
                 timeout = self._process.interrupted
                 self._workdir = self._process.workdir
             else:
@@ -576,7 +571,7 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
 
         try:
 
-            if not self._onerror is None and isinstance(self._onerror, callable):
+            if not self._onerror is None and isinstance(self._onerror, Callable):
                 self._onerror(log, workdir)
 
         except Exception as e:
@@ -615,18 +610,13 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
                 if len(new) != 1:
                     raise TrackerException("Tracker does not support multiple objects, but multiple objects were provided for initialization", tracker=self._tracker)
                 else:
-                    new = new[0] 
+                    new = new[0]
             
             if self._restart:
                 self.stop()
             self._connect()
 
-            tproperties = dict(self._arguments)
-
-            if not properties is None:
-                tproperties.update(properties)
-
-            return self._process.initialize(frame, new, tproperties)
+            return self._process.initialize(frame, new)
         except TraxException as e:
             self._error(e)
 
@@ -643,9 +633,7 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
             if not self.multiobject and (new is None or len(new) != 0):
                 raise TrackerException("Tracker does not support multiple objects, but multiple objects were provided for update", tracker=self._tracker)
             
-            if properties is None:
-                properties = dict()
-            return self._process.update(frame, new, properties)
+            return self._process.update(frame, new)
         except TraxException as e:
             self._error(e)
 

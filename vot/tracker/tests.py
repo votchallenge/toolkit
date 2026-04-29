@@ -74,11 +74,12 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
         
     try:
 
-        logger.info("Generating dummy sequence")
 
         if sequence is None:
+            logger.info("Generating dummy sequence")
             sequence = generate_dummy(50, objects=3 if runtime.multiobject else 1)
         else:
+            logger.info(f"Loading sequence from {sequence}")
             sequence = load_sequence(normalize_path(sequence))
 
         if ignore:

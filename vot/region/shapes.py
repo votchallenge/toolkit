@@ -125,7 +125,7 @@ class Rectangle(Shape):
                 (bounds[2] + region.offset[0], bounds[3] + region.offset[1]),
                 (bounds[0] + region.offset[0], bounds[3] + region.offset[1])])
         else:
-            raise ConversionException("Unable to convert {} region to rectangle region".format(region.type), source=region)
+            raise ConversionException("Unable to convert {} region to rectangle region".format(type(region)), source=region)
 
     def copy(self):
         """Copy region to another object."""
@@ -245,8 +245,8 @@ class Polygon(Shape):
                 (bounds[2] + region.offset[0], bounds[3] + region.offset[1]),
                 (bounds[0] + region.offset[0], bounds[3] + region.offset[1])])
         else:
-            raise ConversionException("Unable to convert {} region to polygon region".format(region.type), source=region)
-    
+            raise ConversionException("Unable to convert {} region to polygon region".format(type(region)), source=region)
+
     @property
     def size(self):
         """Get the number of points."""
@@ -415,7 +415,7 @@ class Mask(Shape):
             bounds = region.bounds()
             return Mask(region.rasterize(bounds), (bounds[0], bounds[1]), optimize=False)
         else:
-            raise ConversionException("Unable to convert {} region to mask region".format(region.type), source=region)
+            raise ConversionException("Unable to convert {} region to mask region".format(type(region)), source=region)
 
     def draw(self, handle: DrawHandle):
         """Draw the mask into an image.

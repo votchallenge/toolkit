@@ -12,7 +12,7 @@ import tempfile
 from vot import get_logger
 from vot.region import Region, Mask, Rectangle, Point, Polygon
 from vot.region.io import parse_region
-from vot.tracker import Tracker, TrackerRuntime, ObjectQuery, ObjectStatus, Queries, RunStatus
+from vot.tracker import Tracker, TrackerRuntime, ObjectQuery, ObjectStatus, RunQueries, RunResult
 from vot.dataset import Frame
 
 def make_temporary_folder():
@@ -161,7 +161,7 @@ class TrackerFolderRuntime(TrackerRuntime):
     def __exit__(self, exc_type, exc_value, traceback):
         self.stop()
         
-    def run(self, frames: List[Frame], queries: Queries) -> RunStatus:
+    def run(self, frames: List[Frame], queries: RunQueries) -> RunResult:
         
         if self.folder is not None:
             raise RuntimeError("Tracker is already running")
@@ -238,7 +238,7 @@ class TrackerFolderRuntime(TrackerRuntime):
                     self.stop()
                     raise RuntimeError(f"Output trajectory length {len(obj)} does not match number of frames {len(frames)}")
             
-            return RunStatus(objects, [frame_time] * len(frames))
+            return RunResult(objects, [frame_time] * len(frames))
         except Exception as e:
             self.stop()
             raise RuntimeError("Failed to parse tracker output") from e
