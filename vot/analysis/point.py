@@ -16,7 +16,7 @@ from vot.utilities.data import Grid
 
 THRESHOLDS = [1, 2, 4, 8, 16]
 
-def compute_point_accuracy(predicted: list, groundtruth: list, width: int, height: int) -> Tuple[float, ...]:
+def compute_point_accuracy(predicted: list, groundtruth: list, width: int, height: int, skip_first: bool = True) -> Tuple[float, ...]:
     """Compute per-threshold accuracy and d_avg for a single point trajectory.
 
     For each frame where both prediction and groundtruth are valid points,
@@ -42,9 +42,13 @@ def compute_point_accuracy(predicted: list, groundtruth: list, width: int, heigh
 
     counts = np.zeros(len(THRESHOLDS), dtype=np.float64)
     n = 0
+    first_skipped = False
 
     for pred, gt in zip(predicted, groundtruth):
         if not isinstance(pred, Point) or not isinstance(gt, Point):
+            continue
+        if skip_first and not first_skipped:
+            first_skipped = True
             continue
         dx = (pred.x - gt.x) / sx
         dy = (pred.y - gt.y) / sy
