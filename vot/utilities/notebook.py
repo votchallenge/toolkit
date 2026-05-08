@@ -1,280 +1,442 @@
-"""This module contains functions for visualization in Jupyter notebooks."""
+"""Utilities for running and visualizing VOT workflows in Jupyter notebooks."""
 
-import os
 import io
-from threading import Thread, Condition
+import typing
+from collections.abc import Iterable
+from datetime import datetime
+from threading import Condition, Thread
 
-def is_notebook():
-    """Returns True if the current environment is a Jupyter notebook.
+if typing.TYPE_CHECKING:
+    from vot.experiment import Experiment
+    from vot.tracker import Tracker
+    from vot.workspace import Workspace
+    from vot.dataset import Sequence
 
-    :returns: True if the current environment is a Jupyter notebook.
-    :rtype: bool"""
+
+def is_notebook() -> bool:
+    """Return True when executed inside an IPython kernel notebook."""
     try:
         from IPython import get_ipython
-        if get_ipython() is None:
-            raise ImportError("console")
-        if 'IPKernelApp' not in get_ipython().config:  # pragma: no cover
-            raise ImportError("console")
-        if 'VSCODE_PID' in os.environ:  # pragma: no cover
-            raise ImportError("vscode")
-    except ImportError:
+
+        shell = get_ipython()
+        if shell is None:
+            return False
+
+        return "IPKernelApp" in shell.config
+    except (ImportError, AttributeError):
         return False
-    else:
-        return True
 
-if is_notebook():
-   
-    from IPython.display import display
-    from ipywidgets import widgets
-    from vot.utilities.draw import ImageDrawHandle
 
-    class SequenceView(object):
-        """A widget for visualizing a sequence."""
+def _require_notebook_dependencies():
+    """Load notebook-only dependencies or raise a clear import error."""
+    if not is_notebook():
+        raise ImportError("The Jupyter notebook environment is required for visualization.")
 
-        def __init__(self):
-            """Initializes a new instance of the SequenceView class.
-
-            :param sequence: The sequence to visualize.
-            :type sequence: Sequence
-            """
-
-            self._handle = ImageDrawHandle(sequence.frame(0).image())
-
-            self._button_restart = widgets.Button(description='Restart')
-            self._button_next = widgets.Button(description='Next')
-            self._button_play = widgets.Button(description='Run')
-            self._frame = widgets.Label(value="")
-            self._frame.layout.display = "none"
-            self._frame_feedback = widgets.Label(value="")
-            self._image = widgets.Image(value="", format="png", width=sequence.size[0] * 2, height=sequence.size[1] * 2)
-
-            state = dict(frame=0, auto=False, alive=True, region=None)
-            condition = Condition()
-
-            self._buttons = widgets.HBox(children=(frame, self._button_restart, self._button_next, button_play, frame2))
-
-        def _push_image(handle):
-            """Pushes an image to the widget.
-
-            :param handle: The image handle.
-            :type handle: ImageDrawHandle
-            """
-            with io.BytesIO() as output:
-                handle.snapshot.save(output, format="PNG")
-                return output.getvalue()
-
-    def visualize_tracker(tracker: "Tracker", sequence: "Sequence"):
-        """Visualizes a tracker in a Jupyter notebook.
-
-        :param tracker: The tracker to visualize.
-        :type tracker: Tracker
-        :param sequence: The sequence to visualize.
-        :type sequence: Sequence
-        """
+    try:
         from IPython.display import display
         from ipywidgets import widgets
         from vot.utilities.draw import ImageDrawHandle
+    except ImportError as exc:
+        raise ImportError("The IPython and ipywidgets packages are required for visualization.") from exc
 
-        def encode_image(handle):
-            """Encodes an image so that it can be displayed in a Jupyter notebook.
+    return display, widgets, ImageDrawHandle
 
-            :param handle: The image handle.
-            :type handle: ImageDrawHandle
 
-            :returns: The encoded image.
-            :rtype: bytes"""
-            with io.BytesIO() as output:
-                handle.snapshot.save(output, format="PNG")
-                return output.getvalue()
+def _encode_image(handle) -> bytes:
+    with io.BytesIO() as output:
+        handle.snapshot.save(output, format="PNG")
+        return output.getvalue()
 
-        handle = ImageDrawHandle(sequence.frame(0).image())
 
-        button_restart = widgets.Button(description='Restart')
-        button_next = widgets.Button(description='Next')
-        button_play = widgets.Button(description='Run')
-        frame = widgets.Label(value="")
-        frame.layout.display = "none"
-        frame2 = widgets.Label(value="")
-        image = widgets.Image(value=encode_image(handle), format="png", width=sequence.size[0] * 2, height=sequence.size[1] * 2)
+def _as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, (str, bytes)):
+        return [value]
+    if isinstance(value, Iterable):
+        return list(value)
+    return [value]
 
-        state = dict(frame=0, auto=False, alive=True, region=None)
-        condition = Condition()
 
-        buttons = widgets.HBox(children=(frame, button_restart, button_next, button_play, frame2))
+def _extract_region(objects):
+    """Extract first region from runtime frame output."""
+    if objects is None:
+        return None
 
-        image.value = encode_image(handle)
+    if hasattr(objects, "objects"):
+        objects = objects.objects
 
-        def run():
-            """Runs the tracker."""
+    if hasattr(objects, "region"):
+        return objects.region
 
-            runtime = tracker.runtime()
+    if isinstance(objects, (list, tuple)) and objects:
+        first = objects[0]
+        if hasattr(first, "region"):
+            return first.region
 
+    return None
+
+
+class SequenceView(object):
+    """A compact widget for showing sequence frames and regions."""
+
+    def __init__(self, sequence: "Sequence"):
+        display, widgets, ImageDrawHandle = _require_notebook_dependencies()
+
+        self._display = display
+        self._sequence = sequence
+        self._handle = ImageDrawHandle(sequence.frame(0).image())
+
+        self.frame = widgets.Label(value="Frame: 0")
+        self.image = widgets.Image(
+            value=_encode_image(self._handle),
+            format="png",
+            width=sequence.size[0] * 2,
+            height=sequence.size[1] * 2,
+        )
+        self.widget = widgets.VBox(children=(self.image, self.frame))
+
+    def set_frame(self, index: int, region=None):
+        index = max(0, min(index, len(self._sequence) - 1))
+        frame = self._sequence.frame(index)
+
+        self._handle.image(frame.image())
+        self._handle.style(color="green").region(frame.groundtruth())
+        if region is not None:
+            self._handle.style(color="red").region(region)
+
+        self.image.value = _encode_image(self._handle)
+        self.frame.value = "Frame: {}".format(index)
+
+    def show(self):
+        self._display(self.widget)
+
+
+def visualize_tracker(tracker: "Tracker", sequence: "Sequence"):
+    """Visualize tracker outputs on a sequence inside a notebook."""
+    display, widgets, ImageDrawHandle = _require_notebook_dependencies()
+
+    handle = ImageDrawHandle(sequence.frame(0).image())
+    frame_label = widgets.Label(value="")
+    frame_label.layout.display = "none"
+    mirror_label = widgets.Label(value="")
+    image = widgets.Image(
+        value=_encode_image(handle),
+        format="png",
+        width=sequence.size[0] * 2,
+        height=sequence.size[1] * 2,
+    )
+
+    button_restart = widgets.Button(description="Restart")
+    button_next = widgets.Button(description="Next")
+    button_play = widgets.Button(description="Run")
+
+    state = {"frame": 0, "auto": False, "alive": True, "region": None, "restart": False}
+    condition = Condition()
+
+    def update_image():
+        index = max(0, min(state["frame"], len(sequence) - 1))
+        frame = sequence.frame(index)
+
+        handle.image(frame.image())
+        handle.style(color="green").region(frame.groundtruth())
+        if state["region"] is not None:
+            handle.style(color="red").region(state["region"])
+
+        image.value = _encode_image(handle)
+        frame_label.value = "Frame: {}".format(index)
+
+    def run():
+        runtime = tracker.runtime()
+
+        try:
             while state["alive"]:
+                if state["restart"]:
+                    runtime.stop()
+                    runtime = tracker.runtime()
+                    state["frame"] = 0
+                    state["region"] = None
+                    state["restart"] = False
 
-                if state["frame"] == 0:
-                    state["region"], _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+                index = state["frame"]
+                if index >= len(sequence):
+                    state["alive"] = False
+                    break
+
+                if index == 0:
+                    objects, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
                 else:
-                    state["region"], _, _ = runtime.update(sequence.frame(state["frame"]))
+                    objects, _ = runtime.update(sequence.frame(index))
 
+                state["region"] = _extract_region(objects)
                 update_image()
 
                 with condition:
-                    condition.wait()
+                    if state["frame"] >= len(sequence) - 1:
+                        state["auto"] = False
 
-                    if state["frame"] == len(sequence):
-                        state["alive"] = False
-                        continue
+                    if state["auto"]:
+                        condition.wait(timeout=0.05)
+                    else:
+                        condition.wait()
 
-                    state["frame"] = state["frame"] + 1
+                    if not state["alive"]:
+                        break
+
+                    if state["frame"] < len(sequence) - 1:
+                        state["frame"] += 1
+        finally:
+            runtime.stop()
+
+    def on_click(button):
+        with condition:
+            if button is button_next:
+                state["auto"] = False
+                condition.notify()
+            elif button is button_restart:
+                state["auto"] = False
+                state["restart"] = True
+                button_play.description = "Run"
+                condition.notify()
+            elif button is button_play:
+                state["auto"] = not state["auto"]
+                button_play.description = "Stop" if state["auto"] else "Run"
+                condition.notify()
+
+    button_next.on_click(on_click)
+    button_restart.on_click(on_click)
+    button_play.on_click(on_click)
+    widgets.jslink((frame_label, "value"), (mirror_label, "value"))
+
+    controls = widgets.VBox(children=(frame_label, button_restart, button_next, button_play, mirror_label))
+    thread = Thread(target=run, daemon=True)
+
+    display(widgets.Box([widgets.HBox(children=(image, controls))]))
+    thread.start()
+
+    with condition:
+        condition.notify()
 
 
-        def update_image():
-            """Updates the image."""
-            handle.image(sequence.frame(state["frame"]).image())
-            handle.style(color="green").region(sequence.frame(state["frame"]).groundtruth())
-            if state["region"]:
-                handle.style(color="red").region(state["region"])
-            image.value = encode_image(handle)
-            frame.value = "Frame: " + str(state["frame"] - 1)
+def visualize_results(experiment: "Experiment", sequence: "Sequence", trackers=None):
+    """Visualize already computed experiment results for one sequence."""
+    display, widgets, ImageDrawHandle = _require_notebook_dependencies()
 
-        def on_click(button):
-            """Handles a button click."""
-            if button == button_next:
-                with condition:
-                    state["auto"] = False
-                    condition.notify()
-            if button == button_restart:
-                with condition:
-                    state["frame"] = 0
-                    condition.notify()
-            if button == button_play:
-                with condition:
-                    state["auto"] = not state["auto"]
-                    button.description = "Stop" if state["auto"] else "Run"
-                    condition.notify()
+    trackers = _as_list(trackers)
+    if not trackers:
+        raise ValueError("At least one tracker must be provided.")
 
-        button_next.on_click(on_click)
-        button_restart.on_click(on_click)
-        button_play.on_click(on_click)
-        widgets.jslink((frame, "value"), (frame2, "value"))
+    transformed = experiment.transform([sequence])
+    if transformed:
+        sequence = transformed[0]
 
-        def on_update(_):
-            """Handles a widget update."""
+    tracker_trajectories = {}
+    if hasattr(experiment, "gather"):
+        for tracker in trackers:
+            trajectories = experiment.gather(tracker, sequence)
+            tracker_trajectories[tracker] = trajectories[0] if trajectories else None
+
+    handle = ImageDrawHandle(sequence.frame(0).image())
+    image = widgets.Image(
+        value=_encode_image(handle),
+        format="png",
+        width=sequence.size[0] * 2,
+        height=sequence.size[1] * 2,
+    )
+    frame_label = widgets.Label(value="Frame: 0")
+
+    button_restart = widgets.Button(description="Restart")
+    button_next = widgets.Button(description="Next")
+    button_play = widgets.Button(description="Run")
+
+    state = {"frame": 0, "auto": False, "alive": True}
+    condition = Condition()
+
+    colors = ["red", "blue", "orange", "purple", "yellow"]
+
+    def update_image():
+        index = max(0, min(state["frame"], len(sequence) - 1))
+        frame = sequence.frame(index)
+
+        handle.image(frame.image())
+        handle.style(color="green").region(frame.groundtruth())
+
+        for i, tracker in enumerate(trackers):
+            trajectory = tracker_trajectories.get(tracker)
+            if trajectory is None or index >= len(trajectory):
+                continue
+            handle.style(color=colors[i % len(colors)]).region(trajectory.region(index))
+
+        image.value = _encode_image(handle)
+        frame_label.value = "Frame: {}".format(index)
+
+    def run():
+        while state["alive"]:
+            update_image()
+
             with condition:
+                if state["frame"] >= len(sequence) - 1:
+                    state["auto"] = False
+
                 if state["auto"]:
-                    condition.notify()
-
-        frame2.observe(on_update, names=("value", ))
-
-        thread = Thread(target=run)
-        display(widgets.Box([widgets.VBox(children=(image, buttons))]))
-        thread.start()
-
-    def visualize_results(experiment: "Experiment", sequence: "Sequence"):
-        """Visualizes the results of an experiment in a Jupyter notebook.
-
-        :param experiment: The experiment to visualize.
-        :type experiment: Experiment
-        :param sequence: The sequence to visualize.
-        :type sequence: Sequence
-        """
-
-        from IPython.display import display
-        from ipywidgets import widgets
-        from vot.utilities.draw import ImageDrawHandle
-
-        def encode_image(handle):
-            """Encodes an image so that it can be displayed in a Jupyter notebook.
-
-            :param handle: The image handle.
-            :type handle: ImageDrawHandle
-
-            :returns: The encoded image.
-            :rtype: bytes"""
-
-            with io.BytesIO() as output:
-                handle.snapshot.save(output, format="PNG")
-                return output.getvalue()
-
-        handle = ImageDrawHandle(sequence.frame(0).image())
-
-        button_restart = widgets.Button(description='Restart')
-        button_next = widgets.Button(description='Next')
-        button_play = widgets.Button(description='Run')
-        frame = widgets.Label(value="")
-        frame.layout.display = "none"
-        frame2 = widgets.Label(value="")
-        image = widgets.Image(value=encode_image(handle), format="png", width=sequence.size[0] * 2, height=sequence.size[1] * 2)
-
-        state = dict(frame=0, auto=False, alive=True, region=None)
-        condition = Condition()
-
-        buttons = widgets.HBox(children=(frame, button_restart, button_next, button_play, frame2))
-
-        image.value = encode_image(handle)
-
-        def run():
-            """Runs the tracker."""
-
-            runtime = tracker.runtime()
-
-            while state["alive"]:
-
-                if state["frame"] == 0:
-                    state["region"], _, _ = runtime.initialize(sequence.frame(0), sequence.groundtruth(0))
+                    condition.wait(timeout=0.05)
                 else:
-                    state["region"], _, _ = runtime.update(sequence.frame(state["frame"]))
-
-                update_image()
-
-                with condition:
                     condition.wait()
 
-                    if state["frame"] == len(sequence):
-                        state["alive"] = False
-                        continue
+                if not state["alive"]:
+                    break
 
-                    state["frame"] = state["frame"] + 1
+                if state["frame"] < len(sequence) - 1:
+                    state["frame"] += 1
+
+    def on_click(button):
+        with condition:
+            if button is button_next:
+                state["auto"] = False
+                condition.notify()
+            elif button is button_restart:
+                state["auto"] = False
+                state["frame"] = 0
+                button_play.description = "Run"
+                condition.notify()
+            elif button is button_play:
+                state["auto"] = not state["auto"]
+                button_play.description = "Stop" if state["auto"] else "Run"
+                condition.notify()
+
+    button_next.on_click(on_click)
+    button_restart.on_click(on_click)
+    button_play.on_click(on_click)
+
+    controls = widgets.HBox(children=(frame_label, button_restart, button_next, button_play))
+    thread = Thread(target=run, daemon=True)
+
+    display(widgets.Box([widgets.VBox(children=(image, controls))]))
+    thread.start()
+
+    with condition:
+        condition.notify()
 
 
-        def update_image():
-            """Updates the image."""
-            handle.image(sequence.frame(state["frame"]).image())
-            handle.style(color="green").region(sequence.frame(state["frame"]).groundtruth())
-            if state["region"]:
-                handle.style(color="red").region(state["region"])
-            image.value = encode_image(handle)
-            frame.value = "Frame: " + str(state["frame"] - 1)
+def run_experiment(
+    experiment: "Experiment",
+    sequences: typing.List["Sequence"],
+    trackers: typing.List["Tracker"],
+    force: bool = False,
+    persist: bool = False,
+):
+    """Run an experiment for one or more trackers from a notebook."""
+    display, widgets, _ImageDrawHandle = _require_notebook_dependencies()
 
-        def on_click(button):
-            """Handles a button click."""
-            if button == button_next:
-                with condition:
-                    state["auto"] = False
-                    condition.notify()
-            if button == button_restart:
-                with condition:
-                    state["frame"] = 0
-                    condition.notify()
-            if button == button_play:
-                with condition:
-                    state["auto"] = not state["auto"]
-                    button.description = "Stop" if state["auto"] else "Run"
-                    condition.notify()
+    sequences = _as_list(sequences)
+    trackers = _as_list(trackers)
 
-        button_next.on_click(on_click)
-        button_restart.on_click(on_click)
-        button_play.on_click(on_click)
-        widgets.jslink((frame, "value"), (frame2, "value"))
+    from vot.tracker import TrackerException
 
-        def on_update(_):
-            """Handles a widget update."""
-            with condition:
-                if state["auto"]:
-                    condition.notify()
+    # Pre-transform sequences so progress total is accurate.
+    transformed = []
+    for sequence in sequences:
+        transformed.extend(experiment.transform(sequence))
+    sequences = transformed
 
-        frame2.observe(on_update, names=("value", ))
+    n_sequences = max(len(sequences), 1)
+    total = len(trackers) * n_sequences
 
-        thread = Thread(target=run)
-        display(widgets.Box([widgets.VBox(children=(image, buttons))]))
-        thread.start()
+    progress_bar = widgets.FloatProgress(
+        value=0,
+        min=0,
+        max=total,
+        description="",
+        bar_style="info",
+        layout=widgets.Layout(width="100%"),
+    )
+    label = widgets.Label(value="Starting...")
+    display(widgets.VBox([label, progress_bar]))
+
+    try:
+        for i, tracker in enumerate(trackers):
+            for j, sequence in enumerate(sequences):
+                base = i * n_sequences + j
+                label.value = "{} — {} ({}/{})".format(
+                    tracker.identifier, sequence.name, j + 1, n_sequences
+                )
+
+                def _callback(p, _base=base):
+                    progress_bar.value = _base + min(1.0, max(0.0, p))
+
+                try:
+                    experiment.execute(tracker, sequence, force=force, callback=_callback)
+                except TrackerException as te:
+                    if not persist:
+                        label.value = "Error on {}: {}".format(sequence.name, te)
+                        progress_bar.bar_style = "danger"
+                        raise
+
+                progress_bar.value = base + 1
+
+    except InterruptedError:
+        label.value = "Interrupted."
+        progress_bar.bar_style = "warning"
+        return False
+
+    label.value = "Done."
+    progress_bar.bar_style = "success"
+    progress_bar.value = total
+    return True
+
+
+def run_analysis(
+    workspace: "Workspace",
+    trackers: typing.List["Tracker"],
+    sequences: typing.Optional[typing.List[str]] = None,
+    experiments: typing.Optional[typing.List[str]] = None,
+    output_format: typing.Optional[str] = None,
+    name: typing.Optional[str] = None,
+    **kwargs,
+):
+    """Run stack analyses from a notebook and optionally serialize outputs."""
+    if not is_notebook():
+        raise ImportError("The Jupyter notebook environment is required for visualization.")
+
+    if "format" in kwargs and output_format is None:
+        output_format = kwargs.pop("format")
+    if kwargs:
+        raise TypeError("Unexpected keyword arguments: {}".format(", ".join(kwargs.keys())))
+
+    trackers = _as_list(trackers)
+    sequences = _as_list(sequences) if sequences is not None else None
+    experiments = _as_list(experiments) if experiments is not None else None
+
+    if trackers and isinstance(trackers[0], str):
+        trackers = workspace.registry.resolve(
+            *trackers,
+            storage=workspace.storage.substorage("results"),
+            skip_unknown=False,
+        )
+
+    from vot.analysis import process_stack_analyses
+    from vot.report import generate_serialized
+
+    try:
+        results = process_stack_analyses(workspace, trackers, sequences, experiments)
+
+        if results is None:
+            return None
+
+        if output_format is not None:
+            if output_format not in ("json", "yaml"):
+                raise ValueError("Unknown format '{}'".format(output_format))
+
+            if name is None:
+                name = "{:%Y-%m-%dT%H-%M-%S.%f%z}".format(datetime.now())
+
+            selected = workspace.dataset if sequences is None else [s for s in workspace.dataset if s.name in sequences]
+            storage = workspace.storage.substorage("analysis")
+            generate_serialized(trackers, selected, results, storage, output_format, name)
+
+            return {"results": results, "name": name, "format": output_format}
+
+        return results
+
+    except InterruptedError:
+        return False

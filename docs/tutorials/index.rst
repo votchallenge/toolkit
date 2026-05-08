@@ -7,8 +7,8 @@ ways that the toolkit can be used and extended. The following tutorials are prov
 .. toctree::
    :maxdepth: 1
 
-   tutorials/integration
-   tutorials/versioning
-   tutorials/dataset
-   tutorials/report
-   tutorials/jupyter
+   integration
+   versioning
+   dataset
+   report
+   jupyter

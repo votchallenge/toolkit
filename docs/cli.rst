@@ -107,20 +107,22 @@ Compute analysis results from evaluated tracker outputs.
 
 .. code-block:: bash
 
-	vot analysis [--workspace <path>] [--format json|yaml] [--name <name>] [<tracker> ...]
+	vot analysis [--workspace <path>] [--format json|yaml] [--name <name>] [--sequences <ids>] [--experiments <ids>] [<tracker> ...]
 
 Arguments and options:
 
 * `[<tracker> ...]` - optional list of trackers (if omitted, available results are used),
 * `--workspace <path>` - workspace directory,
 * `--format json|yaml` - analysis output format (default: `json`),
-* `--name <name>` - output name (default: generated timestamp).
+* `--name <name>` - output name (default: generated timestamp),
+* `--sequences <id1,id2,...>` - include only selected sequences,
+* `--experiments <id1,id2,...>` - include only selected experiments.
 
 Example:
 
 .. code-block:: bash
 
-	vot analysis --workspace ./workspace --format json mytracker
+	vot analysis --workspace ./workspace --format json --sequences bag,ball mytracker
 
 Generate a report
 -----------------

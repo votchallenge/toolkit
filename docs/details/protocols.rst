@@ -88,7 +88,7 @@ This means that if the object is not present in a given frame or was even querie
 Additionally, the tracker may return optional values for the object in the form of ``output_<ID>_<VALUE>.txt``, where each frame's values are provided.
 
 Tracker metadata specifics
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Since the folder protocols does not support automatic region type reporting and conversion as in TraX, this 
 has to be specified in the tracker metadata (registry). You can specify automatic conversion with

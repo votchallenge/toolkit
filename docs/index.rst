@@ -10,20 +10,16 @@ Contributions and development
 
 The VOT toolkit is developed by the VOT Committee, primarily by `Luka Čehovin Zajc <https://vicos.si/people/luka_cehovin_zajc/>`_ and the tracking community as an open-source project (GPLv3 license). 
 
-Contributions to the VOT toolkit are welcome, the preferred way to do it is by submitting an issue or a pull requests on `GitHub <https://github.com/votchallenge/toolkit>`_.
+Contributions to the VOT toolkit are welcome, the preferred way to do it is by submitting an issue or a pull requests at `GitHub <https://github.com/votchallenge/toolkit>`_.
 
 Index
 -----
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   overview
    cli
-   workspace
-   dataset
-   protocols
-   stack
-   tutorials
-   api
+   details/index
+   tutorials/index
+   api/index
 
