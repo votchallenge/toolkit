@@ -23,7 +23,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'VOT Toolkit'
-copyright = u'2024, Luka Cehovin Zajc'
+copyright = u'2026, Luka Cehovin Zajc'
 author = u'Luka Cehovin Zajc'
 
 try:
