@@ -8,7 +8,51 @@ import inspect
 import time
 
 from vot.dataset import Frame
-from vot.tracker import Tracker, OnlineTrackerRuntime, FrameObjects, TrackerException
+from vot.region import Region, Mask, Rectangle, Point, Polygon
+from vot.tracker import Tracker, OnlineTrackerRuntime, FrameObjects, ObjectStatus, TrackerException, FrameResult
+from vot.utilities import to_number
+
+def _encode_region(region: Region):
+    if isinstance(region, Mask):
+        return region.rasterize()
+    if isinstance(region, Rectangle):
+        return (region.x, region.y, region.width, region.height)
+    if isinstance(region, Point):
+        return (region.x, region.y)
+    if isinstance(region, Polygon):
+        return [(float(x), float(y)) for x, y in region.points()]
+
+    raise ValueError("Unknown region type: {}".format(type(region)))
+
+def _decode_region(data):
+    
+    if isinstance(data, list) and all(isinstance(point, tuple) and len(point) == 2 for point in data):
+        return Polygon([Point(x=point[0], y=point[1]) for point in data])
+    if isinstance(data, tuple) and len(data) == 4:
+        return Rectangle(x=data[0], y=data[1], width=data[2], height=data[3])
+    if isinstance(data, tuple) and len(data) == 2:
+        return Point(x=data[0], y=data[1])
+    if isinstance(data, list) and all(isinstance(row, list) for row in data):
+        return Mask(data)
+
+    raise ValueError("Unable to decode region from data: {}".format(data))
+
+def _convert_region(region: Region, target: str):
+    if target is None:
+        return region
+
+    target = target.lower()
+
+    if target == "mask":
+        return Mask.convert(region)
+    if target == "rectangle":
+        return Rectangle.convert(region)
+    if target == "point":
+        return Point.convert(region)
+    if target == "polygon":
+        return Polygon.convert(region)
+
+    raise ValueError("Unknown target region type: {}".format(target))
 
 
 def _resolve_factory(command: str):
@@ -62,19 +106,21 @@ def _worker_main(command, task_queue, result_queue, arguments, initialize_method
             raise RuntimeError("Tracker object does not expose an initialization method")
 
         if not hasattr(tracker, update_method):
-            raise RuntimeError("Tracker object does not expose '{}' method".format(update_method))
+            raise RuntimeError(f"Tracker object does not expose '{update_method}' method")
 
         init_fn = getattr(tracker, init_name)
         update_fn = getattr(tracker, update_method)
 
+        multiobject = bool(getattr(tracker, "multiobject", False))
+
         result_queue.put({
             "ok": True,
             "event": "ready",
-            "multiobject": bool(getattr(tracker, "multiobject", True)),
+            "multiobject": multiobject,
             "initialize_method": init_name,
             "update_method": update_method
         })
-
+        
         while True:
             task = task_queue.get()
             task_type = task.get("type")
@@ -94,16 +140,23 @@ def _worker_main(command, task_queue, result_queue, arguments, initialize_method
             elif task_type == "update":
                 output = _call_tracker_method(update_fn, frame, new, properties)
             else:
-                raise RuntimeError("Unknown task type '{}'".format(task_type))
+                raise RuntimeError(f"Unknown task type '{task_type}'")
 
             elapsed = time.time() - start
 
-            if isinstance(output, tuple) and len(output) == 2 and isinstance(output[1], (int, float)):
-                status = output[0]
-                elapsed = float(output[1])
+            if multiobject:
+                assert isinstance(output, (list, tuple)), "Expected tracker output to be a list or tuple of object statuses for multi-object tracker"
+                status = []
+                for item in output:
+                    if isinstance(item, tuple) and len(item) == 2 and isinstance(item[1], (dict)):
+                        status.append(item)
+                    else:
+                        status.append((item, {}))
             else:
-                status = output
-
+                if isinstance(output, tuple) and len(output) == 2 and isinstance(output[1], dict):
+                    status = output
+                else:
+                    status = (output, {})
             result_queue.put({"ok": True, "event": task_type, "status": status, "time": elapsed})
 
     except (RuntimeError, TypeError, ValueError, ImportError, AttributeError) as e:
@@ -125,13 +178,14 @@ class PythonRuntime(OnlineTrackerRuntime):
         super().__init__(tracker)
 
         self._command = command
-        self._timeout = timeout
+        self._timeout = to_number(timeout)
         self._log = log
         self._linkpaths = linkpaths
         self._envvars = envvars
         self._arguments = arguments if arguments is not None else {}
         self._initialize_method = kwargs.get("initialize_method", "init")
         self._update_method = kwargs.get("update_method", "update")
+        self._convert = kwargs.get("convert", None)
 
         self._task_queue = None
         self._result_queue = None
@@ -146,7 +200,7 @@ class PythonRuntime(OnlineTrackerRuntime):
             return self._result_queue.get(timeout=self._timeout_value())
         except queue.Empty as e:
             raise TrackerException(
-                "Python tracker runtime timed out after {} seconds".format(self._timeout),
+                f"Python tracker runtime timed out after {self._timeout} seconds",
                 tracker=self.tracker
             ) from e
 
@@ -154,7 +208,7 @@ class PythonRuntime(OnlineTrackerRuntime):
         details = message.get("traceback")
         error = message.get("error", "Unknown worker error")
         raise TrackerException(
-            "Python tracker worker failed: {}".format(error),
+            f"Python tracker worker failed: {error}",
             tracker=self.tracker,
             tracker_log=details
         )
@@ -190,13 +244,26 @@ class PythonRuntime(OnlineTrackerRuntime):
 
         self._multiobject = bool(message.get("multiobject", True))
 
-    def _send_task(self, task_type, frame, new=None, properties=None) -> Tuple[FrameObjects, float]:
-        self._ensure_started()
-
+    def _send_task(self, task_type, frame: Frame, new=None, properties=None) -> Tuple[FrameObjects, float]:
+        if new is None:
+            converted_new = []
+        else:
+            try:
+                if not isinstance(new, (list)):
+                    converted_new = (_encode_region(_convert_region(new.region, self._convert)), new.properties)
+                else:
+                    converted_new = [(_encode_region(_convert_region(status.region, self._convert)), status.properties) for status in new]
+            except ValueError as e:
+                raise TrackerException(str(e), tracker=self.tracker) from e
+        if len(frame.channels()) > 1:
+            frame = {channel: frame.channel(channel) for channel in frame.channels()}
+        else:
+            frame = frame.filename()
+ 
         payload = {
             "type": task_type,
             "frame": frame,
-            "new": [] if new is None else new,
+            "new": converted_new,
             "properties": {} if properties is None else properties
         }
 
@@ -210,22 +277,39 @@ class PythonRuntime(OnlineTrackerRuntime):
         if message.get("event") != task_type:
             self.stop()
             raise TrackerException(
-                "Unexpected worker event '{}' while waiting for '{}'".format(message.get("event"), task_type),
+                f"Unexpected worker event '{message.get('event')}' while waiting for '{task_type}'",
                 tracker=self.tracker
             )
-
-        return message.get("status", []), float(message.get("time", 0.0))
+        if not self._multiobject:
+            return FrameResult(ObjectStatus(_decode_region(message.get("status", (None, {}))[0]), message.get("status", (None, {}))[1]), float(message.get("time", 0.0)))
+        
+        return FrameResult([ObjectStatus(_decode_region(status[0]), status[1]) for status in message.get("status", [])], float(message.get("time", 0.0)))
 
     def initialize(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
-        if not self.multiobject and new is not None and len(new) > 1:
-            raise TrackerException(
-                "Tracker does not support multiple objects, but multiple objects were provided for initialization",
-                tracker=self.tracker
-            )
-
+        self._ensure_started()
+        if not self.multiobject:
+            if new is None:
+                raise TrackerException(
+                    "Initialization frame must be provided for single-object tracker",
+                    tracker=self.tracker
+                )
+            if isinstance(new, list):
+                if len(new) == 0:
+                    raise TrackerException(
+                        "Initialization frame must contain exactly one object for single-object tracker, but got an empty list",
+                        tracker=self.tracker
+                    )
+                if len(new) > 1:
+                    raise TrackerException(
+                        "Initialization frame must contain exactly one object for single-object tracker, but got multiple objects",
+                        tracker=self.tracker
+                    )
+                new = new[0]
+  
         return self._send_task("initialize", frame, new, properties)
 
     def update(self, frame: Frame, new: FrameObjects = None, properties: dict = None) -> Tuple[FrameObjects, float]:
+        self._ensure_started()
         if not self.multiobject and new is not None and len(new) > 0:
             raise TrackerException(
                 "Tracker does not support multiple objects, but multiple objects were provided for update",
