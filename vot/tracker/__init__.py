@@ -612,6 +612,12 @@ class FrameResult(tuple):
     def __new__(cls, objects, time):
         if not isinstance(time, Real):
             raise TypeError("FrameResult.time must be a real number")
+        # Verify that objects is a list of ObjectStatus
+        if not isinstance(objects, list):
+            objects = [objects]
+        if not all(isinstance(o, ObjectStatus) for o in objects):
+            raise TypeError("FrameResult.objects must contain only ObjectStatus")
+        
         return tuple.__new__(cls, (objects, float(time)))
 
     @property
