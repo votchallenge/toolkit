@@ -8,10 +8,10 @@ import datetime
 import collections
 import collections.abc
 import sys
+import hashlib
 from asyncio import wait, ensure_future
 from asyncio.futures import wrap_future
 
-import numpy as np
 import yaml
 
 from matplotlib.figure import Figure
@@ -25,8 +25,7 @@ from vot import get_logger
 from vot.dataset import Sequence, FrameList
 from vot.tracker import Tracker
 from vot.analysis import Axes
-from vot.utilities import class_fullname
-from vot.utilities.data import Grid
+from vot.utilities import class_fullname, arg_hash
 from vot.utilities import Registry, ObjectResolver
 
 Table = collections.namedtuple("Table", ["header", "data", "order"])
@@ -535,6 +534,14 @@ class Report(Attributee):
     Base class for all report generators.
     """
 
+    def _unique_identifier(self):
+        """Returns a unique identifier based on type of report and its attributes."""
+        attributes = self.dump()
+        data = class_fullname(self) + ":" + arg_hash(attributes)
+        # Hash the data to generate a unique identifier for the report, return the first 8 characters of the hash
+
+        return hashlib.sha256(data.encode("utf-8")).hexdigest()[:8]
+
     async def generate(self, experiments, trackers, sequences):
         raise NotImplementedError()
 
@@ -633,7 +640,7 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
 
     logger = get_logger()
 
-    logger.info("Worker pool size: %d", config.worker_pool_size)
+    logger.debug("Worker pool size: %d", config.worker_pool_size)
 
     if config.worker_pool_size == 1:
 
@@ -687,6 +694,10 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
                 order = workspace.report.sort(experiments, trackers, sequences)
 
                 trackers = [trackers[i] for i in order]
+
+                # Query styles so that the order is consistent across all reports
+                for tracker in trackers:
+                    workspace.report.style.plot_style(tracker)
 
                 futures = []
 

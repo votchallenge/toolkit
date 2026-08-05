@@ -188,7 +188,7 @@ class UnsupervisedExperiment(MultiRunExperiment):
                 if runtime.multiobject:
                     
                     status = runtime.run(sequence, queries)
-                    
+              
                     for o, key in enumerate(queries_keys):
                         trajectories[key].set(0, Special(Trajectory.INITIALIZATION), status.objects[o][0].properties)
                     for frame in range(1, len(sequence)):
