@@ -11,6 +11,8 @@ import logging
 import yaml
 from datetime import datetime
 
+from vot.utilities.io import touch
+
 from .. import check_updates, toolkit_version, get_logger, check_debug
 from . import Progress, normalize_path
 
@@ -112,19 +114,25 @@ def do_initialize(config: argparse.Namespace):
         else:
             stacks = list_integrated_stacks()
             logger.error("Unable to continue without a stack")
-            logger.error("List of available integrated stacks: ")
+            print("List of available integrated stacks: ")
             for k, v in sorted(stacks.items(), key=lambda x: x[0]):
-                logger.error(" * %s - %s", k, v)
+                print(f" * {k} - {v}")
+            print("")
+            print("Use stack name 'custom' to initialize workspace with a custom stack and edit it manually.")
 
             return
 
-    stack_file = resolve_stack(config.stack)
+    if config.stack == "custom":
+        logger.info("Initializing workspace with a custom stack, edit the stack.yaml file before use")
+        touch(os.path.join(config.workspace, "stack.yaml"), content="# Custom stack file, edit before use!\ntitle: Custom Stack\nexperiments: []\n", overwrite=False)
+        default_config = dict(stack="./stack.yaml", registry=["./trackers.ini"])
+    else:
 
-    if stack_file is None:
-        logger.error("Experiment stack %s not found", stack_file)
-        return
-
-    default_config = dict(stack=config.stack, registry=["./trackers.ini"])
+        stack_file = resolve_stack(config.stack)
+        if stack_file is None:
+            logger.error("Experiment stack %s not found", stack_file)
+            return
+        default_config = dict(stack=config.stack, registry=["./trackers.ini"])
 
     try:
         Workspace.initialize(config.workspace, default_config, download=not config.nodownload)

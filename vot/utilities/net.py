@@ -126,7 +126,7 @@ def download(url, output, callback=None, chunk_size=1024*32, retry=10):
         is_gdrive = is_google_drive_url(url)
         
         while True:
-            res = sess.get(url, stream=True)
+            res = sess.get(url, stream=True, allow_redirects=True)
             
             if not res.status_code == 200:
                 raise NetworkException("File not available")
@@ -192,12 +192,12 @@ def download(url, output, callback=None, chunk_size=1024*32, retry=10):
                         retry-=1
                         if retry < 1:
                             raise NetworkException("Unable to download file {}".format(e))
-                        res = sess.get(url, stream=True)
+                        res = sess.get(url, stream=True, allow_redirects=True)
                         filehandle.seek(0)
                         position = 0
                     else:
                         logger.warning("Error when downloading file, trying to resume download")
-                        res = sess.get(url, stream=True, headers=({'Range': f'bytes={position}-'} if position > 0 else None))
+                        res = sess.get(url, stream=True, headers=({'Range': f'bytes={position}-'} if position > 0 else None), allow_redirects=True)
                     progress = False
 
             if position < total:
