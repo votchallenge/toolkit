@@ -15,6 +15,8 @@ import numpy as np
 
 from cachetools import cached, LRUCache
 
+from lazy_object_proxy import Proxy
+
 from vot.region import Region
 from vot import ToolkitException
 from vot.utilities import Registry
@@ -1150,9 +1152,9 @@ def read_legacy_sequence(path: str) -> Sequence:
     from vot.dataset.common import read_sequence_legacy
     return read_sequence_legacy(path)
 
-dataset_downloader = Registry("downloader")
-sequence_indexer = Registry("indexer")
-sequence_reader = Registry("loader")
+
+sequence_indexer = Proxy(lambda : Registry("indexer"))
+sequence_reader = Proxy(lambda : Registry("loader"))
 
 def download_dataset(url: str, path: str):
     """Downloads a dataset from a given url or an alias.
@@ -1175,6 +1177,8 @@ def download_dataset(url: str, path: str):
         else:
             download_bundle(url, path)
             return
+        
+    dataset_downloader = Registry("downloader")
 
     if url in dataset_downloader:
         dataset_downloader.get_class(url)(path)

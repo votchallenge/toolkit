@@ -1,4 +1,5 @@
 {
     "default": "vot.dataset.common.list_sequences",
-    "tackingnet": "vot.dataset.trackingnet.list_sequences"
+    "tackingnet": "vot.dataset.trackingnet.list_sequences",
+    "davis": "vot.dataset.davis.list_sequences"
 }

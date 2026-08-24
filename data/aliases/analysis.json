@@ -30,5 +30,8 @@
     "point_accuracy": "vot.analysis.point.PointAccuracy",
     "point_average_accuracy": "vot.analysis.point.AveragePointAccuracy",
     "referral_accuracy": "vot.analysis.referral.ReferralSequenceAccuracy",
-    "referral_average_accuracy": "vot.analysis.referral.ReferralAverageAccuracy"
+
+    "vos_j": "vot.analysis.vos.J",
+    "vos_f": "vot.analysis.vos.F",
+    "vos_jf": "vot.analysis.vos.JF"
 }

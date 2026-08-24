@@ -1,0 +1,13 @@
+title: DAVIS VOS dataset experiment stack (train-val)
+url: https://davischallenge.org/
+dataset: https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-trainval-480p.zip
+experiments:
+  baseline:
+    type: unsupervised
+    analyses:
+      - type: vos_jf
+        name: J & F
+      - type: vos_j
+        name: J
+      - type: vos_f
+        name: F
