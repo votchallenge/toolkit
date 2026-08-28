@@ -1,11 +1,42 @@
 
 import json
+import os
 import yaml
 import collections
 import datetime
 import numpy as np
 
 from vot.utilities.data import Grid
+
+def open_utf8(path, mode='r'):
+    """Open a file with UTF-8 encoding.
+
+    :param path: Path to the file.
+    :type path: str
+    :param mode: Mode to open the file. Defaults to 'r'.
+    :type mode: str, optional
+    :returns: File object opened in the specified mode with UTF-8 encoding.
+    :rtype: file object"""
+    return open(path, mode, encoding='utf-8')
+
+def touch(path, overwrite=True, content=""):
+    """Create an empty file at the specified path.
+
+    :param path: Path to the file to be created.
+    :type path: str
+    :param overwrite: If True, overwrite the file if it already exists. Defaults to True.
+    :type overwrite: bool, optional
+    :param content: Content to write to the file. Defaults to "".
+    :type content: str, optional
+    """
+    if not overwrite and os.path.exists(path):
+        return
+    with open_utf8(path, 'w') as fp:
+        os.utime(path, None)
+        if content is not None:
+            fp.write(content)
+
+
 
 class JSONEncoder(json.JSONEncoder):
     """JSON encoder for internal types."""

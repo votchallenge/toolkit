@@ -203,6 +203,9 @@ class SequenceAccuracy(SeparableAnalysis):
 
         if self.filter_tag is not None:
             frame_mask = [self.filter_tag in sequence.tags(i) for i in range(len(sequence))]
+            # Test if all frames are filtered out, raise an exception if so
+            if not any(frame_mask):
+                raise MissingResultsException("All frames are filtered out by the filter tag.")
         else:
             frame_mask = None
 
@@ -211,7 +214,7 @@ class SequenceAccuracy(SeparableAnalysis):
             trajectories = experiment.gather(tracker, sequence, objects=[o])
 
             if len(trajectories) == 0:
-                raise MissingResultsException()
+                raise MissingResultsException("No trajectories found for the given object.")
 
             cummulative = 0
 

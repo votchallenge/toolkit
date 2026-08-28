@@ -160,7 +160,6 @@ def list_sequences(path):
     with open(split_file, "r", encoding="utf-8") as filehandle:
         names = [line.strip() for line in filehandle if line.strip()]
 
-
     return [os.path.join(annotations_dir, resolution, name) for name in names]
 
 def download_davis_trainval(path):

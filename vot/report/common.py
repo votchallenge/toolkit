@@ -1,12 +1,11 @@
 """Common functions for document generation."""
 import os
 import math
-from typing import List
-
-from attributee import String
+import typing
+from attributee import Nested, String, List
 
 from vot.tracker import Tracker
-from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report
+from vot.report import ScatterPlot, LinePlot, Table, SeparableReport, Report, TrackerSorter
 from vot.analysis import Measure, Point, Plot, Curve, Sorting, Axes
 
 def read_resource(name):
@@ -22,7 +21,7 @@ def per_tracker(a):
     """Returns true if the analysis is per-tracker."""
     return a.axes == Axes.TRACKERS
 
-def extract_measures_table(trackers: List[Tracker], results) -> Table:
+def extract_measures_table(trackers: typing.List[Tracker], results) -> Table:
     """Extracts a table of measures from the results. The table is a list of lists,
     where each list is a column. The first column is the tracker name, the second column
     is the measure name, and the rest of the columns are the values for each tracker.
@@ -94,7 +93,7 @@ def extract_measures_table(trackers: List[Tracker], results) -> Table:
  
     return Table(table_header, table_data, table_order)
 
-def extract_plots(trackers: List[Tracker], results, order=None):
+def extract_plots(trackers: typing.List[Tracker], results, order=None):
     """Extracts a list of plots from the results. The list is a list of tuples, where
     each tuple is a pair of strings and a plot.
 
@@ -200,9 +199,16 @@ class StackAnalysesPlots(SeparableReport):
     """A document that produces plots for all analyses configures in stack
     experiments."""
 
+    sequences = List(String(), default=None)
+
     async def perexperiment(self, experiment, trackers, sequences):
 
         from vot.report.common import extract_plots
+
+        if self.sequences is not None and len(self.sequences) > 0:
+            sequences = [s for s in sequences if s.name in self.sequences]
+
+        assert len(sequences) > 0, "No sequences found for quality plot"
 
         analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            
 
@@ -220,11 +226,23 @@ class StackAnalysesTable(Report):
     """A document that produces plots for all analyses configures in stack
     experiments."""
 
+    sequences = List(String(), default=None)
+    sort = Nested(TrackerSorter)
+
     async def generate(self, experiments, trackers, sequences):
 
         from vot.report.common import extract_measures_table
 
+        if self.sequences is not None and len(self.sequences) > 0:
+            sequences = [s for s in sequences if s.name in self.sequences]
+
+        assert len(sequences) > 0, "No sequences found for quality plot"
+
         results = dict()
+
+        order = self.sort(experiments, trackers, sequences)
+
+        trackers = [trackers[i] for i in order]
 
         for experiment in experiments:
             analyses = [analysis for analysis in experiment.analyses if analysis.compatible(experiment)]            

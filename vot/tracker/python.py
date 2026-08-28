@@ -13,6 +13,8 @@ from vot.tracker import Tracker, OnlineTrackerRuntime, FrameObjects, ObjectStatu
 from vot.utilities import to_number
 
 def _encode_region(region: Region):
+    """Convert a Region object into a serializable format for communication with the tracker process."""
+    
     if isinstance(region, Mask):
         return region.rasterize()
     if isinstance(region, Rectangle):
@@ -25,6 +27,7 @@ def _encode_region(region: Region):
     raise ValueError("Unknown region type: {}".format(type(region)))
 
 def _decode_region(data):
+    """Convert a serialized region representation from the tracker process back into a Region object."""
     
     if isinstance(data, list) and all(isinstance(point, tuple) and len(point) == 2 for point in data):
         return Polygon([Point(x=point[0], y=point[1]) for point in data])

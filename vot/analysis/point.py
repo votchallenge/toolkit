@@ -190,8 +190,8 @@ class AveragePointAccuracy(SequenceAggregator):
             n = result[-1]
             if n > 0:
                 for k in range(n_measures):
-                    weighted_sum[k] += result[k] * n
-                n_total += n
+                    weighted_sum[k] += result[k]
+                n_total += 1
 
         if n_total == 0:
             return (0.0,) * n_measures + (0,)

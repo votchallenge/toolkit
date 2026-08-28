@@ -15,6 +15,7 @@ from ..dataset import Dataset, load_dataset
 from ..tracker import Registry, Tracker
 from ..stack import Stack, resolve_stack
 from ..utilities import normalize_path
+from ..utilities.io import touch, open_utf8
 from ..report import ReportConfiguration
 from .storage import LocalStorage, Storage, NullStorage
 
@@ -22,7 +23,6 @@ _logger = get_logger()
 
 class WorkspaceException(ToolkitException):
     """Errors related to workspace raise this exception."""
-    pass
 
 class StackLoader(Attribute):
     """Special attribute that converts a string or a dictionary input to a Stack
@@ -134,14 +134,13 @@ class Workspace(Attributee):
 
         os.makedirs(directory, exist_ok=True)
 
-        with open(config_file, 'w') as fp:
+        with open_utf8(config_file, 'w') as fp:
             yaml.dump(config if config is not None else dict(), fp)
 
         os.makedirs(os.path.join(directory, "sequences"), exist_ok=True)
         os.makedirs(os.path.join(directory, "results"), exist_ok=True)
 
-        if not os.path.isfile(os.path.join(directory, "trackers.ini")):
-            open(os.path.join(directory, "trackers.ini"), 'w').close()
+        touch(os.path.join(directory, "trackers.ini"), content="", overwrite=False)
 
         if download:
             # Try do retrieve dataset from stack and download it
@@ -150,9 +149,9 @@ class Workspace(Attributee):
             if stack_file is None:
                 return
             dataset = None
-            with open(stack_file, 'r') as fp:
+            with open_utf8(stack_file, 'r') as fp:
                 stack_metadata = yaml.load(fp, Loader=yaml.BaseLoader)
-                dataset = stack_metadata["dataset"]
+                dataset = stack_metadata.get("dataset", None)
             if dataset:
                 Workspace.download_dataset(dataset, dataset_directory)
 
@@ -186,7 +185,7 @@ class Workspace(Attributee):
         if not os.path.isfile(config_file):
             raise WorkspaceException("Workspace not initialized")
 
-        with open(config_file, 'r') as fp:
+        with open_utf8(config_file, 'r') as fp:
             config = yaml.load(fp, Loader=yaml.BaseLoader)
             return Workspace(directory, **config)
 

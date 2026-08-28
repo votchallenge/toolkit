@@ -20,6 +20,9 @@ import six
 import colorama
 
 from class_registry import ClassRegistry
+from class_registry.entry_points import EntryPointClassRegistry
+
+from vot.utilities.io import open_utf8
 
 def import_class(classpath: str) -> typing.Type:
     """Import a class from a string by importing parent packages.
@@ -211,7 +214,7 @@ def read_properties(filename: str, delimiter: str = '=') -> typing.Dict[str, str
         return {}
     open_kwargs = {'mode': 'r', 'newline': ''} if six.PY3 else {'mode': 'rb'}
     matcher = re.compile("^([a-zA-Z0-9_\\-.]+) *{} *(.*)$".format(delimiter))
-    with open(filename, **open_kwargs) as pfile:
+    with open(filename, encoding='utf-8', **open_kwargs) as pfile:
         properties = dict()
         for line in pfile.readlines():
             groups = matcher.match(line.strip())
@@ -233,7 +236,7 @@ def write_properties(filename: str, dictionary: Mapping[str, Any], delimiter: st
     """
 
     open_kwargs = {'mode': 'w', 'newline': ''} if six.PY3 else {'mode': 'wb'}
-    with open(filename, **open_kwargs) as csvfile:
+    with open(filename, encoding='utf-8', **open_kwargs) as csvfile:
         writer = csv.writer(csvfile, delimiter=delimiter, escapechar='\\',
                             quoting=csv.QUOTE_NONE)
         writer.writerows(sorted(dictionary.items()))
@@ -252,7 +255,7 @@ def file_hash(filename: str) -> Tuple[str, str]:
     md5 = hashlib.md5()
     sha1 = hashlib.sha1()
 
-    with open(filename, 'rb') as f:
+    with open_utf8(filename, 'rb') as f:
         while True:
             data = f.read(bufsize)
             if not data:
@@ -553,7 +556,7 @@ class Registry(ClassRegistry):
         :param attr_name: If set, the registry will "brand" each class with its corresponding registry key. Defaults to None.
         :type attr_name: typing.Optional[str], optional
         """
-        from class_registry.entry_points import EntryPointClassRegistry
+        
         super(Registry, self).__init__(group, attr_name)
         
         import vot
@@ -565,7 +568,7 @@ class Registry(ClassRegistry):
         alias_file = os.path.join(root, "data", "aliases", group + ".json")
         if os.path.exists(alias_file):
             try:
-                with open(alias_file, "r") as f:
+                with open_utf8(alias_file, "r") as f:
                     aliases = json.load(f)
                     for key, value in aliases.items():
                         try:
