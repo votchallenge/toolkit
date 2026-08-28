@@ -1,4 +1,4 @@
-title: DAVIS VOS dataset experiment stack (validation)
+title: DAVIS 2017 VOS dataset experiment stack (validation)
 url: https://davischallenge.org/
 dataset: davis_trainval
 experiments:

@@ -11,6 +11,8 @@ official archives::
 Ground truth is stored as single-channel indexed PNG images where each non-zero pixel
 value identifies one annotated object. DAVIS 2017 sequences may contain several objects
 per frame this way, DAVIS 2016 sequences only ever contain a single object (value 255).
+
+TODO: at the moment only the validation split is supported, the training split is not used. 
 """
 
 import os
