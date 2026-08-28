@@ -361,8 +361,7 @@ class ObjectFilterSequence(ProxySequence):
 
         :returns: Dictionary of all objects in the sequence.
         :rtype: Dict[str, Object]"""
-        objects = self._source.objects()
-        return {self._id: objects[id]}
+        return {self._id: self._source.object(self._id)}
 
     def object(self, id, index=None):
         """Returns an object for the given id.
@@ -403,12 +402,11 @@ class ObjectsHideFilterSequence(ProxySequence):
         self._ids = ids
     
     def objects(self):
-        """Returns a dictionary of all objects in the sequence.
+        """Returns a dictionary of all visible objects in the sequence.
 
         :returns: Dictionary of all objects in the sequence.
         :rtype: Dict[str, Object]"""
-        objects = self._source.objects()
-        return {id for id in objects if id not in self._ids}
+        return {id: self._source.object(id) for id in self._source.objects() if id not in self._ids}
 
 def IgnoreSpecialObjects(sequence: Sequence) -> Sequence:
     """Creates a proxy sequence that ignores special objects.Special objects are denoted

@@ -1,0 +1,14 @@
+title: DAVIS VOS dataset experiment stack (validation)
+url: https://davischallenge.org/
+dataset: davis_trainval
+experiments:
+  baseline:
+    type: unsupervised
+    multiobject: True
+    analyses:
+      - type: vos_mean_jf
+        name: J & F
+      - type: vos_mean_j
+        name: J
+      - type: vos_mean_f
+        name: F

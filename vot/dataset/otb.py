@@ -148,8 +148,9 @@ def _load_sequence(metadata):
 
     groundtruth_file = os.path.join(metadata["path"], attributes.get("groundtruth", "groundtruth_rect.txt"))
 
-    with open(groundtruth_file, 'r') as filehandle:
-        for region in filehandle.readlines():
+
+    with open(groundtruth_file, 'r') as file_handle:
+        for region in file_handle.readlines():
             groundtruth.append(parse_region(region.replace("\t", ",").replace(" ", ",")))
 
     metadata["length"] = len(groundtruth)
@@ -161,9 +162,6 @@ def _load_sequence(metadata):
 
     return SequenceData(channels, objects, {}, {}, len(groundtruth)) 
 
-from vot.dataset import sequence_reader
-
-@sequence_reader.register("otb")
 def read_sequence(path: str):
     """Reads a sequence from OTB dataset. The sequence is identified by the name of the
     folder and the groundtruth_rect.txt file is expected to be present in the folder.
@@ -209,6 +207,8 @@ def _download_dataset(path: str, dataset: dict):
 
     :param path: Path to the dataset folder.
     :type path: str
+    :param dataset: Dictionary of sequence names and metadata.
+    :type dataset: dict
     """
 
     from vot.utilities.net import download_uncompress, join_url, NetworkException
@@ -225,8 +225,3 @@ def _download_dataset(path: str, dataset: dict):
                     raise DatasetException("Unable to extract sequence data, is the target directory writable and do you have enough space?") from ex
 
             progress.relative(1)
-
-    # Write sequence list to a list.txt file
-    with open(os.path.join(path, "list.txt"), 'w') as filehandle:
-        for name in dataset.keys():
-            filehandle.write("%s\n" % name)

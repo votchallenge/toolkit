@@ -1,6 +1,7 @@
 {
     "default": "vot.dataset.common.read_sequence",
-
-
-    "legacy": "vot.dataset.read_legacy_sequence"
+    "legacy": "vot.dataset.read_legacy_sequence",
+    "otb": "vot.dataset.otb.read_sequence",
+    "got10k": "vot.dataset.got10k.read_sequence",
+    "davis": "vot.dataset.davis.read_sequence"
 }

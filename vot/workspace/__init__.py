@@ -171,8 +171,6 @@ class Workspace(Attributee):
         from vot.dataset import download_dataset
         download_dataset(dataset, directory)
 
-        _logger.info("Download completed")
-
     @staticmethod
     def load(directory):
         """Load a workspace from a given location. This.

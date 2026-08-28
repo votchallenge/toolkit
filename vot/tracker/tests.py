@@ -3,6 +3,7 @@
 import unittest
 
 import matplotlib.pylab as plt
+from matplotlib import get_backend
 
 from vot.utilities.draw import MatplotlibDrawHandle
 from vot.dataset.dummy import generate_dummy
@@ -97,16 +98,36 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
                 context["continue"] = False
 
         if visualize:
+            logger.info("Visualizing sequence")
 
             figure = plt.figure()
             if hasattr(figure.canvas, "set_window_title"):
                 figure.canvas.set_window_title('VOT Test')
             axes = figure.add_subplot(1, 1, 1)
             axes.set_aspect("equal")
+            print(sequence.size)
             handle = MatplotlibDrawHandle(axes, size=sequence.size)
             context["click"] = figure.canvas.mpl_connect('key_press_event', on_press)
             handle.style(fill=False)
-            figure.show()
+            backend = str(get_backend()).lower()
+            non_interactive_backends = {
+                "agg",
+                "cairo",
+                "pdf",
+                "pgf",
+                "ps",
+                "svg",
+                "template",
+                "module://matplotlib_inline.backend_inline",
+                "module://ipykernel.pylab.backend_inline",
+            }
+            if backend in non_interactive_backends:
+                logger.warning("Visualization requested, but backend '%s' is non-interactive. "
+                               "Use a GUI backend (QtAgg/TkAgg) to show a window.", get_backend())
+            else:
+                plt.ion()
+                figure.show()
+                plt.pause(0.001)
 
         helper = MultiObjectHelper(sequence)
 
@@ -120,6 +141,8 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
             if visualize:
                 visualize_state(axes, frame, [frame.object(x) for x in helper.objects(0)], state)
                 figure.canvas.draw()
+                figure.canvas.flush_events()
+                plt.pause(0.001)
 
             for i in range(1, len(sequence)):
                 
@@ -131,6 +154,7 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
                     visualize_state(axes, frame, [frame.object(x) for x in helper.objects(i)], state)
                     figure.canvas.draw()
                     figure.canvas.flush_events()
+                    plt.pause(0.001)
 
                 if not context["continue"]:
                     break
@@ -162,6 +186,7 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
                     visualize_state(axes, frame, [frame.object(x) for x in helper.objects(i)], state)
                     figure.canvas.draw()
                     figure.canvas.flush_events()
+                    plt.pause(0.001)
                     if not context["continue"]:
                         break
 

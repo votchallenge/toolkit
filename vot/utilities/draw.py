@@ -183,6 +183,8 @@ class MatplotlibDrawHandle(DrawHandle):
 
     def mask(self, mask: np.array, offset: Tuple[int, int] = (0, 0)):
         """Draws a mask."""
+        if mask is None or mask.size == 0:
+            return self
         # TODO: segmentation should also have option of non-filled
         mask[mask != 0] = 1
         if self._fill:

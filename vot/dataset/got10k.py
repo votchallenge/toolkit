@@ -98,9 +98,6 @@ def _read_data(metadata):
 
     return SequenceData(channels, objects, tags, values, len(groundtruth)) 
 
-from vot.dataset import sequence_reader
-
-@sequence_reader.register("GOT-10k")
 def read_sequence(path):
     """Read GOT-10k sequence from the given path.
 

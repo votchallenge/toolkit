@@ -642,7 +642,7 @@ class TraxTrackerRuntime(OnlineTrackerRuntime):
 
         This method is used to stop the tracker. It stops the tracker process.
         """
-        if not self._process is None:
+        if not getattr(self, "_process", None) is None:
             self._process.terminate()
             self._process = None
 
