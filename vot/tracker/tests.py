@@ -105,7 +105,6 @@ def test_tracker_runtime(runtime: TrackerRuntime, visualize: bool = False, seque
                 figure.canvas.set_window_title('VOT Test')
             axes = figure.add_subplot(1, 1, 1)
             axes.set_aspect("equal")
-            print(sequence.size)
             handle = MatplotlibDrawHandle(axes, size=sequence.size)
             context["click"] = figure.canvas.mpl_connect('key_press_event', on_press)
             handle.style(fill=False)

@@ -126,13 +126,16 @@ class MatplotlibDrawHandle(DrawHandle):
     This handle is used for drawing to a Matplotlib axis.
     """
 
-    def __init__(self, axis, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False, size: Tuple[int, int] = None):
+    def __init__(self, axis, color: Tuple[float, float, float] = (1, 0, 0), width: int = 1, fill: bool = False, size: Tuple[int, int] = (None, None)):
         """Initializes a new instance of the MatplotlibDrawHandle class."""
         super().__init__(color, width, fill)
         self._axis = axis
+        assert size is None or (isinstance(size, tuple) and len(size) == 2), "Size must be a tuple of length 2."
+        
         self._size = size
-        if not self._size is None:
+        if not self._size[0] is None:
             self._axis.set_xlim(left=0, right=self._size[0])
+        if not self._size[1] is None:
             self._axis.set_ylim(top=0, bottom=self._size[1])
 
 
@@ -185,6 +188,8 @@ class MatplotlibDrawHandle(DrawHandle):
         """Draws a mask."""
         if mask is None or mask.size == 0:
             return self
+        xlim = self._axis.get_xlim()
+        ylim = self._axis.get_ylim()
         # TODO: segmentation should also have option of non-filled
         mask[mask != 0] = 1
         if self._fill:
@@ -198,9 +203,8 @@ class MatplotlibDrawHandle(DrawHandle):
             self._axis.imshow(mask, cmap=cmap, interpolation='none', extent=[offset[0], \
                 offset[0] + mask.shape[1], offset[1] + mask.shape[0], offset[1]])
 
-        if not self._size is None:
-            self._axis.set_xlim(left=0, right=self._size[0])
-            self._axis.set_ylim(top=0, bottom=self._size[1])
+        self._axis.set_xlim(xlim)
+        self._axis.set_ylim(ylim)
         return self
 
 
