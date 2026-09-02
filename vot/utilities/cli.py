@@ -11,6 +11,7 @@ import logging
 import yaml
 from datetime import datetime
 
+from vot.report import ReportConfiguration
 from vot.utilities.io import touch
 
 from .. import check_updates, toolkit_version, get_logger, check_debug
@@ -296,10 +297,15 @@ def do_report(config: argparse.Namespace):
     if not trackers:
         logger.warning("No trackers resolved, stopping.")
         return
+    
+    if config.report is not None:
+        report_config = ReportConfiguration.read(config.report)
+    else:
+        report_config = None
 
     logger.debug("Running report generation for %d trackers", len(trackers))
 
-    generate_document(workspace, trackers, config.format, name, config.sequences.split(",") if config.sequences else None, config.experiments.split(",") if config.experiments else None)
+    generate_document(workspace, trackers, config.format, name, config.sequences.split(",") if config.sequences else None, config.experiments.split(",") if config.experiments else None, report=report_config)
     
     logger.info("Report generation successful, document available as %s", name)
     
@@ -414,6 +420,7 @@ def main():
     report_parser.add_argument("--name", required=False, help='Document output name')
     report_parser.add_argument("--sequences", default=None, help='Filter specified sequences (comma separated names)', required=False)
     report_parser.add_argument("--experiments", default=None, help='Filter specified experiments (comma separated names)', required=False)
+    report_parser.add_argument("--report", default=None, help='Custom report configuration file', required=False)
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')

@@ -77,6 +77,36 @@ class VideoWriterOpenCV(VideoWriter):
             self._writer.release()
             self._writer = None
 
+class VideoWriterGif(VideoWriter):
+    """Pillow-backed writer for animated GIF output."""
+
+    def __init__(self, filename: str, fps: int = 30):
+        super().__init__(filename, fps)
+        self._frames = []
+
+    def __call__(self, frame):
+        """Append one RGB frame to the GIF."""
+        from PIL import Image
+
+        self._frames.append(Image.fromarray(frame).convert("RGB"))
+
+    def close(self):
+        """Write all accumulated frames to the animated GIF."""
+        if not self._frames:
+            return
+
+        self._frames[0].save(
+            self._filename,
+            format="GIF",
+            save_all=True,
+            append_images=self._frames[1:],
+            duration=max(1, round(1000 / self._fps)),
+            loop=0,
+            disposal=2,
+            optimize=False,
+        )
+        self._frames = []
+
 class PreviewVideos(SeparableReport):
     """A report that generates video previews for the tracker results."""
 

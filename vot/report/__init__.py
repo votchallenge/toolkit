@@ -19,6 +19,7 @@ from matplotlib.axes import Axes as PlotAxes
 import matplotlib.colors as colors
 
 from attributee import Attributee, Object, Nested, String, Callable, Integer, List
+from attributee.io import Serializable
 
 from vot import __version__ as version
 from vot import get_logger
@@ -129,14 +130,16 @@ class Video(object):
         raise NotImplementedError
 
     def save(self, output: str, fmt: str):
+        fmt = fmt.lower()
         import tempfile
         import shutil
         import os
-        from .video import VideoWriterScikitH264, VideoWriterOpenCV
+        from .video import VideoWriterGif, VideoWriterOpenCV, VideoWriterScikitH264
 
         supported_mappings = {
             "mp4": VideoWriterScikitH264,
-            "avi": VideoWriterOpenCV
+            "avi": VideoWriterOpenCV,
+            "gif": VideoWriterGif,
         }
 
         if not fmt in supported_mappings:
@@ -606,14 +609,14 @@ class SeparableReport(Report):
 
 report_registry = Registry("report")
 
-class ReportConfiguration(Attributee):
+class ReportConfiguration(Attributee, Serializable):
     """A configuration for reports."""
 
     style = Nested(StyleManager)
     sort = Nested(TrackerSorter)
     index = List(Object(ObjectResolver(report_registry), subclass=Report), default=[], description="The reports to include.")
 
-def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[typing.List[str]] = None, select_experiments: typing.Optional[typing.List[str]] = None):
+def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], format: str, name: str, select_sequences: typing.Optional[typing.List[str]] = None, select_experiments: typing.Optional[typing.List[str]] = None, report: ReportConfiguration = None):
     """Generate a report for a one or multiple trackers on an experiment stack and a set
     of sequences.
 
@@ -663,12 +666,18 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
     else:
         cache = Cache(workspace.storage.substorage("cache").substorage("analysis"))
 
-    index = workspace.report.index
+    if report is None:
+        report = workspace.report
+    
+    assert isinstance(report, ReportConfiguration)
+        
+    index = report.index
+
     if len(index) == 0:
         # Default report content
         index = [StackAnalysesTable(), StackAnalysesPlots()]
         
-    with workspace.report.style:
+    with report.style:
 
         experiments = workspace.stack
         sequences = workspace.dataset
@@ -680,7 +689,6 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
             assert isinstance(select_sequences, list)
             sequences = [sequence for sequence in sequences if sequence.name in select_sequences]
 
-
         if len(experiments) == 0:
             logger.warning("No experiments selected")
 
@@ -691,18 +699,18 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
 
             with AnalysisProcessor(executor, cache) as processor:
                 
-                order = workspace.report.sort(experiments, trackers, sequences)
+                order = report.sort(experiments, trackers, sequences)
 
                 trackers = [trackers[i] for i in order]
 
                 # Query styles so that the order is consistent across all reports
                 for tracker in trackers:
-                    workspace.report.style.plot_style(tracker)
+                    report.style.plot_style(tracker)
 
                 futures = []
 
-                for report in index:
-                    futures.append(ensure_future(report.generate(experiments, trackers, sequences)))
+                for r in index:
+                    futures.append(ensure_future(r.generate(experiments, trackers, sequences)))
 
                 loop = get_event_loop()
 
@@ -748,6 +756,8 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
                         logger.debug("Saving video %s", item.identifier)
                         with storage.write(key + "_" + item.identifier + '.avi', binary=True) as out:
                             item.save(out, "avi")
+                        with storage.write(key + "_" + item.identifier + '.gif', binary=True) as out:
+                            item.save(out, "gif")
 
         metadata = {"Stack": workspace.stack.title}
 
