@@ -130,7 +130,9 @@ def generate_latex_document(trackers: List[Tracker], sequences: List[Sequence], 
     else:
         generate_symbols(doc.preamble, trackers)
 
-    doc.preamble.append(Command('title', 'VOT toolkit report'))
+    title = metadata.get("title", "VOT Toolkit Report")
+
+    doc.preamble.append(Command('title', title))
     doc.preamble.append(Command('author', 'Toolkit version ' + toolkit_version()))
     doc.preamble.append(Command('date', datetime.datetime.now().isoformat()))
     doc.append(NoEscape(r'\maketitle'))
