@@ -295,12 +295,14 @@ def do_report(config: argparse.Namespace):
         trackers = workspace.registry.resolve(*config.trackers, storage=workspace.storage.substorage("results"), skip_unknown=False)
 
     if not trackers:
-        logger.warning("No trackers resolved, stopping.")
-        return
+        logger.warning("No trackers resolved found.")
+        trackers = []
     
-    if config.report is not None:
-        report_config = ReportConfiguration.read(config.report)
+    if config.configuration is not None:
+        logger.info("Using report configuration from %s", config.configuration)
+        report_config = ReportConfiguration.read(config.configuration)
     else:
+        logger.info("No configuration file provided, using workspace default")
         report_config = None
 
     logger.debug("Running report generation for %d trackers", len(trackers))
@@ -416,11 +418,11 @@ def main():
     report_parser = subparsers.add_parser('report', aliases=["document"], help='Generate report document')
     report_parser.add_argument("trackers", nargs='*', help='Tracker identifiers')
     report_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
+    report_parser.add_argument("-c", "--configuration", default=None, help='Custom report configuration file', required=False)
     report_parser.add_argument("--format", choices=("html", "latex", "plots"), default="html", help='Analysis output format')
     report_parser.add_argument("--name", required=False, help='Document output name')
     report_parser.add_argument("--sequences", default=None, help='Filter specified sequences (comma separated names)', required=False)
     report_parser.add_argument("--experiments", default=None, help='Filter specified experiments (comma separated names)', required=False)
-    report_parser.add_argument("--report", default=None, help='Custom report configuration file', required=False)
 
     pack_parser = subparsers.add_parser('pack', help='Package results for submission')
     pack_parser.add_argument("--workspace", default=os.getcwd(), help='Workspace path')
