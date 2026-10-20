@@ -26,6 +26,23 @@ Acknowledgements
 
 The development of this package was supported by Slovenian research agency (ARRS) projects Z2-1866 and J2-316.
 
+Citation
+--------
+
+If you use the VOT toolkit in your research, please cite the following paper:
+
+```bibtex
+@article{CehovinZajc2027,
+  title     = {A unified toolkit for visual object tracking and segmentation evaluation},
+  journal   = {Neurocomputing},
+  volume    = {709},
+  year      = {2027},
+  issn      = {0925-2312},
+  doi       = {https://doi.org/10.1016/j.neucom.2026.135295},
+  author    = {Luka {Čehovin Zajc}}
+}
+```
+
 License
 -------
 
