@@ -131,12 +131,13 @@ Generate report files from analysis/evaluation data.
 
 .. code-block:: bash
 
-	vot report [--workspace <path>] [--format html|latex|plots] [--name <name>] [--sequences <ids>] [--experiments <ids>] [<tracker> ...]
+	vot report [--workspace <path>] [-c|--configuration <path>] [--format html|latex|plots] [--name <name>] [--sequences <ids>] [--experiments <ids>] [<tracker> ...]
 
 Arguments and options:
 
 * `[<tracker> ...]` - optional trackers to include,
 * `--workspace <path>` - workspace directory,
+	* `-c, --configuration <path>` - custom report configuration file. If omitted, the report configuration from the workspace `config.yaml` is used,
 * `--format html|latex|plots` - output type (default: `html`),
 * `--name <name>` - output name,
 * `--sequences <id1,id2,...>` - include only selected sequences,
@@ -164,6 +165,41 @@ Arguments and options:
 * `--workspace <path>` - workspace directory.
 
 Example:
+
+Custom report configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use `-c` or `--configuration` to load report settings from a separate YAML file. The file
+contains the report configuration directly, rather than a top-level `report` key:
+
+.. code-block:: yaml
+
+	index:
+	  - type: table
+	  - type: plots
+
+The configuration can also select additional report elements, define tracker
+ordering, or provide custom plotting style hooks. For example:
+
+.. code-block:: yaml
+
+	index:
+	  - type: vot.report.common.SequenceOverlapPlots
+	    ignore_masks: _ignore
+	sort:
+	  experiment: baseline
+	  analysis: Quality
+	  result: 0
+
+Generate the report with the custom configuration:
+
+.. code-block:: bash
+
+	vot report --workspace ./workspace --configuration ./report.yaml --format html mytracker
+
+Without `--configuration`, the CLI uses the `report` section in the workspace's
+`config.yaml`. If no report elements are configured, the default overview (analysis
+table and plots) is generated.
 
 .. code-block:: bash
 

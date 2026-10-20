@@ -47,10 +47,12 @@ you may run it with command:
 
 If your wrapper needs project-local modules, make sure they are importable from the execution environment.
 
-Step 3: Create registry file
-----------------------------
+Step 3: Create a registry file
+------------------------------
 
-Create `trackers.ini` in the workspace root (same directory where you run `vot` commands):
+Create either `trackers.ini` or `trackers.yaml` in the workspace root (the same
+directory where you run `vot` commands). When a registry path points to a
+directory, the toolkit looks for both files automatically.
 
 .. code-block:: text
 
@@ -79,6 +81,31 @@ Optional fields:
 * `env_PATH = /opt/mydeps/bin:${PATH}` - environment variables (`env_<NAME>`),
 * `arg_model = /models/model.onnx` - protocol arguments (`arg_<name>`),
 * protocol-specific options, e.g. `timeout = 60` or `convert = mask` (for folder-based conversion).
+
+YAML registry
+~~~~~~~~~~~~~
+
+The YAML format uses the tracker identifier as the top-level key. The fields are
+the same as for an INI entry:
+
+.. code-block:: yaml
+
+	mytracker:
+	  label: My Tracker
+	  protocol: trax
+	  command: python wrappers/my_tracker.py
+	  timeout: 60
+	  tags:
+	    - fast
+	    - baseline
+	  env:
+	    PYTHONPATH: /opt/mytracker
+	  arguments:
+	    model: /models/model.onnx
+
+For simple entries, `env_<NAME>` and `arg_<name>` fields can also be used in
+YAML, just as in INI files. Tracker identifiers must contain only letters,
+numbers, hyphens, and underscores.
 
 Step 4: Verify registry loading
 -------------------------------

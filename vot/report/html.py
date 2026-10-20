@@ -78,10 +78,19 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
 
     def insert_video(data: Video):
         """Insert a video into the document."""
-        name = data.identifier + ".mp4"
+        
+        if not isinstance(data, Video):
+            raise ValueError("data must be a Video object")
+        
+        if data.has_trait("gif"):
+            format = "gif"
+        else:
+            format = "mp4"
+        
+        name = data.identifier + ".{}".format(format)
 
         with storage.write(name, binary=True) as handle:
-            data.save(handle, "mp4")
+            data.save(handle, format)
 
         with video(src=name, controls=True, preload="auto", autoplay=False, loop=False, width="100%", height="100%"):
             raw("Your browser does not support the video tag.")
@@ -164,7 +173,9 @@ def generate_html_document(trackers: List[Tracker], sequences: List[Sequence], r
 
         with div(id="wrapper"):
 
-            h1("Analysis report document")
+            title = metadata.get("title", "VOT Report")
+
+            h1(title, cls="title")
 
             with ul(id="metadata"):
                 for key, value in metadata.items():

@@ -31,11 +31,46 @@ from vot.utilities import Registry, ObjectResolver
 
 Table = collections.namedtuple("Table", ["header", "data", "order"])
 
-class Plot(object):
+
+class Element(object):
+    """Base class for all report elements."""
+
+    def __init__(self, identifier: str, traits=None):
+        """Initializes the element.
+
+        :param identifier: The identifier of the element.
+        :type identifier: str
+        :param traits: The traits of the element.
+        :type traits: str, tuple, list
+        """
+        self._identifier = identifier
+        # Normalize trait to a tuple for consistent comparison
+        if traits is None:
+            self._traits = ()
+        elif isinstance(traits, (str, int)):
+            self._traits = (traits,)
+        elif isinstance(traits, (list, tuple)):
+                self._traits = tuple(traits)
+        self._traits = traits
+
+    @property
+    def identifier(self):
+        """Returns the identifier of the element."""
+        return self._identifier
+
+    def traits(self):
+        """Returns the trait of the element."""
+        return self._traits
+
+    def has_trait(self, trait):
+        """Checks if the element has the specified trait."""
+        return trait in self._traits if isinstance(self._traits, (list, tuple)) else self._traits == trait
+
+class Plot(Element):
     """Base class for all plots."""
 
     def __init__(self, identifier: str, xlabel: str, ylabel: str,
-        xlimits: typing.Tuple[float, float], ylimits: typing.Tuple[float, float], trait = None):
+        xlimits: typing.Tuple[float, float], ylimits: typing.Tuple[float, float], traits = None):
         """Initializes the plot.
 
         :param identifier: The identifier of the plot.
@@ -48,15 +83,15 @@ class Plot(object):
         :type xlimits: tuple
         :param ylimits: The limits of the y axis.
         :type ylimits: tuple
-        :param trait: The trait of the plot.
-        :type trait: str
+        :param traits: The traits of the plot.
+        :type traits: str
         """
 
-        self._identifier = identifier
+        super().__init__(identifier, traits)
 
         self._manager = StyleManager.default()
 
-        self._figure, self._axes = self._manager.make_figure(trait)
+        self._figure, self._axes = self._manager.make_figure(traits)
 
         self._axes.xaxis.set_label_text(xlabel)
         self._axes.yaxis.set_label_text(ylabel)
@@ -96,10 +131,10 @@ class Plot(object):
         """Returns the identifier of the plot."""
         return self._identifier
 
-class Video(object):
+class Video(Element):
     """Base class for all videos."""
 
-    def __init__(self, identifier: str, frames: FrameList, fps: int = 30, trait = None):
+    def __init__(self, identifier: str, frames: FrameList, fps: int = 30, traits = None):
         """Initializes the video object.
 
         :param identifier: The identifier of the video.
@@ -108,11 +143,12 @@ class Video(object):
         :type frames: FrameList
         :param fps: The frames per second of the video.
         :type fps: int
-        :param trait: The trait of the video.
-        :type trait: str
+        :param traits: The traits of the video.
+        :type traits: str
         """
 
-        self._identifier = identifier
+        super().__init__(identifier, traits)
+        
         self._frames = frames
         self._fps = fps
         self._manager = StyleManager.default()
@@ -206,8 +242,8 @@ class LinePlot(Plot):
 
 class ObjectVideo(Video):
 
-    def __init__(self, identifier: str, frames: FrameList, fps=10, trait=None):
-        super().__init__(identifier, frames, fps=fps, trait=trait)
+    def __init__(self, identifier: str, frames: FrameList, fps=10, traits=None):
+        super().__init__(identifier, frames, fps=fps, traits=traits)
         self._regions = {}
 
     def draw(self, frame, key, data):
@@ -282,12 +318,21 @@ def configure_axes(figure, rect=None, _=None):
 def configure_figure(traits=None):
     """Configures the figure of the plot."""
 
+    # Normalize traits to a list for consistent comparison
+    if traits is None:
+        traits = []
+    elif isinstance(traits, (str, int)):
+        traits = [traits]
+    elif isinstance(traits, (list, tuple)):
+        traits = [trait for trait in traits]
+
     args = {}
-    if traits == "ar":
+    
+    if ("ar" in traits):
         args["figsize"] = (5, 5)
-    elif traits == "eao":
+    elif ("eao" in traits):
         args["figsize"] = (7, 5)
-    elif traits == "attributes":
+    elif ("attributes" in traits):
         args["figsize"] = (10, 5)
 
     return Figure(**args)
@@ -612,6 +657,7 @@ report_registry = Registry("report")
 class ReportConfiguration(Attributee, Serializable):
     """A configuration for reports."""
 
+    title = String(default="VOT Report", description="The title of the report.")
     style = Nested(StyleManager)
     sort = Nested(TrackerSorter)
     index = List(Object(ObjectResolver(report_registry), subclass=Report), default=[], description="The reports to include.")
@@ -731,6 +777,11 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
                 reports = dict()
 
                 for future in futures:
+                    if future.exception() is not None:
+                        # Print stack trace of the exception to the logger
+                        logger.error("Error while generating report: %s", future.exception())
+                        logger.error("Stack trace:", exc_info=future.exception())
+                        raise RuntimeError("Error while generating report: %s" % future.exception())
                     merge_tree(future.result(), reports)
 
         finally:
@@ -759,7 +810,7 @@ def generate_document(workspace: "Workspace", trackers: typing.List[Tracker], fo
                         with storage.write(key + "_" + item.identifier + '.gif', binary=True) as out:
                             item.save(out, "gif")
 
-        metadata = {"Stack": workspace.stack.title}
+        metadata = {"stack": workspace.stack.title, "title": report.title, "timestamp": datetime.datetime.now().isoformat(), "toolkit": version}
 
         # Prune empty sections
         reports = {key: section for key, section in reports.items() if len(section) > 0}
